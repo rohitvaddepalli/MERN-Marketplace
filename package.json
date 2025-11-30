@@ -1,0 +1,23 @@
+{
+    "name": "marketplace",
+    "version": "1.0.0",
+    "description": "Full MERN Stack Marketplace Application",
+    "main": "server.js",
+    "scripts": {
+        "server": "cd backend && npm run dev",
+        "client": "cd frontend && npm start",
+        "dev": "concurrently \"npm run server\" \"npm run client\"",
+        "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install"
+    },
+    "keywords": [
+        "marketplace",
+        "mern",
+        "react",
+        "mongodb"
+    ],
+    "author": "",
+    "license": "ISC",
+    "devDependencies": {
+        "concurrently": "^8.2.2"
+    }
+}

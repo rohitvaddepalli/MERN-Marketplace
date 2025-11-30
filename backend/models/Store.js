@@ -1,0 +1,61 @@
+import mongoose from 'mongoose';
+
+const storeSchema = new mongoose.Schema({
+    name: {
+        type: String,
+        required: [true, 'Please provide store name'],
+        trim: true
+    },
+    description: {
+        type: String,
+        required: [true, 'Please provide store description']
+    },
+    owner: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    logo: {
+        type: String,
+        default: 'https://via.placeholder.com/150'
+    },
+    banner: {
+        type: String,
+        default: 'https://via.placeholder.com/1200x300'
+    },
+    category: {
+        type: String,
+        required: [true, 'Please select a category']
+    },
+    address: {
+        street: String,
+        city: String,
+        state: String,
+        zipCode: String,
+        country: String
+    },
+    contact: {
+        email: String,
+        phone: String
+    },
+    rating: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 5
+    },
+    reviewCount: {
+        type: Number,
+        default: 0
+    },
+    isActive: {
+        type: Boolean,
+        default: true
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now
+    }
+});
+
+export default mongoose.model('Store', storeSchema);
