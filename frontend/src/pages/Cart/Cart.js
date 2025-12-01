@@ -55,10 +55,10 @@ const Cart = () => {
                         {cartItems.map((item) => (
                             <div key={item._id} className="cart-item">
                                 <img
-                                    src={item.images?.[0] || 'https://via.placeholder.com/100'}
+                                    src={item.images?.[0] || 'https://placehold.co/100'}
                                     alt={item.name}
                                     className="cart-item-image"
-                                    onError={(e) => e.target.src = 'https://via.placeholder.com/100'}
+                                    onError={(e) => e.target.src = 'https://placehold.co/100'}
                                 />
                                 <div className="cart-item-details">
                                     <h3>{item.name}</h3>

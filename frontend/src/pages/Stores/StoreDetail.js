@@ -51,11 +51,11 @@ const StoreDetail = () => {
     return (
         <div className="page-container">
             <div className="store-banner" style={{ height: '250px', marginBottom: 'var(--spacing-xl)' }}>
-                <img src={store.banner} alt={store.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => e.target.src = 'https://via.placeholder.com/1200x250'} />
+                <img src={store.banner} alt={store.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => e.target.src = 'https://placehold.co/1200x250'} />
             </div>
             <div className="container">
                 <div style={{ textAlign: 'center', marginBottom: 'var(--spacing-2xl)', marginTop: '-80px' }}>
-                    <img src={store.logo} alt={store.name} style={{ width: '120px', height: '120px', borderRadius: '50%', border: '5px solid white', boxShadow: 'var(--shadow-md)', marginBottom: 'var(--spacing-md)' }} onError={(e) => e.target.src = 'https://via.placeholder.com/120'} />
+                    <img src={store.logo} alt={store.name} style={{ width: '120px', height: '120px', borderRadius: '50%', border: '5px solid white', boxShadow: 'var(--shadow-md)', marginBottom: 'var(--spacing-md)' }} onError={(e) => e.target.src = 'https://placehold.co/120'} />
                     <h1>{store.name}</h1>
                     <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--spacing-md)' }}>{store.description}</p>
                     <span className="badge badge-info">{store.category}</span>
@@ -66,7 +66,7 @@ const StoreDetail = () => {
                     {products.map((product) => (
                         <Link to={`/products/${product._id}`} key={product._id} className="product-card">
                             <div className="product-image">
-                                <img src={product.images?.[0] || 'https://via.placeholder.com/300'} alt={product.name} onError={(e) => e.target.src = 'https://via.placeholder.com/300'} />
+                                <img src={product.images?.[0] || 'https://placehold.co/300'} alt={product.name} onError={(e) => e.target.src = 'https://placehold.co/300'} />
                             </div>
                             <div className="product-info">
                                 <h3 className="product-name">{product.name}</h3>

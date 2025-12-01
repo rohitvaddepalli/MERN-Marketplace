@@ -20,6 +20,7 @@ import Checkout from './pages/Checkout/Checkout';
 // Customer Pages
 import CustomerDashboard from './pages/Customer/Dashboard';
 import CustomerOrders from './pages/Customer/Orders';
+import CustomerSettings from './pages/Customer/Settings';
 
 // Seller Pages
 import SellerDashboard from './pages/Seller/Dashboard';
@@ -107,6 +108,14 @@ function App() {
                 element={
                   <ProtectedRoute requireRole="customer">
                     <CustomerOrders />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/customer/settings"
+                element={
+                  <ProtectedRoute requireRole="customer">
+                    <CustomerSettings />
                   </ProtectedRoute>
                 }
               />

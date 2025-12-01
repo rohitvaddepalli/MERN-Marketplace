@@ -71,10 +71,10 @@ const CustomerOrders = () => {
                                         {order.items?.map((item, index) => (
                                             <div key={index} style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'center' }}>
                                                 <img
-                                                    src={item.image || 'https://via.placeholder.com/80'}
+                                                    src={item.image || 'https://placehold.co/80'}
                                                     alt={item.name}
                                                     style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: 'var(--border-radius)' }}
-                                                    onError={(e) => e.target.src = 'https://via.placeholder.com/80'}
+                                                    onError={(e) => e.target.src = 'https://placehold.co/80'}
                                                 />
                                                 <div style={{ flex: 1 }}>
                                                     <h4 style={{ margin: 0, marginBottom: '4px' }}>{item.name}</h4>

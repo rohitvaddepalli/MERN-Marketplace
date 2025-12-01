@@ -48,7 +48,7 @@ const ProductDetail = () => {
                 // Store only essential product info for after login
                 // Avoid storing large image data if it's base64
                 const images = product.images?.map(img =>
-                    img.length > 1000 ? 'https://via.placeholder.com/150' : img
+                    img.length > 1000 ? 'https://placehold.co/150' : img
                 ) || [];
 
                 const productData = {
@@ -107,10 +107,10 @@ const ProductDetail = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-2xl)', marginTop: 'var(--spacing-xl)' }}>
                     <div>
                         <img
-                            src={product.images?.[0] || 'https://via.placeholder.com/600'}
+                            src={product.images?.[0] || 'https://placehold.co/600'}
                             alt={product.name}
                             style={{ width: '100%', borderRadius: 'var(--border-radius-lg)' }}
-                            onError={(e) => e.target.src = 'https://via.placeholder.com/600'}
+                            onError={(e) => e.target.src = 'https://placehold.co/600'}
                         />
                     </div>
                     <div>

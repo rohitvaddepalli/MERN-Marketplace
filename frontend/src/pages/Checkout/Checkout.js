@@ -13,11 +13,11 @@ const Checkout = () => {
     const [settings, setSettings] = useState({ taxRate: 8, shippingFee: 10 });
     const [formData, setFormData] = useState({
         name: user?.name || '',
-        street: '',
-        city: '',
-        state: '',
-        zipCode: '',
-        country: '',
+        street: user?.address?.street || '',
+        city: user?.address?.city || '',
+        state: user?.address?.state || '',
+        zipCode: user?.address?.zipCode || '',
+        country: user?.address?.country || '',
         phone: user?.phone || '',
         paymentMethod: 'card'
     });
@@ -25,6 +25,21 @@ const Checkout = () => {
     useEffect(() => {
         fetchSettings();
     }, []);
+
+    useEffect(() => {
+        if (user) {
+            setFormData(prev => ({
+                ...prev,
+                name: user.name || prev.name,
+                street: user.address?.street || prev.street,
+                city: user.address?.city || prev.city,
+                state: user.address?.state || prev.state,
+                zipCode: user.address?.zipCode || prev.zipCode,
+                country: user.address?.country || prev.country,
+                phone: user.phone || prev.phone
+            }));
+        }
+    }, [user]);
 
     useEffect(() => {
         // Check if user came from "Buy Now" button
@@ -291,7 +306,7 @@ const Checkout = () => {
                         <div className="summary-items">
                             {cartItems.map((item) => (
                                 <div key={item._id} className="summary-item">
-                                    <img src={item.images?.[0] || 'https://via.placeholder.com/60'} alt={item.name} onError={(e) => e.target.src = 'https://via.placeholder.com/60'} />
+                                    <img src={item.images?.[0] || 'https://placehold.co/60'} alt={item.name} onError={(e) => e.target.src = 'https://placehold.co/60'} />
                                     <div className="summary-item-details">
                                         <h4>{item.name}</h4>
                                         <span>Qty: {item.quantity}</span>

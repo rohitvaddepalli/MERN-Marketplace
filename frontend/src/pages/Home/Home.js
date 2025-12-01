@@ -104,9 +104,9 @@ const Home = () => {
                                 <Link to={`/products/${product._id}`} key={product._id} className="product-card">
                                     <div className="product-image">
                                         <img
-                                            src={product.images?.[0] || 'https://via.placeholder.com/300'}
+                                            src={product.images?.[0] || 'https://placehold.co/300'}
                                             alt={product.name}
-                                            onError={(e) => e.target.src = 'https://via.placeholder.com/300'}
+                                            onError={(e) => e.target.src = 'https://placehold.co/300'}
                                         />
                                         {product.compareAtPrice && (
                                             <div className="product-badge">
@@ -156,10 +156,10 @@ const Home = () => {
                         {featuredStores.map((store) => (
                             <Link to={`/stores/${store._id}`} key={store._id} className="store-card">
                                 <div className="store-banner">
-                                    <img src={store.banner} alt={store.name} onError={(e) => e.target.src = 'https://via.placeholder.com/400x150'} />
+                                    <img src={store.banner} alt={store.name} onError={(e) => e.target.src = 'https://placehold.co/400x150'} />
                                 </div>
                                 <div className="store-content">
-                                    <img src={store.logo} alt={store.name} className="store-logo" onError={(e) => e.target.src = 'https://via.placeholder.com/80'} />
+                                    <img src={store.logo} alt={store.name} className="store-logo" onError={(e) => e.target.src = 'https://placehold.co/80'} />
                                     <h3>{store.name}</h3>
                                     <p className="store-category">{store.category}</p>
                                     <div className="store-stats">

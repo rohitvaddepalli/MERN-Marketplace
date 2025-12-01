@@ -43,7 +43,9 @@ export const register = async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
-                avatar: user.avatar
+                avatar: user.avatar,
+                phone: user.phone,
+                address: user.address
             }
         });
     } catch (error) {
@@ -97,7 +99,9 @@ export const login = async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
-                avatar: user.avatar
+                avatar: user.avatar,
+                phone: user.phone,
+                address: user.address
             }
         });
     } catch (error) {

@@ -57,7 +57,7 @@ const Products = () => {
 
                 // Avoid storing large image data
                 const images = product.images?.map(img =>
-                    img.length > 1000 ? 'https://via.placeholder.com/150' : img
+                    img.length > 1000 ? 'https://placehold.co/150' : img
                 ) || [];
 
                 const productData = {
@@ -162,9 +162,9 @@ const Products = () => {
                                     <Link to={`/products/${product._id}`} key={product._id} className="product-card">
                                         <div className="product-image">
                                             <img
-                                                src={product.images?.[0] || 'https://via.placeholder.com/300'}
+                                                src={product.images?.[0] || 'https://placehold.co/300'}
                                                 alt={product.name}
-                                                onError={(e) => e.target.src = 'https://via.placeholder.com/300'}
+                                                onError={(e) => e.target.src = 'https://placehold.co/300'}
                                             />
                                             {product.compareAtPrice && (
                                                 <div className="product-badge">Sale</div>
