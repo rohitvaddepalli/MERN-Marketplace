@@ -49,13 +49,30 @@ const StoreDetail = () => {
     }
 
     return (
-        <div className="page-container">
-            <div className="store-banner" style={{ height: '250px', marginBottom: 'var(--spacing-xl)' }}>
-                <img src={store.banner} alt={store.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => e.target.src = 'https://placehold.co/1200x250'} />
+        <div className="page-container" style={{ paddingTop: 0 }}>
+            <div className="store-banner" style={{ height: '300px', marginBottom: '0', borderRadius: '0', position: 'relative', zIndex: 1 }}>
+                <img src={store.banner} alt={store.name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '0' }} onError={(e) => e.target.src = 'https://placehold.co/1200x300'} />
             </div>
-            <div className="container">
-                <div style={{ textAlign: 'center', marginBottom: 'var(--spacing-2xl)', marginTop: '-80px' }}>
-                    <img src={store.logo} alt={store.name} style={{ width: '120px', height: '120px', borderRadius: '50%', border: '5px solid white', boxShadow: 'var(--shadow-md)', marginBottom: 'var(--spacing-md)' }} onError={(e) => e.target.src = 'https://placehold.co/120'} />
+            <div className="container" style={{ position: 'relative', zIndex: 10 }}>
+                <div style={{ textAlign: 'center', marginBottom: 'var(--spacing-2xl)', marginTop: '-120px', position: 'relative', zIndex: 10 }}>
+                    <img
+                        src={store.logo}
+                        alt={store.name}
+                        style={{
+                            width: '200px',
+                            height: '200px',
+                            borderRadius: '50%',
+                            border: '8px solid white',
+                            boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+                            backgroundColor: 'white',
+                            objectFit: 'cover',
+                            display: 'block',
+                            margin: '0 auto var(--spacing-md) auto',
+                            position: 'relative',
+                            zIndex: 10
+                        }}
+                        onError={(e) => e.target.src = 'https://placehold.co/200'}
+                    />
                     <h1>{store.name}</h1>
                     <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--spacing-md)' }}>{store.description}</p>
                     <span className="badge badge-info">{store.category}</span>
