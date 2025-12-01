@@ -16,6 +16,10 @@ import Stores from './pages/Stores/Stores';
 import StoreDetail from './pages/Stores/StoreDetail';
 import Cart from './pages/Cart/Cart';
 import Checkout from './pages/Checkout/Checkout';
+import About from './pages/About/About';
+import Contact from './pages/Contact/Contact';
+import Help from './pages/Help/Help';
+import Terms from './pages/Terms/Terms';
 
 // Customer Pages
 import CustomerDashboard from './pages/Customer/Dashboard';
@@ -77,6 +81,10 @@ function App() {
               <Route path="/products/:id" element={<ProductDetail />} />
               <Route path="/stores" element={<Stores />} />
               <Route path="/stores/:id" element={<StoreDetail />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/help" element={<Help />} />
+              <Route path="/terms" element={<Terms />} />
 
               {/* Customer Routes */}
               <Route
