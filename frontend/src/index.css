@@ -264,9 +264,12 @@ select {
   text-decoration: none;
   position: relative;
   overflow: hidden;
+  transition: none;
 }
 
-
+.btn:hover {
+  color: inherit;
+}
 
 .btn-primary {
   background: var(--primary-color);
@@ -274,18 +277,10 @@ select {
   box-shadow: var(--shadow-sm);
 }
 
-.btn-primary:hover {
-  background: var(--primary-dark);
-}
-
 .btn-secondary {
   background: var(--secondary-color);
   color: var(--text-white);
   box-shadow: var(--shadow-sm);
-}
-
-.btn-secondary:hover {
-  background: var(--secondary-dark);
 }
 
 .btn-outline {
@@ -295,19 +290,10 @@ select {
   box-shadow: none;
 }
 
-.btn-outline:hover {
-  background: var(--primary-color);
-  color: var(--text-white);
-}
-
 .btn-ghost {
   background: transparent;
   color: var(--text-primary);
   box-shadow: none;
-}
-
-.btn-ghost:hover {
-  background: var(--gray-lighter);
 }
 
 .btn-sm {

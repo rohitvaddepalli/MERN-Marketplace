@@ -175,11 +175,98 @@ export const forgotPassword = async (req, res) => {
             });
         }
 
-        // For demo purposes, just return success
-        // In production, you would send an email with reset link
+        // Get reset token
+        const resetToken = user.getResetPasswordToken();
+
+        await user.save({ validateBeforeSave: false });
+
+        // Create reset url
+        const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password/${resetToken}`;
+
+        const message = `
+            <h1>Password Reset Request</h1>
+            <p>You requested a password reset for your Marketplace account.</p>
+            <p>Please click the link below to reset your password:</p>
+            <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background-color: #FF6B35; color: white; text-decoration: none; border-radius: 8px; margin: 16px 0;">Reset Password</a>
+            <p>Or copy and paste this URL into your browser:</p>
+            <p>${resetUrl}</p>
+            <p>This link will expire in 10 minutes.</p>
+            <p>If you didn't request this, please ignore this email.</p>
+            <hr>
+            <p style="color: #666; font-size: 12px;">Marketplace Team</p>
+        `;
+
+        try {
+            // Dynamically import sendEmail
+            const { default: sendEmail } = await import('../utils/sendEmail.js');
+
+            await sendEmail({
+                email: user.email,
+                subject: 'Password Reset Request - Marketplace',
+                message
+            });
+
+            res.status(200).json({
+                success: true,
+                message: 'Password reset link sent to your email'
+            });
+        } catch (err) {
+            console.error('Email error:', err);
+            user.resetPasswordToken = undefined;
+            user.resetPasswordExpire = undefined;
+
+            await user.save({ validateBeforeSave: false });
+
+            return res.status(500).json({
+                success: false,
+                message: 'Email could not be sent. Please try again later.'
+            });
+        }
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+// @desc    Reset password
+// @route   PUT /api/auth/resetpassword/:resettoken
+// @access  Public
+export const resetPassword = async (req, res) => {
+    try {
+        const crypto = await import('crypto');
+
+        // Get hashed token
+        const resetPasswordToken = crypto.default
+            .createHash('sha256')
+            .update(req.params.resettoken)
+            .digest('hex');
+
+        const user = await User.findOne({
+            resetPasswordToken,
+            resetPasswordExpire: { $gt: Date.now() }
+        });
+
+        if (!user) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid or expired reset token'
+            });
+        }
+
+        // Set new password
+        user.password = req.body.password;
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpire = undefined;
+        await user.save();
+
+        const token = generateToken(user._id);
+
         res.status(200).json({
             success: true,
-            message: 'Password reset link sent to your email'
+            token,
+            message: 'Password reset successful'
         });
     } catch (error) {
         res.status(500).json({
