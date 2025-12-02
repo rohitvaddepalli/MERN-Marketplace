@@ -26,6 +26,10 @@ const productSchema = new mongoose.Schema({
     subcategory: {
         type: String
     },
+    brand: {
+        type: String,
+        trim: true
+    },
     images: [{
         type: String
     }],
@@ -73,6 +77,10 @@ const productSchema = new mongoose.Schema({
         type: Number,
         default: 10
     },
+    bulkDiscounts: [{
+        quantity: { type: Number, required: true },
+        discountPercentage: { type: Number, required: true }
+    }],
     isActive: {
         type: Boolean,
         default: true

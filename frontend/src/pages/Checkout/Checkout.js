@@ -6,7 +6,7 @@ import { orderAPI, settingsAPI } from '../../services/api';
 import './Checkout.css';
 
 const Checkout = () => {
-    const { cartItems, getCartTotal, clearCart, addToCart } = useCart();
+    const { cartItems, getCartTotal, clearCart, addToCart, calculateItemPrice } = useCart();
     const { user } = useAuth();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
@@ -87,7 +87,7 @@ const Checkout = () => {
                 items: cartItems.map(item => ({
                     product: item._id,
                     name: item.name,
-                    price: item.price,
+                    price: calculateItemPrice(item), // Use discounted price
                     quantity: item.quantity,
                     image: item.images?.[0],
                     store: item.store?._id
@@ -310,8 +310,13 @@ const Checkout = () => {
                                     <div className="summary-item-details">
                                         <h4>{item.name}</h4>
                                         <span>Qty: {item.quantity}</span>
+                                        {calculateItemPrice(item) < item.price && (
+                                            <span style={{ fontSize: '0.8rem', color: '#059669', display: 'block' }}>
+                                                Bulk Discount Applied
+                                            </span>
+                                        )}
                                     </div>
-                                    <span className="summary-item-price">₹{(item.price * item.quantity).toFixed(2)}</span>
+                                    <span className="summary-item-price">₹{(calculateItemPrice(item) * item.quantity).toFixed(2)}</span>
                                 </div>
                             ))}
                         </div>

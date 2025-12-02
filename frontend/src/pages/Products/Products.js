@@ -11,7 +11,10 @@ const Products = () => {
     const [filters, setFilters] = useState({
         category: '',
         search: '',
-        sort: '-createdAt'
+        sort: '-createdAt',
+        brand: '',
+        color: '',
+        size: ''
     });
 
     const navigate = useNavigate();
@@ -137,6 +140,39 @@ const Products = () => {
                                 <option value="Books">Books</option>
                                 <option value="Toys">Toys</option>
                             </select>
+                        </div>
+
+                        <div className="filter-section">
+                            <h3>Brand</h3>
+                            <input
+                                type="text"
+                                className="form-input"
+                                placeholder="Filter by Brand"
+                                value={filters.brand}
+                                onChange={(e) => handleFilterChange('brand', e.target.value)}
+                            />
+                        </div>
+
+                        <div className="filter-section">
+                            <h3>Color</h3>
+                            <input
+                                type="text"
+                                className="form-input"
+                                placeholder="Filter by Color"
+                                value={filters.color}
+                                onChange={(e) => handleFilterChange('color', e.target.value)}
+                            />
+                        </div>
+
+                        <div className="filter-section">
+                            <h3>Size</h3>
+                            <input
+                                type="text"
+                                className="form-input"
+                                placeholder="Filter by Size"
+                                value={filters.size}
+                                onChange={(e) => handleFilterChange('size', e.target.value)}
+                            />
                         </div>
                     </aside>
 

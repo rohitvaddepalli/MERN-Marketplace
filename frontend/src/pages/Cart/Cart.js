@@ -5,7 +5,7 @@ import { settingsAPI } from '../../services/api';
 import './Cart.css';
 
 const Cart = () => {
-    const { cartItems, updateQuantity, removeFromCart, getCartTotal, getCartCount } = useCart();
+    const { cartItems, updateQuantity, removeFromCart, getCartTotal, getCartCount, calculateItemPrice } = useCart();
     const navigate = useNavigate();
     const [settings, setSettings] = useState({ taxRate: 8, shippingFee: 10 });
 
@@ -63,7 +63,23 @@ const Cart = () => {
                                 <div className="cart-item-details">
                                     <h3>{item.name}</h3>
                                     <p className="cart-item-store">{item.store?.name}</p>
-                                    <span className="cart-item-price">₹{item.price}</span>
+                                    <div className="cart-item-price-container">
+                                        {calculateItemPrice(item) < item.price ? (
+                                            <>
+                                                <span className="cart-item-price original" style={{ textDecoration: 'line-through', color: '#9ca3af', fontSize: '0.9rem', marginRight: '8px' }}>
+                                                    ₹{item.price}
+                                                </span>
+                                                <span className="cart-item-price discounted" style={{ color: '#dc2626', fontWeight: 'bold' }}>
+                                                    ₹{calculateItemPrice(item).toFixed(2)}
+                                                </span>
+                                                <div style={{ fontSize: '0.8rem', color: '#059669', marginTop: '4px' }}>
+                                                    Bulk Discount Applied!
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <span className="cart-item-price">₹{item.price}</span>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="cart-item-quantity">
                                     <button
@@ -82,7 +98,7 @@ const Cart = () => {
                                     </button>
                                 </div>
                                 <div className="cart-item-total">
-                                    ₹{(item.price * item.quantity).toFixed(2)}
+                                    ₹{(calculateItemPrice(item) * item.quantity).toFixed(2)}
                                 </div>
                                 <button
                                     onClick={() => removeFromCart(item._id)}

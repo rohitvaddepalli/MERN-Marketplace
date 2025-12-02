@@ -98,8 +98,21 @@ export const CartProvider = ({ children }) => {
         setCartItems([]);
     };
 
+    const calculateItemPrice = (item) => {
+        let price = item.price;
+        if (item.bulkDiscounts && item.bulkDiscounts.length > 0) {
+            const sortedDiscounts = [...item.bulkDiscounts].sort((a, b) => b.quantity - a.quantity);
+            const applicableDiscount = sortedDiscounts.find(d => item.quantity >= d.quantity);
+
+            if (applicableDiscount) {
+                price = price * (1 - applicableDiscount.discountPercentage / 100);
+            }
+        }
+        return price;
+    };
+
     const getCartTotal = () => {
-        return cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
+        return cartItems.reduce((total, item) => total + calculateItemPrice(item) * item.quantity, 0);
     };
 
     const getCartCount = () => {
@@ -113,7 +126,8 @@ export const CartProvider = ({ children }) => {
         updateQuantity,
         clearCart,
         getCartTotal,
-        getCartCount
+        getCartCount,
+        calculateItemPrice
     };
 
     return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

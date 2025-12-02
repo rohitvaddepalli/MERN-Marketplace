@@ -67,7 +67,19 @@ export const productAPI = {
     getFeaturedProducts: () => api.get('/products/featured'),
     getLowStockProducts: () => api.get('/products/low-stock'),
     bulkImportProducts: (data) => api.post('/products/bulk-import', data),
-    exportProducts: () => api.get('/products/export')
+    exportProducts: () => api.get('/products/export'),
+    // Reviews
+    createReview: (id, data) => api.post(`/products/${id}/reviews`, data),
+    getReviews: (id) => api.get(`/products/${id}/reviews`)
+};
+
+// User API
+export const userAPI = {
+    getWishlist: () => api.get('/users/wishlist'),
+    addToWishlist: (productId) => api.post(`/users/wishlist/${productId}`),
+    removeFromWishlist: (productId) => api.delete(`/users/wishlist/${productId}`),
+    getRecentlyViewed: () => api.get('/users/recently-viewed'),
+    addToRecentlyViewed: (productId) => api.post(`/users/recently-viewed/${productId}`)
 };
 
 // Analytics API

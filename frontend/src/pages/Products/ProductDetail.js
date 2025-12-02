@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { productAPI } from '../../services/api';
+import { productAPI, userAPI } from '../../services/api';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
+import ProductReviews from '../../components/Products/ProductReviews';
+import RecentlyViewed from '../../components/Products/RecentlyViewed';
 
 const ProductDetail = () => {
     const { id } = useParams();
@@ -15,7 +17,10 @@ const ProductDetail = () => {
 
     useEffect(() => {
         fetchProduct();
-    }, [id]);
+        if (isAuthenticated && id) {
+            userAPI.addToRecentlyViewed(id).catch(err => console.error('Error adding to recently viewed:', err));
+        }
+    }, [id, isAuthenticated]);
 
     const fetchProduct = async () => {
         try {
@@ -39,14 +44,23 @@ const ProductDetail = () => {
         }
     };
 
+    const handleAddToWishlist = async () => {
+        if (!isAuthenticated) {
+            navigate('/login');
+            return;
+        }
+        try {
+            await userAPI.addToWishlist(product._id);
+            alert('Added to wishlist!');
+        } catch (error) {
+            alert(error.response?.data?.message || 'Error adding to wishlist');
+        }
+    };
+
     const handleBuyNow = () => {
         if (!isAuthenticated) {
             try {
-                // Clear any old data first to free up space
                 sessionStorage.removeItem('buyNowProduct');
-
-                // Store only essential product info for after login
-                // Avoid storing large image data if it's base64
                 const images = product.images?.map(img =>
                     img.length > 1000 ? 'https://placehold.co/150' : img
                 ) || [];
@@ -59,7 +73,7 @@ const ProductDetail = () => {
                         images: images,
                         store: product.store?._id ? { _id: product.store._id, name: product.store.name } : null,
                         stock: product.stock,
-                        description: product.description ? product.description.substring(0, 100) : '' // Truncate description
+                        description: product.description ? product.description.substring(0, 100) : ''
                     },
                     quantity: quantity
                 };
@@ -69,7 +83,6 @@ const ProductDetail = () => {
                 navigate('/login');
             } catch (error) {
                 console.error('Storage error:', error);
-                // Fallback: just redirect to login without product data
                 navigate('/login');
             }
             return;
@@ -118,42 +131,81 @@ const ProductDetail = () => {
                         <Link to={`/stores/${product.store?._id}`} style={{ display: 'block', marginBottom: 'var(--spacing-lg)', color: 'var(--primary-color)' }}>
                             {product.store?.name}
                         </Link>
-                        <div style={{ fontSize: '2rem', fontWeight: '700', color: 'var(--primary-color)', marginBottom: 'var(--spacing-lg)' }}>
-                            ₹{product.price}
-                            {product.compareAtPrice && (
-                                <span style={{ fontSize: '1.25rem', color: 'var(--text-light)', marginLeft: 'var(--spacing-md)', textDecoration: 'line-through' }}>
-                                    ₹{product.compareAtPrice}
-                                </span>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-lg)' }}>
+                            <div style={{ fontSize: '2rem', fontWeight: '700', color: 'var(--primary-color)' }}>
+                                ₹{product.price}
+                                {product.compareAtPrice && (
+                                    <span style={{ fontSize: '1.25rem', color: 'var(--text-light)', marginLeft: 'var(--spacing-md)', textDecoration: 'line-through' }}>
+                                        ₹{product.compareAtPrice}
+                                    </span>
+                                )}
+                            </div>
+                            {product.rating > 0 && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#fef3c7', padding: '4px 8px', borderRadius: '4px' }}>
+                                    <span style={{ color: '#d97706', fontWeight: 'bold' }}>★ {product.rating.toFixed(1)}</span>
+                                    <span style={{ color: '#92400e', fontSize: '0.9rem' }}>({product.reviewCount} reviews)</span>
+                                </div>
                             )}
                         </div>
+
                         <p style={{ marginBottom: 'var(--spacing-lg)', lineHeight: '1.8' }}>{product.description}</p>
+
+                        {/* Bulk Discounts */}
+                        {product.bulkDiscounts && product.bulkDiscounts.length > 0 && (
+                            <div style={{ marginBottom: 'var(--spacing-lg)', padding: 'var(--spacing-md)', backgroundColor: '#ecfdf5', borderRadius: 'var(--border-radius-md)', border: '1px solid #a7f3d0' }}>
+                                <h4 style={{ margin: '0 0 var(--spacing-sm)', color: '#047857' }}>Bulk Discounts Available!</h4>
+                                <ul style={{ margin: 0, paddingLeft: '20px', color: '#065f46' }}>
+                                    {product.bulkDiscounts.map((discount, index) => (
+                                        <li key={index}>Buy {discount.quantity}+ items to get {discount.discountPercentage}% off</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
                         <div style={{ marginBottom: 'var(--spacing-lg)' }}>
                             <span className="badge badge-info">In Stock: {product.stock}</span>
+                            {product.brand && <span className="badge badge-secondary" style={{ marginLeft: 'var(--spacing-sm)' }}>Brand: {product.brand}</span>}
                         </div>
+
                         {!isSeller && !isAdmin && product.stock > 0 && (
-                            <div style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'center' }}>
-                                <div className="form-group" style={{ marginBottom: 0 }}>
-                                    <label className="form-label">Quantity</label>
-                                    <input
-                                        type="number"
-                                        className="form-input"
-                                        min="1"
-                                        max={product.stock}
-                                        value={quantity}
-                                        onChange={(e) => setQuantity(Math.max(1, Math.min(product.stock, parseInt(e.target.value) || 1)))}
-                                        style={{ width: '100px' }}
-                                    />
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                                <div style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'center' }}>
+                                    <div className="form-group" style={{ marginBottom: 0 }}>
+                                        <label className="form-label">Quantity</label>
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            min="1"
+                                            max={product.stock}
+                                            value={quantity}
+                                            onChange={(e) => setQuantity(Math.max(1, Math.min(product.stock, parseInt(e.target.value) || 1)))}
+                                            style={{ width: '100px' }}
+                                        />
+                                    </div>
+                                    <button onClick={handleAddToCart} className="btn btn-outline btn-lg" style={{ marginTop: 'auto' }}>
+                                        Add to Cart
+                                    </button>
+                                    <button onClick={handleBuyNow} className="btn btn-primary btn-lg" style={{ marginTop: 'auto' }}>
+                                        Buy Now
+                                    </button>
+                                    <button
+                                        onClick={handleAddToWishlist}
+                                        className="btn btn-outline"
+                                        style={{ marginTop: 'auto', padding: '10px' }}
+                                        title="Add to Wishlist"
+                                    >
+                                        ♥
+                                    </button>
                                 </div>
-                                <button onClick={handleAddToCart} className="btn btn-outline btn-lg" style={{ marginTop: 'auto' }}>
-                                    Add to Cart
-                                </button>
-                                <button onClick={handleBuyNow} className="btn btn-primary btn-lg" style={{ marginTop: 'auto' }}>
-                                    Buy Now
-                                </button>
                             </div>
                         )}
                     </div>
                 </div>
+
+                <ProductReviews productId={product._id} />
+
+                <RecentlyViewed />
             </div>
         </div>
     );

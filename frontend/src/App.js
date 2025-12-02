@@ -27,6 +27,7 @@ import Terms from './pages/Terms/Terms';
 import CustomerDashboard from './pages/Customer/Dashboard';
 import CustomerOrders from './pages/Customer/Orders';
 import CustomerSettings from './pages/Customer/Settings';
+import Wishlist from './pages/Customer/Wishlist';
 
 // Seller Pages
 import SellerDashboard from './pages/Seller/Dashboard';
@@ -130,6 +131,14 @@ function App() {
                 element={
                   <ProtectedRoute requireRole="customer">
                     <CustomerSettings />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/wishlist"
+                element={
+                  <ProtectedRoute requireRole="customer">
+                    <Wishlist />
                   </ProtectedRoute>
                 }
               />

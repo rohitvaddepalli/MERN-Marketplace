@@ -39,12 +39,13 @@ export const createProduct = async (req, res) => {
 // @access  Public
 export const getProducts = async (req, res) => {
     try {
-        const { category, subcategory, minPrice, maxPrice, search, store, sort } = req.query;
+        const { category, subcategory, minPrice, maxPrice, search, store, sort, brand, color, size } = req.query;
         const query = { isActive: true };
 
         if (category) query.category = category;
         if (subcategory) query.subcategory = subcategory;
         if (store) query.store = store;
+        if (brand) query.brand = brand;
 
         if (minPrice || maxPrice) {
             query.price = {};
@@ -52,10 +53,25 @@ export const getProducts = async (req, res) => {
             if (maxPrice) query.price.$lte = Number(maxPrice);
         }
 
+        if (color) {
+            query.$or = [
+                { 'variants': { $elemMatch: { name: 'Color', options: { $in: [new RegExp(color, 'i')] } } } },
+                { 'specifications.Color': { $regex: color, $options: 'i' } }
+            ];
+        }
+
+        if (size) {
+            query.$or = [
+                { 'variants': { $elemMatch: { name: 'Size', options: { $in: [new RegExp(size, 'i')] } } } },
+                { 'specifications.Size': { $regex: size, $options: 'i' } }
+            ];
+        }
+
         if (search) {
             query.$or = [
                 { name: { $regex: search, $options: 'i' } },
-                { description: { $regex: search, $options: 'i' } }
+                { description: { $regex: search, $options: 'i' } },
+                { brand: { $regex: search, $options: 'i' } }
             ];
         }
 
@@ -236,7 +252,7 @@ export const getLowStockProducts = async (req, res) => {
     try {
         const products = await Product.find({
             seller: req.user._id,
-            $expr: { $lte: ['$stock', '$lowStockThreshold'] }
+            $expr: { $lte: ['$stock', { $ifNull: ['$lowStockThreshold', 10] }] }
         })
             .populate('store', 'name')
             .sort('stock');

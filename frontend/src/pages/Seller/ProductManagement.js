@@ -310,7 +310,7 @@ const ProductManagement = () => {
                                     </p>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--spacing-md)' }}>
                                         <span style={{ fontWeight: '700', fontSize: '1.25rem', color: 'var(--primary-color)' }}>₹{product.price}</span>
-                                        <span className="badge badge-info">Stock: {product.stock}</span>
+                                        <span className={`badge badge-${product.stock === 0 ? 'danger' : product.stock <= (product.lowStockThreshold || 10) ? 'warning' : 'info'}`}>Stock: {product.stock}</span>
                                     </div>
                                     <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
                                         <button onClick={() => handleEdit(product)} className="btn btn-secondary btn-sm" style={{ flex: 1 }}>
