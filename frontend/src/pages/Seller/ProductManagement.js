@@ -15,6 +15,7 @@ const ProductManagement = () => {
         compareAtPrice: '',
         category: '',
         stock: '',
+        lowStockThreshold: '10',
         images: ['']
     });
 
@@ -110,6 +111,7 @@ const ProductManagement = () => {
             compareAtPrice: product.compareAtPrice || '',
             category: product.category,
             stock: product.stock,
+            lowStockThreshold: product.lowStockThreshold || '10',
             images: product.images.length > 0 ? product.images : ['']
         });
         setShowForm(true);
@@ -136,6 +138,7 @@ const ProductManagement = () => {
             compareAtPrice: '',
             category: '',
             stock: '',
+            lowStockThreshold: '10',
             images: ['']
         });
         setEditingProduct(null);
@@ -216,6 +219,16 @@ const ProductManagement = () => {
                                     <div className="form-group">
                                         <label className="form-label">Stock *</label>
                                         <input type="number" name="stock" className="form-input" value={formData.stock} onChange={handleChange} required />
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)' }}>
+                                    <div className="form-group">
+                                        <label className="form-label">Low Stock Threshold</label>
+                                        <input type="number" name="lowStockThreshold" className="form-input" value={formData.lowStockThreshold} onChange={handleChange} placeholder="10" />
+                                        <small style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                                            You'll be alerted when stock falls below this level
+                                        </small>
                                     </div>
                                 </div>
 

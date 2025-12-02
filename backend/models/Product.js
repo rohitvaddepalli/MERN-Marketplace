@@ -62,6 +62,17 @@ const productSchema = new mongoose.Schema({
         type: Map,
         of: String
     },
+    variants: [{
+        name: String,
+        options: [String],
+        price: Number,
+        stock: Number,
+        sku: String
+    }],
+    lowStockThreshold: {
+        type: Number,
+        default: 10
+    },
     isActive: {
         type: Boolean,
         default: true

@@ -64,7 +64,18 @@ export const productAPI = {
     updateProduct: (id, data) => api.put(`/products/${id}`, data),
     deleteProduct: (id) => api.delete(`/products/${id}`),
     getMyProducts: () => api.get('/products/my/products'),
-    getFeaturedProducts: () => api.get('/products/featured')
+    getFeaturedProducts: () => api.get('/products/featured'),
+    getLowStockProducts: () => api.get('/products/low-stock'),
+    bulkImportProducts: (data) => api.post('/products/bulk-import', data),
+    exportProducts: () => api.get('/products/export')
+};
+
+// Analytics API
+export const analyticsAPI = {
+    getSalesAnalytics: (params) => api.get('/analytics/sales', { params }),
+    getCustomerAnalytics: () => api.get('/analytics/customers'),
+    getInventoryForecast: (params) => api.get('/analytics/inventory-forecast', { params }),
+    getProductAnalytics: () => api.get('/analytics/products')
 };
 
 // Order API

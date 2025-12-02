@@ -1,0 +1,84 @@
+.import-section {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.import-section h2 {
+    color: white;
+}
+
+.import-section .form-textarea {
+    background: rgba(255, 255, 255, 0.95);
+    border: none;
+}
+
+.alert-icon {
+    font-size: 2.5rem;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+.low-stock-table {
+    overflow-x: auto;
+}
+
+.low-stock-table table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.low-stock-table th {
+    background: var(--bg-secondary);
+    padding: var(--spacing-md);
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.low-stock-table td {
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.low-stock-table tr:hover {
+    background: var(--bg-secondary);
+}
+
+.stock-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: var(--border-radius);
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.stock-badge.low-stock {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.stock-badge.out-of-stock {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.badge-danger {
+    background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+    color: white;
+}
+
+.badge-warning {
+    background: linear-gradient(135deg, #ffd93d, #ffb347);
+    color: #333;
+}

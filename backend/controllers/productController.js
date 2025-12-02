@@ -228,3 +228,88 @@ export const getFeaturedProducts = async (req, res) => {
         });
     }
 };
+
+// @desc    Get low stock products
+// @route   GET /api/products/low-stock
+// @access  Private/Seller
+export const getLowStockProducts = async (req, res) => {
+    try {
+        const products = await Product.find({
+            seller: req.user._id,
+            $expr: { $lte: ['$stock', '$lowStockThreshold'] }
+        })
+            .populate('store', 'name')
+            .sort('stock');
+
+        res.status(200).json({
+            success: true,
+            count: products.length,
+            products
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+// @desc    Bulk import products
+// @route   POST /api/products/bulk-import
+// @access  Private/Seller
+export const bulkImportProducts = async (req, res) => {
+    try {
+        const { products } = req.body;
+
+        // Get seller's store
+        const store = await Store.findOne({ owner: req.user._id });
+
+        if (!store) {
+            return res.status(400).json({
+                success: false,
+                message: 'You need to create a store first'
+            });
+        }
+
+        // Add store and seller to each product
+        const productsWithStore = products.map(product => ({
+            ...product,
+            store: store._id,
+            seller: req.user._id
+        }));
+
+        const createdProducts = await Product.insertMany(productsWithStore);
+
+        res.status(201).json({
+            success: true,
+            count: createdProducts.length,
+            products: createdProducts
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+// @desc    Export products to CSV
+// @route   GET /api/products/export
+// @access  Private/Seller
+export const exportProducts = async (req, res) => {
+    try {
+        const products = await Product.find({ seller: req.user._id })
+            .populate('store', 'name')
+            .lean();
+
+        res.status(200).json({
+            success: true,
+            products
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};

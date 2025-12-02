@@ -33,6 +33,8 @@ import SellerDashboard from './pages/Seller/Dashboard';
 import StoreManagement from './pages/Seller/StoreManagement';
 import ProductManagement from './pages/Seller/ProductManagement';
 import OrderManagement from './pages/Seller/OrderManagement';
+import InventoryManagement from './pages/Seller/InventoryManagement';
+import Analytics from './pages/Seller/Analytics';
 
 // Admin Pages
 import AdminDashboard from './pages/Admin/AdminDashboard';
@@ -162,6 +164,22 @@ function App() {
                 element={
                   <ProtectedRoute requireRole="seller">
                     <OrderManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/seller/inventory"
+                element={
+                  <ProtectedRoute requireRole="seller">
+                    <InventoryManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/seller/analytics"
+                element={
+                  <ProtectedRoute requireRole="seller">
+                    <Analytics />
                   </ProtectedRoute>
                 }
               />
