@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { productAPI, storeAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import './Home.css';
+import RecentlyViewed from '../../components/Products/RecentlyViewed';
 
 const Home = () => {
     const { user, isAuthenticated } = useAuth();
@@ -276,6 +277,11 @@ const Home = () => {
                     </div>
                 </div>
             </section>
+
+            {/* Recently Viewed */}
+            <div className="container" style={{ marginBottom: 'var(--spacing-2xl)' }}>
+                <RecentlyViewed />
+            </div>
 
             {/* Footer Section */}
             <footer className="footer-section">

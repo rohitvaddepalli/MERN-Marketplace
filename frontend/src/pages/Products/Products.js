@@ -4,6 +4,7 @@ import { productAPI } from '../../services/api';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import './Products.css';
+import SkeletonProduct from '../../components/Products/SkeletonProduct';
 
 const Products = () => {
     const [products, setProducts] = useState([]);
@@ -43,48 +44,12 @@ const Products = () => {
 
     const handleAddToCart = (e, product) => {
         e.preventDefault();
-        if (!isAuthenticated) {
-            navigate('/login');
-            return;
-        }
         addToCart(product, 1);
         alert('Product added to cart!');
     };
 
     const handleBuyNow = (e, product) => {
         e.preventDefault();
-        if (!isAuthenticated) {
-            try {
-                // Clear any old data first
-                sessionStorage.removeItem('buyNowProduct');
-
-                // Avoid storing large image data
-                const images = product.images?.map(img =>
-                    img.length > 1000 ? 'https://placehold.co/150' : img
-                ) || [];
-
-                const productData = {
-                    product: {
-                        _id: product._id,
-                        name: product.name,
-                        price: product.price,
-                        images: images,
-                        store: product.store?._id ? { _id: product.store._id, name: product.store.name } : null,
-                        stock: product.stock,
-                        description: product.description ? product.description.substring(0, 100) : ''
-                    },
-                    quantity: 1
-                };
-
-                sessionStorage.setItem('buyNowProduct', JSON.stringify(productData));
-                sessionStorage.setItem('redirectAfterLogin', '/checkout');
-                navigate('/login');
-            } catch (error) {
-                console.error('Storage error:', error);
-                navigate('/login');
-            }
-            return;
-        }
         addToCart(product, 1);
         navigate('/checkout');
     };
@@ -179,8 +144,10 @@ const Products = () => {
                     {/* Products Grid */}
                     <div className="products-main">
                         {loading ? (
-                            <div className="loading-container">
-                                <div className="spinner"></div>
+                            <div className="products-grid">
+                                {[...Array(8)].map((_, i) => (
+                                    <SkeletonProduct key={i} />
+                                ))}
                             </div>
                         ) : products.length === 0 ? (
                             <div className="empty-state">

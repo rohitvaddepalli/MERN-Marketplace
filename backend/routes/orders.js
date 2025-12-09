@@ -7,12 +7,12 @@ import {
     getSellerOrders,
     getAllOrders
 } from '../controllers/orderController.js';
-import { protect, authorize } from '../middleware/auth.js';
+import { protect, authorize, optionalProtect } from '../middleware/auth.js';
 
 const router = express.Router();
 
 router.route('/')
-    .post(protect, authorize('customer'), createOrder)
+    .post(optionalProtect, createOrder)
     .get(protect, getAllOrders);
 
 router.get('/myorders', protect, authorize('customer'), getMyOrders);

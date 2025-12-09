@@ -275,3 +275,12 @@ export const resetPassword = async (req, res) => {
         });
     }
 };
+
+// @desc    Social Login Callback
+// @route   GET /api/auth/google/callback
+// @access  Public
+export const socialLoginCallback = (req, res) => {
+    const token = generateToken(req.user._id);
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    res.redirect(`${frontendUrl}/login/success?token=${token}`);
+};

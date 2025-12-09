@@ -12,12 +12,14 @@ import Login from './pages/Auth/Login';
 import Register from './pages/Auth/Register';
 import ForgotPassword from './pages/Auth/ForgotPassword';
 import ResetPassword from './pages/Auth/ResetPassword';
+import LoginSuccess from './pages/Auth/LoginSuccess';
 import Products from './pages/Products/Products';
 import ProductDetail from './pages/Products/ProductDetail';
 import Stores from './pages/Stores/Stores';
 import StoreDetail from './pages/Stores/StoreDetail';
 import Cart from './pages/Cart/Cart';
 import Checkout from './pages/Checkout/Checkout';
+import OrderSuccess from './pages/OrderSuccess/OrderSuccess';
 import About from './pages/About/About';
 import Contact from './pages/Contact/Contact';
 import Help from './pages/Help/Help';
@@ -81,6 +83,7 @@ function App() {
               {/* Public Routes */}
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/login/success" element={<LoginSuccess />} />
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password/:token" element={<ResetPassword />} />
@@ -94,22 +97,9 @@ function App() {
               <Route path="/terms" element={<Terms />} />
 
               {/* Customer Routes */}
-              <Route
-                path="/cart"
-                element={
-                  <ProtectedRoute requireRole="customer">
-                    <Cart />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/checkout"
-                element={
-                  <ProtectedRoute requireRole="customer">
-                    <Checkout />
-                  </ProtectedRoute>
-                }
-              />
+              <Route path="/cart" element={<Cart />} />
+              <Route path="/checkout" element={<Checkout />} />
+              <Route path="/order-success" element={<OrderSuccess />} />
               <Route
                 path="/customer/dashboard"
                 element={

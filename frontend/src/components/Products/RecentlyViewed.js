@@ -10,6 +10,9 @@ const RecentlyViewed = () => {
     useEffect(() => {
         if (isAuthenticated) {
             fetchRecentlyViewed();
+        } else {
+            const viewed = JSON.parse(localStorage.getItem('recentlyViewed') || '[]');
+            setProducts(viewed);
         }
     }, [isAuthenticated]);
 
@@ -26,7 +29,7 @@ const RecentlyViewed = () => {
         }
     };
 
-    if (!isAuthenticated || products.length === 0) return null;
+    if (products.length === 0) return null;
 
     return (
         <div className="recently-viewed" style={{ marginTop: 'var(--spacing-2xl)' }}>

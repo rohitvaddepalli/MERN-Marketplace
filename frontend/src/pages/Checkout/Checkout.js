@@ -13,6 +13,7 @@ const Checkout = () => {
     const [settings, setSettings] = useState({ taxRate: 8, shippingFee: 10 });
     const [formData, setFormData] = useState({
         name: user?.name || '',
+        email: user?.email || '',
         street: user?.address?.street || '',
         city: user?.address?.city || '',
         state: user?.address?.state || '',
@@ -31,6 +32,7 @@ const Checkout = () => {
             setFormData(prev => ({
                 ...prev,
                 name: user.name || prev.name,
+                email: user.email || prev.email,
                 street: user.address?.street || prev.street,
                 city: user.address?.city || prev.city,
                 state: user.address?.state || prev.state,
@@ -108,10 +110,33 @@ const Checkout = () => {
                 totalPrice: total
             };
 
-            await orderAPI.createOrder(orderData);
-            clearCart();
-            alert('Order placed successfully!');
-            navigate('/customer/orders');
+            if (!user) {
+                orderData.guestInfo = {
+                    name: formData.name,
+                    email: formData.email
+                };
+            }
+
+            const res = await orderAPI.createOrder(orderData);
+
+            if (!user) {
+                // Redirect guest to login page with order details
+                navigate('/login', {
+                    state: {
+                        message: 'Order placed successfully! Please login or create an account to track your order.',
+                        orderId: res.data.order._id,
+                        email: formData.email
+                    }
+                });
+            } else {
+                navigate('/order-success', { state: { order: res.data.order } });
+            }
+
+            // Clear cart AFTER navigating to avoid the empty cart redirect in Checkout component
+            // We use a small timeout to ensure navigation has started
+            setTimeout(() => {
+                clearCart();
+            }, 100);
         } catch (error) {
             console.error('Error placing order:', error);
             alert('Failed to place order. Please try again.');
@@ -120,10 +145,29 @@ const Checkout = () => {
         }
     };
 
-    if (cartItems.length === 0) {
-        navigate('/cart');
-        return null;
+    // If cart is empty and we are not loading (meaning not in the middle of submission), redirect to cart
+    // But we need to be careful not to redirect if we just cleared the cart after success
+    if (cartItems.length === 0 && !loading) {
+        // We can't easily distinguish between "just cleared" and "empty on load" here without more state.
+        // However, if we just navigated away in handleSubmit, this component unmounts.
+        // The issue is likely that clearCart() triggers a re-render before navigate() happens.
+
+        // A simple fix is to return null but NOT navigate if we are about to navigate anyway.
+        // But since we can't know that for sure, let's just return null if loading is true (which it is during submission).
+        // Wait, loading is set to false in finally block.
+
+        // Better approach: Don't redirect here. Let the user see an empty checkout or handle it in useEffect.
+        // Or, check if we are currently submitting.
     }
+
+    // Move the redirect logic to useEffect to avoid render-time side effects and race conditions
+    React.useEffect(() => {
+        if (cartItems.length === 0 && !loading) {
+            navigate('/cart');
+        }
+    }, [cartItems, loading, navigate]);
+
+    if (cartItems.length === 0) return null;
 
     const subtotal = getCartTotal();
     const shipping = settings.shippingFee;
@@ -151,6 +195,20 @@ const Checkout = () => {
                                         required
                                     />
                                 </div>
+
+                                {!user && (
+                                    <div className="form-group">
+                                        <label className="form-label">Email Address</label>
+                                        <input
+                                            type="email"
+                                            name="email"
+                                            className="form-input"
+                                            value={formData.email}
+                                            onChange={handleChange}
+                                            required
+                                        />
+                                    </div>
+                                )}
 
                                 <div className="form-group">
                                     <label className="form-label">Street Address</label>

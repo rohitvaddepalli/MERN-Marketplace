@@ -1,5 +1,6 @@
 import express from 'express';
-import { register, login, getMe, updateProfile, forgotPassword, resetPassword } from '../controllers/authController.js';
+import { register, login, getMe, updateProfile, forgotPassword, resetPassword, socialLoginCallback } from '../controllers/authController.js';
+import passport from 'passport';
 import { protect } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -10,5 +11,8 @@ router.post('/forgotpassword', forgotPassword);
 router.put('/resetpassword/:resettoken', resetPassword);
 router.get('/me', protect, getMe);
 router.put('/updateprofile', protect, updateProfile);
+
+router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+router.get('/google/callback', passport.authenticate('google', { failureRedirect: '/login' }), socialLoginCallback);
 
 export default router;

@@ -17,10 +17,42 @@ const ProductDetail = () => {
 
     useEffect(() => {
         fetchProduct();
-        if (isAuthenticated && id) {
-            userAPI.addToRecentlyViewed(id).catch(err => console.error('Error adding to recently viewed:', err));
+    }, [id]);
+
+    useEffect(() => {
+        if (product) {
+            try {
+                // Create a minimized version of the product to save space
+                const minimizedProduct = {
+                    _id: product._id,
+                    name: product.name,
+                    price: product.price,
+                    // Only keep the first image and replace large base64 with placeholder
+                    images: product.images && product.images.length > 0 ? [
+                        (product.images[0].length > 5000)
+                            ? 'https://placehold.co/200?text=Product'
+                            : product.images[0]
+                    ] : [],
+                    store: product.store ? { _id: product.store._id, name: product.store.name } : null
+                };
+
+                // Save to localStorage
+                const viewed = JSON.parse(localStorage.getItem('recentlyViewed') || '[]');
+                const newViewed = [minimizedProduct, ...viewed.filter(p => p._id !== product._id)].slice(0, 10);
+                localStorage.setItem('recentlyViewed', JSON.stringify(newViewed));
+            } catch (error) {
+                console.error('Error saving to recently viewed:', error);
+                // If quota exceeded, we might want to clear the list to recover
+                if (error.name === 'QuotaExceededError') {
+                    localStorage.removeItem('recentlyViewed');
+                }
+            }
+
+            if (isAuthenticated && id) {
+                userAPI.addToRecentlyViewed(id).catch(err => console.error('Error adding to recently viewed:', err));
+            }
         }
-    }, [id, isAuthenticated]);
+    }, [product, isAuthenticated, id]);
 
     const fetchProduct = async () => {
         try {
@@ -34,10 +66,6 @@ const ProductDetail = () => {
     };
 
     const handleAddToCart = () => {
-        if (!isAuthenticated) {
-            navigate('/login');
-            return;
-        }
         if (product) {
             addToCart(product, quantity);
             alert('Product added to cart!');
@@ -58,36 +86,9 @@ const ProductDetail = () => {
     };
 
     const handleBuyNow = () => {
-        if (!isAuthenticated) {
-            try {
-                sessionStorage.removeItem('buyNowProduct');
-                const images = product.images?.map(img =>
-                    img.length > 1000 ? 'https://placehold.co/150' : img
-                ) || [];
-
-                const productData = {
-                    product: {
-                        _id: product._id,
-                        name: product.name,
-                        price: product.price,
-                        images: images,
-                        store: product.store?._id ? { _id: product.store._id, name: product.store.name } : null,
-                        stock: product.stock,
-                        description: product.description ? product.description.substring(0, 100) : ''
-                    },
-                    quantity: quantity
-                };
-
-                sessionStorage.setItem('buyNowProduct', JSON.stringify(productData));
-                sessionStorage.setItem('redirectAfterLogin', '/checkout');
-                navigate('/login');
-            } catch (error) {
-                console.error('Storage error:', error);
-                navigate('/login');
-            }
-            return;
-        }
         if (product) {
+            // For both authenticated and guest users, we can just add to cart and redirect to checkout
+            // The Checkout page now handles both cases
             addToCart(product, quantity);
             navigate('/checkout');
         }

@@ -8,6 +8,16 @@ const userSchema = new mongoose.Schema({
         required: [true, 'Please provide your name'],
         trim: true
     },
+    googleId: {
+        type: String,
+        unique: true,
+        sparse: true
+    },
+    githubId: {
+        type: String,
+        unique: true,
+        sparse: true
+    },
     email: {
         type: String,
         required: [true, 'Please provide your email'],

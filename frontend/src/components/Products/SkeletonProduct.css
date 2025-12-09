@@ -1,0 +1,55 @@
+.skeleton-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+}
+
+.skeleton-image {
+    width: 100%;
+    padding-top: 100%;
+    /* 1:1 Aspect Ratio */
+    background: var(--bg-secondary);
+    animation: pulse 1.5s infinite;
+}
+
+.skeleton-content {
+    padding: 1rem;
+}
+
+.skeleton-line {
+    height: 1rem;
+    background: var(--bg-secondary);
+    margin-bottom: 0.5rem;
+    border-radius: 4px;
+    animation: pulse 1.5s infinite;
+}
+
+.skeleton-line.title {
+    width: 80%;
+    height: 1.2rem;
+}
+
+.skeleton-line.store {
+    width: 50%;
+}
+
+.skeleton-line.price {
+    width: 30%;
+    margin-top: 0.5rem;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 0.6;
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0.6;
+    }
+}

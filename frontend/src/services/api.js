@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = process.env.REACT_APP_API_URL
+    ? `${process.env.REACT_APP_API_URL}/api`
+    : 'http://localhost:5000/api';
 
 // Create axios instance
 const api = axios.create({
@@ -130,6 +132,9 @@ export const adminAPI = {
 export const settingsAPI = {
     getSettings: () => api.get('/settings')
 };
+
+export { API_URL };
+export const BASE_API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 export default api;
 

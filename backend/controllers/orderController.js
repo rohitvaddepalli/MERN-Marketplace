@@ -13,7 +13,8 @@ export const createOrder = async (req, res) => {
             itemsPrice,
             shippingPrice,
             taxPrice,
-            totalPrice
+            totalPrice,
+            guestInfo
         } = req.body;
 
         if (!items || items.length === 0) {
@@ -40,8 +41,7 @@ export const createOrder = async (req, res) => {
             }
         }
 
-        const order = await Order.create({
-            customer: req.user._id,
+        const orderData = {
             items,
             shippingAddress,
             paymentMethod,
@@ -49,7 +49,21 @@ export const createOrder = async (req, res) => {
             shippingPrice,
             taxPrice,
             totalPrice
-        });
+        };
+
+        if (req.user) {
+            orderData.customer = req.user._id;
+        } else {
+            if (!guestInfo || !guestInfo.email) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Guest email is required'
+                });
+            }
+            orderData.guestInfo = guestInfo;
+        }
+
+        const order = await Order.create(orderData);
 
         // Update product stock
         for (const item of items) {

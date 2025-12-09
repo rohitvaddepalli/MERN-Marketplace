@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
+import { BASE_API_URL } from '../../services/api';
 import './ResetPassword.css';
 
 const ResetPassword = () => {
@@ -41,7 +42,7 @@ const ResetPassword = () => {
 
         try {
             const response = await axios.put(
-                `http://localhost:5000/api/auth/resetpassword/${token}`,
+                `${BASE_API_URL}/api/auth/resetpassword/${token}`,
                 { password }
             );
 

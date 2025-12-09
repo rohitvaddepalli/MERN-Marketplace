@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { orderAPI } from '../../services/api';
 
 const CustomerOrders = () => {
@@ -49,6 +50,7 @@ const CustomerOrders = () => {
                         </div>
                         <h3>No Orders Yet</h3>
                         <p>You haven't placed any orders</p>
+                        <Link to="/products" className="btn btn-primary" style={{ marginTop: '1rem' }}>Browse Products</Link>
                     </div>
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
