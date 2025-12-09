@@ -6,6 +6,10 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import session from 'express-session';
 import passport from 'passport';
+import helmet from 'helmet';
+import xss from 'xss-clean';
+import mongoSanitize from 'express-mongo-sanitize';
+import rateLimit from 'express-rate-limit';
 import './config/passport.js';
 
 // Load env vars
@@ -27,6 +31,54 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+
+// Security middleware - Helmet sets various HTTP headers for security
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+            fontSrc: ["'self'", "https://fonts.gstatic.com"],
+            imgSrc: ["'self'", "data:", "https:", "blob:"],
+            scriptSrc: ["'self'"],
+            connectSrc: ["'self'", process.env.FRONTEND_URL || "http://localhost:3000"].filter(Boolean),
+        },
+    },
+    crossOriginEmbedderPolicy: false,
+}));
+
+// XSS protection - sanitizes user input
+app.use(xss());
+
+// NoSQL injection prevention - sanitizes data against query selector injection attacks
+app.use(mongoSanitize());
+
+// Rate limiting - general API rate limiter
+const generalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    limit: 1000, // Limit each IP to 1000 requests per windowMs
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        success: false,
+        message: 'Too many requests, please try again later.'
+    }
+});
+
+// Rate limiting - stricter limiter for auth routes
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    limit: 100, // Limit each IP to 100 requests per windowMs
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        success: false,
+        message: 'Too many authentication attempts, please try again later.'
+    }
+});
+
+// Apply general rate limiter to all API routes
+app.use('/api', generalLimiter);
 
 // Body parser middleware
 app.use(express.json({ limit: '50mb' }));
@@ -56,11 +108,21 @@ app.use(cors({
 // Static folder for uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Session middleware
+// Session middleware - hardened configuration
+if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET === 'secret') {
+    console.warn('⚠️  WARNING: Using default SESSION_SECRET. Set a strong SESSION_SECRET in production!');
+}
+
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'secret',
+    secret: process.env.SESSION_SECRET || 'development-secret-change-in-production',
     resave: false,
-    saveUninitialized: false
+    saveUninitialized: false,
+    cookie: {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
 }));
 
 // Passport middleware
@@ -76,7 +138,7 @@ mongoose.connect(process.env.MONGODB_URI)
     });
 
 // Mount routes
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authLimiter, authRoutes); // Stricter rate limiting for auth routes
 app.use('/api/stores', storeRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);

@@ -13,7 +13,7 @@ const router = express.Router();
 
 router.route('/')
     .post(optionalProtect, createOrder)
-    .get(protect, getAllOrders);
+    .get(protect, authorize('admin'), getAllOrders); // Admin only - prevent exposure of all orders to any authenticated user
 
 router.get('/myorders', protect, authorize('customer'), getMyOrders);
 router.get('/seller/orders', protect, authorize('seller'), getSellerOrders);

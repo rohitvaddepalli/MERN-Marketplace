@@ -13,7 +13,8 @@ const generateToken = (id) => {
 // @access  Public
 export const register = async (req, res) => {
     try {
-        const { name, email, password, role, phone } = req.body;
+        // SECURITY: Do NOT destructure 'role' from req.body to prevent privilege escalation
+        const { name, email, password, phone } = req.body;
 
         // Check if user already exists
         const userExists = await User.findOne({ email });
@@ -24,12 +25,13 @@ export const register = async (req, res) => {
             });
         }
 
-        // Create user
+        // Create user - ALWAYS set role to 'customer' server-side
+        // Role elevation to 'seller' or 'admin' should only happen through protected admin routes
         const user = await User.create({
             name,
             email,
             password,
-            role: role || 'customer',
+            role: 'customer', // SECURITY: Never accept role from user input
             phone
         });
 

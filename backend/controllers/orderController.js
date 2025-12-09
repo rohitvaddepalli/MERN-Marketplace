@@ -113,7 +113,7 @@ export const getOrder = async (req, res) => {
     try {
         const order = await Order.findById(req.params.id)
             .populate('customer', 'name email')
-            .populate('items.product', 'name images price')
+            .populate('items.product', 'name images price seller') // Added 'seller' to enable seller authorization check
             .populate('items.store', 'name');
 
         if (!order) {
