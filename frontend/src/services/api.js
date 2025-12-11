@@ -37,6 +37,11 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
+            // Don't redirect if this is just an auth check
+            if (error.config?.url?.includes('/auth/me')) {
+                return Promise.reject(error);
+            }
+
             // Clear any legacy localStorage data
             localStorage.removeItem('token');
             localStorage.removeItem('user');

@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
 import { authAPI } from '../services/api';
 
 const AuthContext = createContext(null);
@@ -46,7 +46,7 @@ export const AuthProvider = ({ children }) => {
         checkAuth();
     }, [checkAuth]);
 
-    const login = async (email, password) => {
+    const login = useCallback(async (email, password) => {
         try {
             const response = await authAPI.login({ email, password });
             const { user, token } = response.data;
@@ -68,9 +68,9 @@ export const AuthProvider = ({ children }) => {
                 message: error.response?.data?.message || 'Login failed'
             };
         }
-    };
+    }, []);
 
-    const register = async (data) => {
+    const register = useCallback(async (data) => {
         try {
             const response = await authAPI.register(data);
             const { user, token } = response.data;
@@ -89,9 +89,9 @@ export const AuthProvider = ({ children }) => {
                 message: error.response?.data?.message || 'Registration failed'
             };
         }
-    };
+    }, []);
 
-    const logout = async () => {
+    const logout = useCallback(async () => {
         try {
             // Call server to clear HTTP-only cookie
             await authAPI.logout();
@@ -103,20 +103,20 @@ export const AuthProvider = ({ children }) => {
             localStorage.removeItem('user');
             setUser(null);
         }
-    };
+    }, []);
 
-    const updateUser = (updatedUser) => {
+    const updateUser = useCallback((updatedUser) => {
         setUser(updatedUser);
         localStorage.setItem('user', JSON.stringify(updatedUser));
-    };
+    }, []);
 
     // Refresh auth status (useful after social login)
-    const refreshAuth = async () => {
+    const refreshAuth = useCallback(async () => {
         setLoading(true);
         await checkAuth();
-    };
+    }, [checkAuth]);
 
-    const value = {
+    const value = useMemo(() => ({
         user,
         loading,
         login,
@@ -128,7 +128,7 @@ export const AuthProvider = ({ children }) => {
         isSeller: user?.role === 'seller',
         isCustomer: user?.role === 'customer',
         isAdmin: user?.role === 'admin'
-    };
+    }), [user, loading, login, register, logout, updateUser, refreshAuth]);
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

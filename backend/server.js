@@ -69,7 +69,7 @@ const generalLimiter = rateLimit({
 // Rate limiting - stricter limiter for auth routes
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    limit: 100, // Limit each IP to 100 requests per windowMs
+    limit: process.env.NODE_ENV === 'production' ? 100 : 1000, // Limit each IP to 100 requests per windowMs in production, 1000 in dev
     standardHeaders: true,
     legacyHeaders: false,
     message: {
