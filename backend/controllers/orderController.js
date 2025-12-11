@@ -24,7 +24,11 @@ export const createOrder = async (req, res) => {
             });
         }
 
-        // Verify products exist and have sufficient stock
+        // SECURITY: Server-side price verification to prevent price tampering
+        let serverItemsPrice = 0;
+        const verifiedItems = [];
+
+        // Verify products exist, have sufficient stock, and compute server-side prices
         for (const item of items) {
             const product = await Product.findById(item.product);
             if (!product) {
@@ -39,34 +43,88 @@ export const createOrder = async (req, res) => {
                     message: `Insufficient stock for ${product.name}`
                 });
             }
+
+            // SECURITY: Compute line price from server-side Product.price
+            const linePrice = product.price * item.quantity;
+            serverItemsPrice += linePrice;
+
+            verifiedItems.push({
+                product: item.product,
+                store: item.store,
+                quantity: item.quantity,
+                price: product.price // Use server-side price, not client-provided
+            });
+        }
+
+        // SECURITY: Compute server-side totals
+        const TAX_RATE = 0.1; // 10% tax rate - configure as needed
+        const serverTaxPrice = parseFloat((serverItemsPrice * TAX_RATE).toFixed(2));
+        const serverShippingPrice = shippingPrice || 0; // Accept shipping price or default to 0
+        const serverTotalPrice = parseFloat((serverItemsPrice + serverTaxPrice + serverShippingPrice).toFixed(2));
+
+        // SECURITY: Validate client-submitted prices against server-computed prices
+        // Allow small floating-point tolerance (0.01)
+        const tolerance = 0.01;
+        if (Math.abs(serverItemsPrice - itemsPrice) > tolerance) {
+            return res.status(400).json({
+                success: false,
+                message: `Price mismatch: Items price verification failed. Expected ₹${serverItemsPrice}, received ₹${itemsPrice}`
+            });
+        }
+        if (Math.abs(serverTaxPrice - taxPrice) > tolerance) {
+            return res.status(400).json({
+                success: false,
+                message: `Price mismatch: Tax price verification failed. Expected ₹${serverTaxPrice}, received ₹${taxPrice}`
+            });
+        }
+        if (Math.abs(serverTotalPrice - totalPrice) > tolerance) {
+            return res.status(400).json({
+                success: false,
+                message: `Price mismatch: Total price verification failed. Expected ₹${serverTotalPrice}, received ₹${totalPrice}`
+            });
         }
 
         const orderData = {
-            items,
+            items: verifiedItems, // Use server-verified items with server-side prices
             shippingAddress,
             paymentMethod,
-            itemsPrice,
-            shippingPrice,
-            taxPrice,
-            totalPrice
+            itemsPrice: serverItemsPrice, // Use server-computed prices
+            shippingPrice: serverShippingPrice,
+            taxPrice: serverTaxPrice,
+            totalPrice: serverTotalPrice
         };
 
         if (req.user) {
             orderData.customer = req.user._id;
         } else {
+            // SECURITY: Validate guest email format
             if (!guestInfo || !guestInfo.email) {
                 return res.status(400).json({
                     success: false,
                     message: 'Guest email is required'
                 });
             }
-            orderData.guestInfo = guestInfo;
+
+            // Import validator for email validation
+            const validator = await import('validator');
+            if (!validator.default.isEmail(guestInfo.email)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid email format'
+                });
+            }
+
+            // Normalize email
+            orderData.guestInfo = {
+                ...guestInfo,
+                email: validator.default.normalizeEmail(guestInfo.email)
+            };
         }
 
         const order = await Order.create(orderData);
 
         // Update product stock
-        for (const item of items) {
+        for (const item of verifiedItems) {
             await Product.findByIdAndUpdate(item.product, {
                 $inc: { stock: -item.quantity }
             });

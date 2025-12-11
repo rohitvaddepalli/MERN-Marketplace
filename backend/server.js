@@ -16,6 +16,61 @@ import './config/passport.js';
 // Load env vars
 dotenv.config();
 
+// SECURITY: Enforce required environment variables at startup
+// Fail fast if critical secrets are missing to prevent insecure deployments
+const requiredEnvVars = {
+    'JWT_SECRET': 'Required for signing authentication tokens',
+    'SESSION_SECRET': 'Required for session encryption',
+    'MONGODB_URI': 'Required for database connection'
+};
+
+const missingVars = [];
+const insecureVars = [];
+
+for (const [varName, description] of Object.entries(requiredEnvVars)) {
+    if (!process.env[varName]) {
+        missingVars.push(`${varName} (${description})`);
+    } else if (varName === 'SESSION_SECRET' && process.env[varName] === 'development-secret-change-in-production') {
+        insecureVars.push(`${varName} is using the default development value`);
+    } else if (varName === 'JWT_SECRET' && process.env[varName].length < 32) {
+        insecureVars.push(`${varName} is too short (minimum 32 characters recommended)`);
+    }
+}
+
+// In production, fail if any required vars are missing or insecure
+if (process.env.NODE_ENV === 'production') {
+    if (missingVars.length > 0 || insecureVars.length > 0) {
+        console.error('\n❌ FATAL: Cannot start server in production mode\n');
+        if (missingVars.length > 0) {
+            console.error('Missing required environment variables:');
+            missingVars.forEach(v => console.error(`  - ${v}`));
+        }
+        if (insecureVars.length > 0) {
+            console.error('\nInsecure environment variables:');
+            insecureVars.forEach(v => console.error(`  - ${v}`));
+        }
+        console.error('\nPlease set all required environment variables in your .env file or environment.\n');
+        process.exit(1);
+    }
+} else {
+    // In development, show warnings but allow startup
+    if (missingVars.length > 0) {
+        console.warn('\n⚠️  WARNING: Missing environment variables (development mode):');
+        missingVars.forEach(v => console.warn(`  - ${v}`));
+        console.warn('');
+    }
+    if (insecureVars.length > 0) {
+        console.warn('⚠️  WARNING: Insecure environment variables (development mode):');
+        insecureVars.forEach(v => console.warn(`  - ${v}`));
+        console.warn('');
+    }
+}
+
+// Warn about optional OAuth credentials
+if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    console.warn('⚠️  WARNING: Google OAuth credentials not configured. Social login will not work.');
+}
+
 // Import routes
 import authRoutes from './routes/auth.js';
 import storeRoutes from './routes/stores.js';
@@ -38,7 +93,9 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+            // SECURITY: Removed 'unsafe-inline' to strengthen XSS defenses
+            // All styles should be in external stylesheets or use CSP nonces
+            styleSrc: ["'self'", "https://fonts.googleapis.com"],
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
             imgSrc: ["'self'", "data:", "https:", "blob:"],
             scriptSrc: ["'self'"],
@@ -109,13 +166,19 @@ app.use(cors({
     credentials: true
 }));
 
+// SECURITY: Ensure uploads directory exists
+import fs from 'fs';
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+    console.log('📁 Created uploads directory');
+}
+
 // Static folder for uploads
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(uploadsDir));
 
 // Session middleware - hardened configuration with MongoDB store
-if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET === 'secret') {
-    console.warn('⚠️  WARNING: Using default SESSION_SECRET. Set a strong SESSION_SECRET in production!');
-}
+// The SESSION_SECRET validation is now handled by the env var enforcement above
 
 // Import connect-mongo for production session storage
 import MongoStore from 'connect-mongo';

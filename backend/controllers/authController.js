@@ -22,6 +22,8 @@ const getCookieOptions = () => {
 
 /**
  * Send token response - sets HTTP-only cookie and returns user data
+ * SECURITY: Token is ONLY sent via HTTP-only cookie, NOT in response body
+ * This prevents XSS attacks from stealing tokens via localStorage
  * @param {Object} user - User document
  * @param {number} statusCode - HTTP status code
  * @param {Object} res - Express response object
@@ -30,14 +32,13 @@ const getCookieOptions = () => {
 const sendTokenResponse = (user, statusCode, res, message = null) => {
     const token = generateToken(user._id);
 
-    // Set HTTP-only cookie
+    // Set HTTP-only cookie - this is the ONLY way the token is transmitted
     res.cookie('access_token', token, getCookieOptions());
 
     const responseData = {
         success: true,
-        // Still include token for backward compatibility with mobile/native apps
-        // Frontend should migrate to using cookies
-        token,
+        // SECURITY: Token removed from response body to prevent localStorage storage
+        // Clients must use HTTP-only cookies (withCredentials: true)
         user: {
             id: user._id,
             name: user.name,

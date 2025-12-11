@@ -15,22 +15,9 @@ const api = axios.create({
     withCredentials: true
 });
 
-// Add token to requests if it exists (backward compatibility)
-// The HTTP-only cookie is now the primary auth mechanism
-api.interceptors.request.use(
-    (config) => {
-        // For backward compatibility, still check for token in localStorage
-        // New auth flow uses HTTP-only cookies which are sent automatically
-        const token = localStorage.getItem('token');
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-    },
-    (error) => {
-        return Promise.reject(error);
-    }
-);
+// SECURITY: Request interceptor removed - authentication via HTTP-only cookies only
+// Cookies are sent automatically with withCredentials: true
+// No manual Authorization header needed
 
 // Handle response errors
 api.interceptors.response.use(

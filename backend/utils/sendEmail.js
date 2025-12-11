@@ -1,11 +1,19 @@
 import nodemailer from 'nodemailer';
 
 const sendEmail = async (options) => {
+    // SECURITY: Validate SMTP credentials are configured
+    if (!process.env.SMTP_EMAIL || !process.env.SMTP_PASSWORD) {
+        throw new Error('SMTP credentials not configured. Cannot send email.');
+    }
+
+    const smtpPort = parseInt(process.env.SMTP_PORT || '587', 10);
+
     // Create transporter
     const transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST || 'smtp.gmail.com',
-        port: process.env.SMTP_PORT || 587,
-        secure: false,
+        port: smtpPort,
+        // SECURITY: Use secure connection for port 465, otherwise use STARTTLS
+        secure: smtpPort === 465,
         auth: {
             user: process.env.SMTP_EMAIL,
             pass: process.env.SMTP_PASSWORD

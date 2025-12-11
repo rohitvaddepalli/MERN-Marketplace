@@ -16,16 +16,17 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     // Check authentication status on mount
-    // With HTTP-only cookies, we verify auth by calling /me endpoint
+    // SECURITY: With HTTP-only cookies, we verify auth by calling /me endpoint
+    // No token is stored in localStorage to prevent XSS attacks
     const checkAuth = useCallback(async () => {
         try {
-            // Check for legacy localStorage user first for quick UI render
+            // Check for localStorage user first for quick UI render (non-sensitive data only)
             const storedUser = localStorage.getItem('user');
             if (storedUser) {
                 setUser(JSON.parse(storedUser));
             }
 
-            // Verify with server (cookie is sent automatically)
+            // Verify with server (HTTP-only cookie is sent automatically via withCredentials)
             const response = await authAPI.getMe();
             if (response.data.success && response.data.user) {
                 setUser(response.data.user);
@@ -36,7 +37,8 @@ export const AuthProvider = ({ children }) => {
             // Not authenticated or token expired
             setUser(null);
             localStorage.removeItem('user');
-            localStorage.removeItem('token'); // Clean up legacy token
+            // SECURITY: Clean up any legacy tokens from previous implementation
+            localStorage.removeItem('token');
         } finally {
             setLoading(false);
         }
@@ -49,15 +51,11 @@ export const AuthProvider = ({ children }) => {
     const login = useCallback(async (email, password) => {
         try {
             const response = await authAPI.login({ email, password });
-            const { user, token } = response.data;
+            const { user } = response.data;
 
-            // Store user info (non-sensitive) for quick access
+            // SECURITY: Only store non-sensitive user info for quick access
+            // Token is in HTTP-only cookie and NOT accessible to JavaScript
             localStorage.setItem('user', JSON.stringify(user));
-            // Keep token in localStorage for backward compatibility with existing code
-            // The HTTP-only cookie is the primary auth mechanism now
-            if (token) {
-                localStorage.setItem('token', token);
-            }
 
             setUser(user);
 
@@ -73,12 +71,11 @@ export const AuthProvider = ({ children }) => {
     const register = useCallback(async (data) => {
         try {
             const response = await authAPI.register(data);
-            const { user, token } = response.data;
+            const { user } = response.data;
 
+            // SECURITY: Only store non-sensitive user info for quick access
+            // Token is in HTTP-only cookie and NOT accessible to JavaScript
             localStorage.setItem('user', JSON.stringify(user));
-            if (token) {
-                localStorage.setItem('token', token);
-            }
 
             setUser(user);
 
@@ -99,8 +96,9 @@ export const AuthProvider = ({ children }) => {
             console.error('Logout error:', error);
         } finally {
             // Always clear local state and storage
-            localStorage.removeItem('token');
             localStorage.removeItem('user');
+            // SECURITY: Clean up any legacy tokens from previous implementation
+            localStorage.removeItem('token');
             setUser(null);
         }
     }, []);
