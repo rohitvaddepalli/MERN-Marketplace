@@ -4,17 +4,23 @@ const API_URL = process.env.REACT_APP_API_URL
     ? `${process.env.REACT_APP_API_URL}/api`
     : 'http://localhost:5000/api';
 
-// Create axios instance
+// Create axios instance with credentials support for HTTP-only cookies
 const api = axios.create({
     baseURL: API_URL,
     headers: {
         'Content-Type': 'application/json'
-    }
+    },
+    // SECURITY: Include credentials (cookies) with every request
+    // This allows HTTP-only cookies to be sent automatically
+    withCredentials: true
 });
 
-// Add token to requests if it exists
+// Add token to requests if it exists (backward compatibility)
+// The HTTP-only cookie is now the primary auth mechanism
 api.interceptors.request.use(
     (config) => {
+        // For backward compatibility, still check for token in localStorage
+        // New auth flow uses HTTP-only cookies which are sent automatically
         const token = localStorage.getItem('token');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
@@ -31,8 +37,10 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
+            // Clear any legacy localStorage data
             localStorage.removeItem('token');
             localStorage.removeItem('user');
+            // Redirect to login (cookies are cleared server-side)
             window.location.href = '/login';
         }
         return Promise.reject(error);
@@ -43,6 +51,7 @@ api.interceptors.response.use(
 export const authAPI = {
     register: (data) => api.post('/auth/register', data),
     login: (data) => api.post('/auth/login', data),
+    logout: () => api.post('/auth/logout'), // NEW: Server-side logout clears HTTP-only cookie
     getMe: () => api.get('/auth/me'),
     updateProfile: (data) => api.put('/auth/updateprofile', data),
     forgotPassword: (data) => api.post('/auth/forgotpassword', data)
@@ -137,4 +146,3 @@ export { API_URL };
 export const BASE_API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 export default api;
-

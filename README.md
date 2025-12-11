@@ -2,30 +2,7 @@
 
 A comprehensive marketplace application built with MongoDB, Express, React, and Node.js.
 
-## 🔥 Deploy to Firebase (All-in-One)
 
-**NEW!** Deploy your entire application (frontend + backend + database) to Firebase for **FREE**!
-
-### Quick Deploy (3 Commands)
-```powershell
-npm install -g firebase-tools
-firebase login
-.\deploy-firebase.ps1
-```
-
-**📚 Complete Guide**: See **[FIREBASE_DEPLOYMENT_GUIDE.md](FIREBASE_DEPLOYMENT_GUIDE.md)**
-
-**What you get:**
-- ✅ Frontend on Firebase Hosting
-- ✅ Backend on Cloud Functions
-- ✅ MongoDB Atlas (free tier)
-- ✅ Auto SSL certificate
-- ✅ Global CDN
-- ✅ **$0/month cost**
-
-**Quick Reference**: See **[FIREBASE_QUICK_REF.md](FIREBASE_QUICK_REF.md)**
-
----
 
 
 ## Features
@@ -210,52 +187,7 @@ marketplace/
 ✅ Modern UI/UX
 
 
-## Deployment
 
-This application is configured for **FREE** deployment to Firebase Hosting (frontend) and other free hosting services (backend).
-
-### 🚀 Quick Deploy
-
-1. **Install Firebase CLI:**
-   ```bash
-   npm install -g firebase-tools
-   firebase login
-   ```
-
-2. **Create Firebase Project:**
-   - Go to https://console.firebase.google.com/
-   - Create a new project
-   - Update `.firebaserc` with your project ID
-
-3. **Deploy Backend:**
-   - Use Render.com, Railway.app, or Cyclic.sh (all free)
-   - See `FIREBASE_DEPLOYMENT.md` for detailed instructions
-
-4. **Deploy Frontend:**
-   ```bash
-   cd frontend
-   npm run build
-   cd ..
-   firebase deploy --only hosting
-   ```
-
-### 📚 Deployment Documentation
-
-- **[QUICK_DEPLOY.md](QUICK_DEPLOY.md)** - Quick reference guide (5 steps)
-- **[FIREBASE_DEPLOYMENT.md](FIREBASE_DEPLOYMENT.md)** - Complete deployment guide
-- **[DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md)** - Step-by-step checklist
-- **[DEPLOYMENT_SUMMARY.md](DEPLOYMENT_SUMMARY.md)** - Summary of all changes
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture diagram
-
-### 💰 Hosting Costs
-
-Everything is **100% FREE**:
-- ✅ Firebase Hosting (10 GB storage, 360 MB/day bandwidth)
-- ✅ Render Backend (750 hours/month)
-- ✅ MongoDB Atlas (512 MB storage)
-- ✅ SSL Certificates (auto-provisioned)
-
-**Total: $0/month**
 
 ## Future Enhancements
 

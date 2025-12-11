@@ -1,13 +1,28 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 
+/**
+ * Extract token from request
+ * Priority: 1) HTTP-only cookie, 2) Authorization header
+ * This allows backward compatibility while preferring secure cookies
+ */
+const getTokenFromRequest = (req) => {
+    // First, check for HTTP-only cookie (more secure)
+    if (req.cookies && req.cookies.access_token) {
+        return req.cookies.access_token;
+    }
+
+    // Fallback to Authorization header for backward compatibility
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+        return req.headers.authorization.split(' ')[1];
+    }
+
+    return null;
+};
+
 export const protect = async (req, res, next) => {
     try {
-        let token;
-
-        if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-            token = req.headers.authorization.split(' ')[1];
-        }
+        const token = getTokenFromRequest(req);
 
         if (!token) {
             return res.status(401).json({
@@ -29,6 +44,8 @@ export const protect = async (req, res, next) => {
 
             next();
         } catch (error) {
+            // Clear invalid cookie if present
+            res.clearCookie('access_token');
             return res.status(401).json({
                 success: false,
                 message: 'Token is invalid or expired'
@@ -56,11 +73,7 @@ export const authorize = (...roles) => {
 
 export const optionalProtect = async (req, res, next) => {
     try {
-        let token;
-
-        if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-            token = req.headers.authorization.split(' ')[1];
-        }
+        const token = getTokenFromRequest(req);
 
         if (!token) {
             return next();

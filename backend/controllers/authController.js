@@ -4,8 +4,56 @@ import jwt from 'jsonwebtoken';
 // Generate JWT Token
 const generateToken = (id) => {
     return jwt.sign({ id }, process.env.JWT_SECRET, {
-        expiresIn: process.env.JWT_EXPIRE
+        expiresIn: process.env.JWT_EXPIRE || '7d'
     });
+};
+
+// Cookie options for secure HTTP-only cookies
+const getCookieOptions = () => {
+    const isProduction = process.env.NODE_ENV === 'production';
+    return {
+        httpOnly: true, // Prevents XSS attacks - JavaScript cannot access this cookie
+        secure: isProduction, // Only send over HTTPS in production
+        sameSite: isProduction ? 'strict' : 'lax', // CSRF protection
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+        path: '/' // Cookie available for all paths
+    };
+};
+
+/**
+ * Send token response - sets HTTP-only cookie and returns user data
+ * @param {Object} user - User document
+ * @param {number} statusCode - HTTP status code
+ * @param {Object} res - Express response object
+ * @param {string} message - Optional message
+ */
+const sendTokenResponse = (user, statusCode, res, message = null) => {
+    const token = generateToken(user._id);
+
+    // Set HTTP-only cookie
+    res.cookie('access_token', token, getCookieOptions());
+
+    const responseData = {
+        success: true,
+        // Still include token for backward compatibility with mobile/native apps
+        // Frontend should migrate to using cookies
+        token,
+        user: {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            avatar: user.avatar,
+            phone: user.phone,
+            address: user.address
+        }
+    };
+
+    if (message) {
+        responseData.message = message;
+    }
+
+    res.status(statusCode).json(responseData);
 };
 
 // @desc    Register user
@@ -35,21 +83,7 @@ export const register = async (req, res) => {
             phone
         });
 
-        const token = generateToken(user._id);
-
-        res.status(201).json({
-            success: true,
-            token,
-            user: {
-                id: user._id,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-                avatar: user.avatar,
-                phone: user.phone,
-                address: user.address
-            }
-        });
+        sendTokenResponse(user, 201, res);
     } catch (error) {
         res.status(500).json({
             success: false,
@@ -91,21 +125,7 @@ export const login = async (req, res) => {
             });
         }
 
-        const token = generateToken(user._id);
-
-        res.status(200).json({
-            success: true,
-            token,
-            user: {
-                id: user._id,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-                avatar: user.avatar,
-                phone: user.phone,
-                address: user.address
-            }
-        });
+        sendTokenResponse(user, 200, res);
     } catch (error) {
         res.status(500).json({
             success: false,
@@ -263,13 +283,7 @@ export const resetPassword = async (req, res) => {
         user.resetPasswordExpire = undefined;
         await user.save();
 
-        const token = generateToken(user._id);
-
-        res.status(200).json({
-            success: true,
-            token,
-            message: 'Password reset successful'
-        });
+        sendTokenResponse(user, 200, res, 'Password reset successful');
     } catch (error) {
         res.status(500).json({
             success: false,
@@ -284,5 +298,28 @@ export const resetPassword = async (req, res) => {
 export const socialLoginCallback = (req, res) => {
     const token = generateToken(req.user._id);
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    res.redirect(`${frontendUrl}/login/success?token=${token}`);
+
+    // Set HTTP-only cookie for the token
+    res.cookie('access_token', token, getCookieOptions());
+
+    // SECURITY: Use URL fragment instead of query param
+    // Fragments are not sent to the server in HTTP requests, reducing exposure
+    // The frontend will read the fragment and clear it immediately
+    res.redirect(`${frontendUrl}/login/success#authenticated=true`);
+};
+
+// @desc    Logout user - clear auth cookie
+// @route   POST /api/auth/logout
+// @access  Private
+export const logout = (req, res) => {
+    res.cookie('access_token', '', {
+        httpOnly: true,
+        expires: new Date(0), // Expire immediately
+        path: '/'
+    });
+
+    res.status(200).json({
+        success: true,
+        message: 'Logged out successfully'
+    });
 };

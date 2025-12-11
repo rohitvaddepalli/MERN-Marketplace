@@ -103,6 +103,26 @@ export const getStore = async (req, res) => {
     }
 };
 
+// SECURITY: Whitelist of fields allowed for store update
+// Prevents mass assignment attacks that could modify owner, isActive, etc.
+const ALLOWED_STORE_UPDATE_FIELDS = ['name', 'description', 'category', 'address', 'contact', 'logo', 'banner'];
+
+/**
+ * Helper to pick only allowed fields from an object
+ * @param {Object} source - Source object
+ * @param {string[]} allowedFields - Array of allowed field names
+ * @returns {Object} - Object with only allowed fields
+ */
+const pickAllowedFields = (source, allowedFields) => {
+    const result = {};
+    for (const field of allowedFields) {
+        if (source[field] !== undefined) {
+            result[field] = source[field];
+        }
+    }
+    return result;
+};
+
 // @desc    Update store
 // @route   PUT /api/stores/:id
 // @access  Private/Seller
@@ -125,7 +145,10 @@ export const updateStore = async (req, res) => {
             });
         }
 
-        store = await Store.findByIdAndUpdate(req.params.id, req.body, {
+        // SECURITY: Only allow whitelisted fields to be updated
+        const updates = pickAllowedFields(req.body, ALLOWED_STORE_UPDATE_FIELDS);
+
+        store = await Store.findByIdAndUpdate(req.params.id, updates, {
             new: true,
             runValidators: true
         });

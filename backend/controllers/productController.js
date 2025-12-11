@@ -1,6 +1,63 @@
 import Product from '../models/Product.js';
 import Store from '../models/Store.js';
 
+// SECURITY: Whitelist of fields allowed for product updates
+// Prevents mass assignment attacks that could modify seller, store, rating, reviewCount, etc.
+const ALLOWED_PRODUCT_UPDATE_FIELDS = [
+    'name', 'description', 'price', 'compareAtPrice', 'stock', 'lowStockThreshold',
+    'category', 'subcategory', 'brand', 'images', 'specifications', 'variants',
+    'tags', 'isActive', 'sku', 'weight', 'dimensions'
+];
+
+// SECURITY: Whitelist of fields allowed for product creation
+const ALLOWED_PRODUCT_CREATE_FIELDS = [
+    'name', 'description', 'price', 'compareAtPrice', 'stock', 'lowStockThreshold',
+    'category', 'subcategory', 'brand', 'images', 'specifications', 'variants',
+    'tags', 'isActive', 'sku', 'weight', 'dimensions'
+];
+
+// Maximum length for search/filter inputs to prevent abuse
+const MAX_SEARCH_LENGTH = 100;
+
+/**
+ * Escapes special regex characters in a string to prevent ReDoS attacks
+ * @param {string} str - Input string
+ * @returns {string} - Escaped string safe for use in RegExp
+ */
+const escapeRegex = (str) => {
+    if (!str || typeof str !== 'string') return '';
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+};
+
+/**
+ * Sanitizes and limits search input
+ * @param {string} input - User input
+ * @returns {string|null} - Sanitized input or null if invalid
+ */
+const sanitizeSearchInput = (input) => {
+    if (!input || typeof input !== 'string') return null;
+    // Trim and limit length
+    const trimmed = input.trim().slice(0, MAX_SEARCH_LENGTH);
+    // Escape regex special characters
+    return escapeRegex(trimmed);
+};
+
+/**
+ * Helper to pick only allowed fields from an object
+ * @param {Object} source - Source object
+ * @param {string[]} allowedFields - Array of allowed field names
+ * @returns {Object} - Object with only allowed fields
+ */
+const pickAllowedFields = (source, allowedFields) => {
+    const result = {};
+    for (const field of allowedFields) {
+        if (source[field] !== undefined) {
+            result[field] = source[field];
+        }
+    }
+    return result;
+};
+
 // @desc    Create product
 // @route   POST /api/products
 // @access  Private/Seller
@@ -16,8 +73,11 @@ export const createProduct = async (req, res) => {
             });
         }
 
+        // SECURITY: Only allow whitelisted fields
+        const allowedData = pickAllowedFields(req.body, ALLOWED_PRODUCT_CREATE_FIELDS);
+
         const product = await Product.create({
-            ...req.body,
+            ...allowedData,
             store: store._id,
             seller: req.user._id
         });
@@ -53,25 +113,31 @@ export const getProducts = async (req, res) => {
             if (maxPrice) query.price.$lte = Number(maxPrice);
         }
 
-        if (color) {
+        // SECURITY: Sanitize color filter to prevent ReDoS
+        const safeColor = sanitizeSearchInput(color);
+        if (safeColor) {
             query.$or = [
-                { 'variants': { $elemMatch: { name: 'Color', options: { $in: [new RegExp(color, 'i')] } } } },
-                { 'specifications.Color': { $regex: color, $options: 'i' } }
+                { 'variants': { $elemMatch: { name: 'Color', options: { $in: [new RegExp(safeColor, 'i')] } } } },
+                { 'specifications.Color': { $regex: safeColor, $options: 'i' } }
             ];
         }
 
-        if (size) {
+        // SECURITY: Sanitize size filter to prevent ReDoS
+        const safeSize = sanitizeSearchInput(size);
+        if (safeSize) {
             query.$or = [
-                { 'variants': { $elemMatch: { name: 'Size', options: { $in: [new RegExp(size, 'i')] } } } },
-                { 'specifications.Size': { $regex: size, $options: 'i' } }
+                { 'variants': { $elemMatch: { name: 'Size', options: { $in: [new RegExp(safeSize, 'i')] } } } },
+                { 'specifications.Size': { $regex: safeSize, $options: 'i' } }
             ];
         }
 
-        if (search) {
+        // SECURITY: Sanitize search input to prevent ReDoS
+        const safeSearch = sanitizeSearchInput(search);
+        if (safeSearch) {
             query.$or = [
-                { name: { $regex: search, $options: 'i' } },
-                { description: { $regex: search, $options: 'i' } },
-                { brand: { $regex: search, $options: 'i' } }
+                { name: { $regex: safeSearch, $options: 'i' } },
+                { description: { $regex: safeSearch, $options: 'i' } },
+                { brand: { $regex: safeSearch, $options: 'i' } }
             ];
         }
 
@@ -148,7 +214,10 @@ export const updateProduct = async (req, res) => {
             });
         }
 
-        product = await Product.findByIdAndUpdate(req.params.id, req.body, {
+        // SECURITY: Only allow whitelisted fields to be updated
+        const updates = pickAllowedFields(req.body, ALLOWED_PRODUCT_UPDATE_FIELDS);
+
+        product = await Product.findByIdAndUpdate(req.params.id, updates, {
             new: true,
             runValidators: true
         });

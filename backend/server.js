@@ -10,6 +10,7 @@ import helmet from 'helmet';
 import xss from 'xss-clean';
 import mongoSanitize from 'express-mongo-sanitize';
 import rateLimit from 'express-rate-limit';
+import cookieParser from 'cookie-parser';
 import './config/passport.js';
 
 // Load env vars
@@ -80,6 +81,9 @@ const authLimiter = rateLimit({
 // Apply general rate limiter to all API routes
 app.use('/api', generalLimiter);
 
+// Cookie parser - required for reading HTTP-only auth cookies
+app.use(cookieParser());
+
 // Body parser middleware
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -88,7 +92,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 const allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:3001',
-    process.env.FRONTEND_URL // Firebase hosting URL
+    process.env.FRONTEND_URL // Production URL
 ].filter(Boolean); // Remove undefined values
 
 app.use(cors({
@@ -108,12 +112,16 @@ app.use(cors({
 // Static folder for uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Session middleware - hardened configuration
+// Session middleware - hardened configuration with MongoDB store
 if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET === 'secret') {
     console.warn('⚠️  WARNING: Using default SESSION_SECRET. Set a strong SESSION_SECRET in production!');
 }
 
-app.use(session({
+// Import connect-mongo for production session storage
+import MongoStore from 'connect-mongo';
+
+// Configure session with MongoDB store for production persistence
+const sessionConfig = {
     secret: process.env.SESSION_SECRET || 'development-secret-change-in-production',
     resave: false,
     saveUninitialized: false,
@@ -123,7 +131,26 @@ app.use(session({
         sameSite: 'lax',
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
     }
-}));
+};
+
+// Use MongoDB store in production for session persistence
+// This ensures sessions survive server restarts and work across multiple instances
+if (process.env.MONGODB_URI) {
+    sessionConfig.store = MongoStore.create({
+        mongoUrl: process.env.MONGODB_URI,
+        ttl: 24 * 60 * 60, // Session TTL in seconds (24 hours)
+        autoRemove: 'native', // Use MongoDB's TTL index for cleanup
+        touchAfter: 24 * 3600, // Only update session once per 24 hours unless data changes
+        crypto: {
+            secret: process.env.SESSION_SECRET || 'development-secret-change-in-production'
+        }
+    });
+    console.log('📦 Using MongoDB session store');
+} else {
+    console.warn('⚠️  WARNING: No MONGODB_URI, using in-memory session store (not for production!)');
+}
+
+app.use(session(sessionConfig));
 
 // Passport middleware
 app.use(passport.initialize());
