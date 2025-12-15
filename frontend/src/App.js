@@ -46,6 +46,7 @@ import AdminStoreManagement from './pages/Admin/StoreManagement';
 import AdminProductManagement from './pages/Admin/ProductManagement';
 import AdminOrderManagement from './pages/Admin/OrderManagement';
 import AdminSettings from './pages/Admin/Settings';
+import AdminAnalytics from './pages/Admin/Analytics';
 
 import './App.css';
 
@@ -229,6 +230,14 @@ function App() {
                 element={
                   <ProtectedRoute requireRole="admin">
                     <AdminSettings />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/analytics"
+                element={
+                  <ProtectedRoute requireRole="admin">
+                    <AdminAnalytics />
                   </ProtectedRoute>
                 }
               />

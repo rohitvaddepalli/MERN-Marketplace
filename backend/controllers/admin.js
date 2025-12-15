@@ -30,8 +30,18 @@ export const getDashboardStats = async (req, res) => {
         ]);
 
         // Calculate total revenue
-        const orders = await Order.find({ paymentStatus: 'completed' });
-        const totalRevenue = orders.reduce((sum, order) => sum + order.totalPrice, 0);
+        const orders = await Order.find({
+            $or: [
+                { paymentStatus: 'completed' },
+                { status: 'delivered' }
+            ]
+        });
+        const totalRevenue = orders.reduce((sum, order) => {
+            const tax = order.taxPrice || 0;
+            const shipping = order.shippingPrice || 0;
+            const fixedFee = 2; // Flat fee per order
+            return sum + tax + shipping + fixedFee;
+        }, 0);
 
         res.status(200).json({
             success: true,

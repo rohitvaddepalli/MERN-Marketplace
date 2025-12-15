@@ -90,7 +90,11 @@ export const analyticsAPI = {
     getSalesAnalytics: (params) => api.get('/analytics/sales', { params }),
     getCustomerAnalytics: () => api.get('/analytics/customers'),
     getInventoryForecast: (params) => api.get('/analytics/inventory-forecast', { params }),
-    getProductAnalytics: () => api.get('/analytics/products')
+    getProductAnalytics: () => api.get('/analytics/products'),
+    // Admin Analytics
+    getAdminSalesAnalytics: (params) => api.get('/analytics/admin/sales', { params }),
+    getAdminCustomerAnalytics: () => api.get('/analytics/admin/customers'),
+    getAdminProductAnalytics: () => api.get('/analytics/admin/products')
 };
 
 // Order API

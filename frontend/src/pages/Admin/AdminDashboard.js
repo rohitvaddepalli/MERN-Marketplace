@@ -199,7 +199,7 @@ const AdminDashboard = () => {
                                         </div>
                                         <div style={{ textAlign: 'right' }}>
                                             <h4 style={{ color: 'var(--primary-color)', margin: 0 }}>
-                                                ${order.totalPrice?.toFixed(2)}
+                                                ₹{order.totalPrice?.toFixed(2)}
                                             </h4>
                                             <span className={`badge badge-${order.status === 'delivered' ? 'success' : order.status === 'cancelled' ? 'danger' : 'warning'}`}>
                                                 {order.status}

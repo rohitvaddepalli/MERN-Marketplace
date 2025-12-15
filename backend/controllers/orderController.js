@@ -1,5 +1,6 @@
 import Order from '../models/Order.js';
 import Product from '../models/Product.js';
+import Settings from '../models/Settings.js';
 
 // @desc    Create new order
 // @route   POST /api/orders
@@ -24,6 +25,10 @@ export const createOrder = async (req, res) => {
             });
         }
 
+        // Get system settings for tax and shipping
+        const settings = await Settings.getSettings();
+        const TAX_RATE = settings.taxRate / 100;
+
         // SECURITY: Server-side price verification to prevent price tampering
         let serverItemsPrice = 0;
         const verifiedItems = [];
@@ -44,22 +49,31 @@ export const createOrder = async (req, res) => {
                 });
             }
 
-            // SECURITY: Compute line price from server-side Product.price
-            const linePrice = product.price * item.quantity;
+            // SECURITY: Compute line price from server-side Product.price with bulk discounts
+            let price = product.price;
+            if (product.bulkDiscounts && product.bulkDiscounts.length > 0) {
+                const sortedDiscounts = [...product.bulkDiscounts].sort((a, b) => b.quantity - a.quantity);
+                const applicableDiscount = sortedDiscounts.find(d => item.quantity >= d.quantity);
+
+                if (applicableDiscount) {
+                    price = price * (1 - applicableDiscount.discountPercentage / 100);
+                }
+            }
+
+            const linePrice = price * item.quantity;
             serverItemsPrice += linePrice;
 
             verifiedItems.push({
                 product: item.product,
                 store: item.store,
                 quantity: item.quantity,
-                price: product.price // Use server-side price, not client-provided
+                price: price // Use server-side calculated price
             });
         }
 
         // SECURITY: Compute server-side totals
-        const TAX_RATE = 0.1; // 10% tax rate - configure as needed
         const serverTaxPrice = parseFloat((serverItemsPrice * TAX_RATE).toFixed(2));
-        const serverShippingPrice = shippingPrice || 0; // Accept shipping price or default to 0
+        const serverShippingPrice = settings.shippingFee || 0;
         const serverTotalPrice = parseFloat((serverItemsPrice + serverTaxPrice + serverShippingPrice).toFixed(2));
 
         // SECURITY: Validate client-submitted prices against server-computed prices
