@@ -2,7 +2,9 @@ import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL
     ? `${process.env.REACT_APP_API_URL}/api`
-    : 'http://localhost:5000/api';
+    : window.location.origin.includes('localhost')
+        ? 'http://localhost:5000/api'
+        : '/api';
 
 // Create axios instance with credentials support for HTTP-only cookies
 const api = axios.create({
@@ -148,6 +150,7 @@ export const uploadAPI = {
 };
 
 export { API_URL };
-export const BASE_API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+export const BASE_API_URL = process.env.REACT_APP_API_URL ||
+    (window.location.origin.includes('localhost') ? 'http://localhost:5000' : window.location.origin);
 
 export default api;

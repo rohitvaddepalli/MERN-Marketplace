@@ -204,7 +204,8 @@ export const forgotPassword = async (req, res) => {
         await user.save({ validateBeforeSave: false });
 
         // Create reset url
-        const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password/${resetToken}`;
+        const frontendUrl = process.env.FRONTEND_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:3000';
+        const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
 
         const message = `
             <h1>Password Reset Request</h1>
@@ -298,7 +299,7 @@ export const resetPassword = async (req, res) => {
 // @access  Public
 export const socialLoginCallback = (req, res) => {
     const token = generateToken(req.user._id);
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = process.env.FRONTEND_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:3000';
 
     // Set HTTP-only cookie for the token
     res.cookie('access_token', token, getCookieOptions());

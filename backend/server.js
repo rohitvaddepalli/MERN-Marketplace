@@ -94,13 +94,13 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            // SECURITY: Removed 'unsafe-inline' to strengthen XSS defenses
-            // All styles should be in external stylesheets or use CSP nonces
-            styleSrc: ["'self'", "https://fonts.googleapis.com"],
+            // Re-enabling 'unsafe-inline' for styleSrc because many React libraries 
+            // (like react-hot-toast and Google Fonts) inject styles dynamically.
+            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
             imgSrc: ["'self'", "data:", "https:", "blob:", "res.cloudinary.com"],
-            scriptSrc: ["'self'"],
-            connectSrc: ["'self'", process.env.FRONTEND_URL || "http://localhost:3000"].filter(Boolean),
+            scriptSrc: ["'self'", "'unsafe-inline'"],
+            connectSrc: ["'self'", "*"], // Allow connecting to any origin in production to prevent blockers
         },
     },
     crossOriginEmbedderPolicy: false,
@@ -150,7 +150,9 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 const allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:3001',
-    process.env.FRONTEND_URL // Production URL
+    process.env.FRONTEND_URL, // Manual override
+    process.env.RENDER_EXTERNAL_URL, // Automatic Render URL
+    'https://' + process.env.RENDER_EXTERNAL_URL // Sometimes Render provides it without https
 ].filter(Boolean); // Remove undefined values
 
 app.use(cors({

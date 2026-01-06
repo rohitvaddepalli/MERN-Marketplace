@@ -54,11 +54,18 @@ In the Render dashboard for your service, go to **Environment** and add the foll
 | `CLOUDINARY_CLOUD_NAME` | `your_name` | Cloudinary Cloud Name. |
 | `CLOUDINARY_API_KEY` | `your_key` | Cloudinary API Key. |
 | `CLOUDINARY_API_SECRET` | `your_secret` | Cloudinary API Secret. |
-| `FRONTEND_URL` | `https://your-app-name.onrender.com` | Your Render app URL (for CORS and redirects). |
+| `FRONTEND_URL` | `https://your-app.onrender.com` | (Optional) Your live URL. |
+
+> **Tip**: The app now automatically detects the Render URL via the `RENDER_EXTERNAL_URL` variable. You can leave `FRONTEND_URL` blank initially, and only update it if you use a custom domain later.
 
 ---
 
-## Step 6: Verify Deployment
+## Step 6: Getting your Live URL
+
+1.  After clicking "Create Web Service", Render will start building.
+2.  Look at the **top left** of the Render dashboard for your service. You will see a URL like `https://my-marketplace-app.onrender.com`.
+3.  Copy this URL.
+4.  If you want to be extra safe, go to **Environment** settings again and add/update `FRONTEND_URL` with this value.
 
 1.  Once Render finishes building (look for "Build successful" and "Server running..."), visit your Render URL.
 2.  The application should load.
@@ -66,6 +73,22 @@ In the Render dashboard for your service, go to **Environment** and add the foll
     *   Register a new user.
     *   Try uploading a product image (checks Cloudinary).
     *   Place a test order (checks Database).
+
+---
+
+## Alternative: Deployment on Railway.app
+
+If Render is unavailable, **Railway** is an excellent alternative:
+
+1.  Log in to [Railway.app](https://railway.app).
+2.  Click **+ New Project** > **Deploy from GitHub repo**.
+3.  Choose your repository.
+4.  Click **Add Variables** and paste the same environment variables from Step 5.
+5.  Railway will automatically detect your root `package.json` and run your `build` and `start` scripts.
+6.  Go to the **Settings** tab and click **Generate Domain** to get your live URL.
+7.  **Update `FRONTEND_URL`**: Make sure the your `FRONTEND_URL` variable matches this new Railway domain.
+
+---
 
 ## Troubleshooting
 
