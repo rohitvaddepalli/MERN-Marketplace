@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
-import { authAPI } from '../services/api';
+import { authAPI, BASE_API_URL } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -88,8 +88,7 @@ export const AuthProvider = ({ children }) => {
 
     // Login with Google (Directly to backend)
     const loginWithGoogle = useCallback(() => {
-        const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-        window.location.href = `${API_URL}/api/auth/google`;
+        window.location.href = `${BASE_API_URL}/api/auth/google`;
     }, []);
 
     // Logout

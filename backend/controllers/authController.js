@@ -62,8 +62,13 @@ const sendTokenResponse = (user, statusCode, res, message = null) => {
 // @access  Public
 export const register = async (req, res) => {
     try {
-        // SECURITY: Do NOT destructure 'role' from req.body to prevent privilege escalation
-        const { name, email, password, phone } = req.body;
+        // SECURITY: Only allow 'customer' or 'seller' roles from public registration
+        // Admin role must be granted via database or admin panel
+        let { name, email, password, phone, role } = req.body;
+
+        if (role && !['customer', 'seller'].includes(role)) {
+            role = 'customer';
+        }
 
         // Check if user already exists
         const userExists = await User.findOne({ email });
@@ -74,13 +79,12 @@ export const register = async (req, res) => {
             });
         }
 
-        // Create user - ALWAYS set role to 'customer' server-side
-        // Role elevation to 'seller' or 'admin' should only happen through protected admin routes
+        // Create user
         const user = await User.create({
             name,
             email,
             password,
-            role: 'customer', // SECURITY: Never accept role from user input
+            role: role || 'customer',
             phone
         });
 
