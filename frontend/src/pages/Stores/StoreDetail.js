@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { storeAPI, productAPI } from '../../services/api';
 
@@ -8,11 +8,7 @@ const StoreDetail = () => {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        fetchStoreAndProducts();
-    }, [id]);
-
-    const fetchStoreAndProducts = async () => {
+    const fetchStoreAndProducts = useCallback(async () => {
         try {
             const [storeRes, productsRes] = await Promise.all([
                 storeAPI.getStore(id),
@@ -25,7 +21,11 @@ const StoreDetail = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [id]);
+
+    useEffect(() => {
+        fetchStoreAndProducts();
+    }, [id, fetchStoreAndProducts]);
 
     if (loading) {
         return (

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { storeAPI, productAPI, orderAPI } from '../../services/api';
@@ -10,13 +10,10 @@ const SellerDashboard = () => {
     const [store, setStore] = useState(null);
     const [products, setProducts] = useState([]);
     const [orders, setOrders] = useState([]);
+    // eslint-disable-next-line no-unused-vars
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        fetchData();
-    }, []);
-
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         try {
             const [storeRes, productsRes, ordersRes] = await Promise.all([
                 storeAPI.getMyStore().catch(() => ({ data: { store: null } })),
@@ -32,7 +29,11 @@ const SellerDashboard = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
 
     const totalRevenue = orders.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
     const pendingOrders = orders.filter(o => ['pending', 'processing'].includes(o.status)).length;

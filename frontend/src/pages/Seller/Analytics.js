@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { analyticsAPI } from '../../services/api';
 import Sidebar from '../../components/Sidebar/Sidebar';
 import './Analytics.css';
@@ -12,11 +12,7 @@ const Analytics = () => {
     const [period, setPeriod] = useState('30');
     const [activeTab, setActiveTab] = useState('sales');
 
-    useEffect(() => {
-        fetchAnalytics();
-    }, [period]);
-
-    const fetchAnalytics = async () => {
+    const fetchAnalytics = useCallback(async () => {
         setLoading(true);
         try {
             const [sales, customers, products, forecast] = await Promise.all([
@@ -35,7 +31,11 @@ const Analytics = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [period]);
+
+    useEffect(() => {
+        fetchAnalytics();
+    }, [period, fetchAnalytics]);
 
     const renderSalesChart = () => {
         if (!salesData?.salesData?.length) return null;

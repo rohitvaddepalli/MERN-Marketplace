@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { productAPI, userAPI } from '../../services/api';
 import { useCart } from '../../context/CartContext';
@@ -15,9 +15,20 @@ const ProductDetail = () => {
     const { addToCart } = useCart();
     const { isAuthenticated, isSeller, isAdmin } = useAuth();
 
+    const fetchProduct = useCallback(async () => {
+        try {
+            const response = await productAPI.getProduct(id);
+            setProduct(response.data.product);
+        } catch (error) {
+            console.error('Error fetching product:', error);
+        } finally {
+            setLoading(false);
+        }
+    }, [id]);
+
     useEffect(() => {
         fetchProduct();
-    }, [id]);
+    }, [id, fetchProduct]);
 
     useEffect(() => {
         if (product) {
@@ -54,16 +65,6 @@ const ProductDetail = () => {
         }
     }, [product, isAuthenticated, id]);
 
-    const fetchProduct = async () => {
-        try {
-            const response = await productAPI.getProduct(id);
-            setProduct(response.data.product);
-        } catch (error) {
-            console.error('Error fetching product:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const handleAddToCart = () => {
         if (product) {

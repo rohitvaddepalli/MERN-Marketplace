@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { productAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -8,20 +8,20 @@ const ProductReviews = ({ productId, reviews: initialReviews = [] }) => {
     const [loading, setLoading] = useState(false);
     const { isAuthenticated } = useAuth();
 
-    useEffect(() => {
-        if (productId) {
-            fetchReviews();
-        }
-    }, [productId]);
-
-    const fetchReviews = async () => {
+    const fetchReviews = useCallback(async () => {
         try {
             const response = await productAPI.getReviews(productId);
             setReviews(response.data.reviews);
         } catch (error) {
             console.error('Error fetching reviews:', error);
         }
-    };
+    }, [productId]);
+
+    useEffect(() => {
+        if (productId) {
+            fetchReviews();
+        }
+    }, [productId, fetchReviews]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();

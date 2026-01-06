@@ -42,11 +42,6 @@ const ProductManagement = () => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const handleImageChange = (index, value) => {
-        const newImages = [...formData.images];
-        newImages[index] = value;
-        setFormData({ ...formData, images: newImages });
-    };
 
     const convertToBase64 = (file) => {
         return new Promise((resolve, reject) => {

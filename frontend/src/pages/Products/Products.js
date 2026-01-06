@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { productAPI } from '../../services/api';
 import { useCart } from '../../context/CartContext';
@@ -20,13 +20,9 @@ const Products = () => {
 
     const navigate = useNavigate();
     const { addToCart } = useCart();
-    const { isAuthenticated, isSeller, isAdmin } = useAuth();
+    const { isSeller, isAdmin } = useAuth();
 
-    useEffect(() => {
-        fetchProducts();
-    }, [filters]);
-
-    const fetchProducts = async () => {
+    const fetchProducts = useCallback(async () => {
         try {
             setLoading(true);
             const response = await productAPI.getProducts(filters);
@@ -36,7 +32,11 @@ const Products = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [filters]);
+
+    useEffect(() => {
+        fetchProducts();
+    }, [filters, fetchProducts]);
 
     const handleFilterChange = (name, value) => {
         setFilters({ ...filters, [name]: value });

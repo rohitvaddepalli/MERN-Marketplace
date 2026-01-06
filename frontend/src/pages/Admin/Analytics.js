@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { adminAPI, analyticsAPI } from '../../services/api';
+import React, { useState, useEffect, useCallback } from 'react';
+import { analyticsAPI } from '../../services/api';
 import AdminSidebar from '../../components/AdminSidebar/AdminSidebar';
 import './Analytics.css';
 
@@ -11,11 +11,7 @@ const Analytics = () => {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('sales');
 
-    useEffect(() => {
-        fetchAllAnalytics();
-    }, [period]);
-
-    const fetchAllAnalytics = async () => {
+    const fetchAllAnalytics = useCallback(async () => {
         setLoading(true);
         try {
             const [salesRes, customerRes, productRes] = await Promise.all([
@@ -32,7 +28,11 @@ const Analytics = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [period]);
+
+    useEffect(() => {
+        fetchAllAnalytics();
+    }, [period, fetchAllAnalytics]);
 
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('en-IN', {
