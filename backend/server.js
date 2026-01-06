@@ -89,6 +89,10 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
+// Trust proxy for Render/Cloudflare deployment
+// Required for express-rate-limit to work correctly behind proxies
+app.set('trust proxy', 1);
+
 // Security middleware - Helmet sets various HTTP headers for security
 app.use(helmet({
     contentSecurityPolicy: {
