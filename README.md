@@ -26,6 +26,7 @@ A comprehensive marketplace application built with MongoDB, Express, React, and 
 ### Authentication:
 - User registration with role selection (Customer/Seller)
 - Secure login with JWT
+- Google OAuth sign-in support
 - Password reset functionality
 - Protected routes based on user roles
 
@@ -38,6 +39,11 @@ A comprehensive marketplace application built with MongoDB, Express, React, and 
 - **bcrypt** - Password hashing
 - **Multer** - File uploads
 
+### Frontend:
+- **React** - UI library
+- **React Router** - Navigation
+- **Axios** - HTTP client
+- **Context API** - State management
 ### Frontend:
 - **React** - UI library
 - **React Router** - Navigation
@@ -185,9 +191,6 @@ marketplace/
 ✅ Customer Dashboard
 ✅ Responsive Design
 ✅ Modern UI/UX
-
-
-
 
 ## Future Enhancements
 

@@ -46,7 +46,7 @@ export const authAPI = {
     logout: () => api.post('/auth/logout'), // NEW: Server-side logout clears HTTP-only cookie
     getMe: () => api.get('/auth/me'),
     updateProfile: (data) => api.put('/auth/updateprofile', data),
-    forgotPassword: (data) => api.post('/auth/forgotpassword', data)
+    forgotPassword: (data) => api.post('/auth/forgotpassword', data),
 };
 
 // Store API

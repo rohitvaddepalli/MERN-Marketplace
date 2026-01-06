@@ -15,52 +15,51 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // Check authentication status on mount
-    // SECURITY: With HTTP-only cookies, we verify auth by calling /me endpoint
-    // No token is stored in localStorage to prevent XSS attacks
+    // Fetch current user from backend
     const checkAuth = useCallback(async () => {
         try {
-            // Check for localStorage user first for quick UI render (non-sensitive data only)
-            const storedUser = localStorage.getItem('user');
-            if (storedUser) {
-                setUser(JSON.parse(storedUser));
-            }
-
-            // Verify with server (HTTP-only cookie is sent automatically via withCredentials)
             const response = await authAPI.getMe();
             if (response.data.success && response.data.user) {
                 setUser(response.data.user);
-                // Update localStorage for quick access (non-sensitive data only)
                 localStorage.setItem('user', JSON.stringify(response.data.user));
+            } else {
+                setUser(null);
+                localStorage.removeItem('user');
             }
         } catch (error) {
-            // Not authenticated or token expired
+            console.error('Auth check failed:', error);
             setUser(null);
             localStorage.removeItem('user');
-            // SECURITY: Clean up any legacy tokens from previous implementation
-            localStorage.removeItem('token');
         } finally {
             setLoading(false);
         }
     }, []);
 
+    // Initial auth check
     useEffect(() => {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+            try {
+                setUser(JSON.parse(storedUser));
+            } catch (e) {
+                localStorage.removeItem('user');
+            }
+        }
         checkAuth();
     }, [checkAuth]);
 
+    // Login with email and password
     const login = useCallback(async (email, password) => {
         try {
             const response = await authAPI.login({ email, password });
-            const { user } = response.data;
+            const userData = response.data.user;
 
-            // SECURITY: Only store non-sensitive user info for quick access
-            // Token is in HTTP-only cookie and NOT accessible to JavaScript
-            localStorage.setItem('user', JSON.stringify(user));
+            setUser(userData);
+            localStorage.setItem('user', JSON.stringify(userData));
 
-            setUser(user);
-
-            return { success: true, role: user.role };
+            return { success: true, role: userData.role };
         } catch (error) {
+            console.error('Login error:', error);
             return {
                 success: false,
                 message: error.response?.data?.message || 'Login failed'
@@ -68,19 +67,18 @@ export const AuthProvider = ({ children }) => {
         }
     }, []);
 
+    // Register with email and password
     const register = useCallback(async (data) => {
         try {
             const response = await authAPI.register(data);
-            const { user } = response.data;
+            const userData = response.data.user;
 
-            // SECURITY: Only store non-sensitive user info for quick access
-            // Token is in HTTP-only cookie and NOT accessible to JavaScript
-            localStorage.setItem('user', JSON.stringify(user));
+            setUser(userData);
+            localStorage.setItem('user', JSON.stringify(userData));
 
-            setUser(user);
-
-            return { success: true, role: user.role };
+            return { success: true, role: userData.role };
         } catch (error) {
+            console.error('Registration error:', error);
             return {
                 success: false,
                 message: error.response?.data?.message || 'Registration failed'
@@ -88,45 +86,43 @@ export const AuthProvider = ({ children }) => {
         }
     }, []);
 
+    // Login with Google (Directly to backend)
+    const loginWithGoogle = useCallback(() => {
+        const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+        window.location.href = `${API_URL}/api/auth/google`;
+    }, []);
+
+    // Logout
     const logout = useCallback(async () => {
         try {
-            // Call server to clear HTTP-only cookie
             await authAPI.logout();
+            setUser(null);
+            localStorage.removeItem('user');
         } catch (error) {
             console.error('Logout error:', error);
-        } finally {
-            // Always clear local state and storage
-            localStorage.removeItem('user');
-            // SECURITY: Clean up any legacy tokens from previous implementation
-            localStorage.removeItem('token');
-            setUser(null);
         }
     }, []);
 
+    // Update user profile
     const updateUser = useCallback((updatedUser) => {
         setUser(updatedUser);
         localStorage.setItem('user', JSON.stringify(updatedUser));
     }, []);
-
-    // Refresh auth status (useful after social login)
-    const refreshAuth = useCallback(async () => {
-        setLoading(true);
-        await checkAuth();
-    }, [checkAuth]);
 
     const value = useMemo(() => ({
         user,
         loading,
         login,
         register,
+        loginWithGoogle,
         logout,
         updateUser,
-        refreshAuth,
+        refreshAuth: checkAuth,
         isAuthenticated: !!user,
         isSeller: user?.role === 'seller',
         isCustomer: user?.role === 'customer',
         isAdmin: user?.role === 'admin'
-    }), [user, loading, login, register, logout, updateUser, refreshAuth]);
+    }), [user, loading, login, register, loginWithGoogle, logout, updateUser, checkAuth]);
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
