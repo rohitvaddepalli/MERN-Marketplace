@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { orderAPI } from '../../services/api';
 import Sidebar from '../../components/Sidebar/Sidebar';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
+import toast from 'react-hot-toast';
 
 const OrderManagement = () => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [expandedOrders, setExpandedOrders] = useState(new Set());
+    useDocumentTitle('Order Management');
 
     useEffect(() => {
         fetchOrders();
@@ -25,11 +28,11 @@ const OrderManagement = () => {
     const handleStatusUpdate = async (orderId, newStatus) => {
         try {
             await orderAPI.updateOrderStatus(orderId, { status: newStatus });
-            alert('Order status updated successfully!');
+            toast.success(`Order status updated to ${newStatus}`);
             fetchOrders();
         } catch (error) {
             console.error('Error updating order status:', error);
-            alert('Failed to update order status');
+            toast.error(error.response?.data?.message || 'Failed to update order status');
         }
     };
 

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { adminAPI } from '../../services/api';
 import AdminSidebar from '../../components/AdminSidebar/AdminSidebar';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
+import toast from 'react-hot-toast';
 import './AdminManagement.css';
 
 const OrderManagement = () => {
@@ -13,6 +15,7 @@ const OrderManagement = () => {
         page: 1,
         limit: 10
     });
+    useDocumentTitle('Order Management (Admin)');
     const [pagination, setPagination] = useState({
         currentPage: 1,
         totalPages: 1,
@@ -45,10 +48,11 @@ const OrderManagement = () => {
 
         try {
             await adminAPI.deleteOrder(id);
+            toast.success('Order deleted successfully');
             fetchOrders();
         } catch (error) {
             console.error('Error deleting order:', error);
-            alert(error.response?.data?.message || 'Failed to delete order');
+            toast.error(error.response?.data?.message || 'Failed to delete order');
         }
     };
 

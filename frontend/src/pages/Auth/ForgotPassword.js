@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { BASE_API_URL } from '../../services/api';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
 import './ForgotPassword.css';
 
 const ForgotPassword = () => {
@@ -9,6 +10,7 @@ const ForgotPassword = () => {
     const [submitted, setSubmitted] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    useDocumentTitle('Forgot Password');
 
     const handleSubmit = async (e) => {
         e.preventDefault();

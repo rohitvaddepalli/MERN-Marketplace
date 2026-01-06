@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import toast from 'react-hot-toast';
 import './Auth.css';
 
 const Register = () => {
@@ -46,6 +47,7 @@ const Register = () => {
         setLoading(false);
 
         if (result.success) {
+            toast.success('Account created successfully!');
             if (result.role === 'seller') {
                 navigate('/seller/dashboard');
             } else {
@@ -53,6 +55,7 @@ const Register = () => {
             }
         } else {
             setError(result.message);
+            toast.error(result.message);
         }
     };
 

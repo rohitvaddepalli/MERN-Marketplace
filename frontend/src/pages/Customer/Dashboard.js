@@ -3,9 +3,11 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { orderAPI } from '../../services/api';
 import './Dashboard.css';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
 
 const CustomerDashboard = () => {
     const { user } = useAuth();
+    useDocumentTitle('Customer Dashboard');
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
 

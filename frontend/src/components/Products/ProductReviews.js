@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { productAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import toast from 'react-hot-toast';
 
 const ProductReviews = ({ productId, reviews: initialReviews = [] }) => {
     const [reviews, setReviews] = useState(initialReviews);
@@ -26,7 +27,7 @@ const ProductReviews = ({ productId, reviews: initialReviews = [] }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!isAuthenticated) {
-            alert('Please login to submit a review');
+            toast.error('Please login to submit a review');
             return;
         }
 
@@ -35,9 +36,9 @@ const ProductReviews = ({ productId, reviews: initialReviews = [] }) => {
             await productAPI.createReview(productId, newReview);
             setNewReview({ rating: 5, comment: '' });
             fetchReviews(); // Refresh reviews
-            alert('Review submitted successfully!');
+            toast.success('Review submitted successfully!');
         } catch (error) {
-            alert(error.response?.data?.message || 'Error submitting review');
+            toast.error(error.response?.data?.message || 'Error submitting review');
         } finally {
             setLoading(false);
         }

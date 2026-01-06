@@ -3,10 +3,13 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { settingsAPI } from '../../services/api';
 import './Cart.css';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
+import toast from 'react-hot-toast';
 
 const Cart = () => {
     const { cartItems, updateQuantity, removeFromCart, getCartTotal, getCartCount, calculateItemPrice } = useCart();
     const navigate = useNavigate();
+    useDocumentTitle('Shopping Cart');
     const [settings, setSettings] = useState({ taxRate: 8, shippingFee: 10 });
 
     useEffect(() => {
@@ -101,7 +104,10 @@ const Cart = () => {
                                     ₹{(calculateItemPrice(item) * item.quantity).toFixed(2)}
                                 </div>
                                 <button
-                                    onClick={() => removeFromCart(item._id)}
+                                    onClick={() => {
+                                        removeFromCart(item._id);
+                                        toast.success(`${item.name} removed from cart`);
+                                    }}
                                     className="cart-item-remove"
                                 >
                                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">

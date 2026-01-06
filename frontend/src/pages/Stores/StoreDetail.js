@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { storeAPI, productAPI } from '../../services/api';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
 
 const StoreDetail = () => {
     const { id } = useParams();
     const [store, setStore] = useState(null);
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
+
+    useDocumentTitle(store ? store.name : 'Store Details');
 
     const fetchStoreAndProducts = useCallback(async () => {
         try {

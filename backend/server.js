@@ -79,6 +79,7 @@ import orderRoutes from './routes/orders.js';
 import adminRoutes from './routes/admin.js';
 import analyticsRoutes from './routes/analytics.js';
 import userRoutes from './routes/users.js';
+import uploadRoutes from './routes/upload.js';
 
 // Import middleware
 import { errorHandler } from './middleware/error.js';
@@ -97,7 +98,7 @@ app.use(helmet({
             // All styles should be in external stylesheets or use CSP nonces
             styleSrc: ["'self'", "https://fonts.googleapis.com"],
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
-            imgSrc: ["'self'", "data:", "https:", "blob:"],
+            imgSrc: ["'self'", "data:", "https:", "blob:", "res.cloudinary.com"],
             scriptSrc: ["'self'"],
             connectSrc: ["'self'", process.env.FRONTEND_URL || "http://localhost:3000"].filter(Boolean),
         },
@@ -235,6 +236,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Public settings endpoint
 app.get('/api/settings', async (req, res) => {
@@ -265,6 +267,16 @@ app.get('/api/health', (req, res) => {
         timestamp: new Date().toISOString()
     });
 });
+
+// Serve static assets in production
+if (process.env.NODE_ENV === 'production') {
+    // Set static folder
+    app.use(express.static(path.join(__dirname, '../frontend/build')));
+
+    app.get('*', (req, res) => {
+        res.sendFile(path.resolve(__dirname, '../frontend', 'build', 'index.html'));
+    });
+}
 
 // Error handler middleware (must be last)
 app.use(errorHandler);

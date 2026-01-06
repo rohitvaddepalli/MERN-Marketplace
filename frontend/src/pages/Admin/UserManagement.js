@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { adminAPI } from '../../services/api';
 import AdminSidebar from '../../components/AdminSidebar/AdminSidebar';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
+import toast from 'react-hot-toast';
 import './AdminManagement.css';
 
 const UserManagement = () => {
@@ -12,6 +14,7 @@ const UserManagement = () => {
         page: 1,
         limit: 10
     });
+    useDocumentTitle('User Management (Admin)');
     const [pagination, setPagination] = useState({
         currentPage: 1,
         totalPages: 1,
@@ -44,10 +47,11 @@ const UserManagement = () => {
 
         try {
             await adminAPI.deleteUser(id);
+            toast.success('User deleted successfully');
             fetchUsers();
         } catch (error) {
             console.error('Error deleting user:', error);
-            alert(error.response?.data?.message || 'Failed to delete user');
+            toast.error(error.response?.data?.message || 'Failed to delete user');
         }
     };
 

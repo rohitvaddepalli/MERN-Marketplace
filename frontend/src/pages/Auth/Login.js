@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { BASE_API_URL } from '../../services/api';
+import toast from 'react-hot-toast';
 import './Auth.css';
 
 const Login = () => {
@@ -61,6 +62,9 @@ const Login = () => {
 
         if (!result.success) {
             setError(result.message);
+            toast.error(result.message);
+        } else {
+            toast.success('Logged in successfully!');
         }
     };
 

@@ -5,6 +5,8 @@ import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import ProductReviews from '../../components/Products/ProductReviews';
 import RecentlyViewed from '../../components/Products/RecentlyViewed';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
+import toast from 'react-hot-toast';
 
 const ProductDetail = () => {
     const { id } = useParams();
@@ -14,6 +16,8 @@ const ProductDetail = () => {
     const [loading, setLoading] = useState(true);
     const { addToCart } = useCart();
     const { isAuthenticated, isSeller, isAdmin } = useAuth();
+
+    useDocumentTitle(product ? product.name : 'Product Details');
 
     const fetchProduct = useCallback(async () => {
         try {
@@ -69,7 +73,7 @@ const ProductDetail = () => {
     const handleAddToCart = () => {
         if (product) {
             addToCart(product, quantity);
-            alert('Product added to cart!');
+            toast.success('Product added to cart!');
         }
     };
 
@@ -80,9 +84,9 @@ const ProductDetail = () => {
         }
         try {
             await userAPI.addToWishlist(product._id);
-            alert('Added to wishlist!');
+            toast.success('Added to wishlist!');
         } catch (error) {
-            alert(error.response?.data?.message || 'Error adding to wishlist');
+            toast.error(error.response?.data?.message || 'Error adding to wishlist');
         }
     };
 

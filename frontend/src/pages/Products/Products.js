@@ -5,6 +5,8 @@ import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import './Products.css';
 import SkeletonProduct from '../../components/Products/SkeletonProduct';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
+import toast from 'react-hot-toast';
 
 const Products = () => {
     const [products, setProducts] = useState([]);
@@ -21,6 +23,7 @@ const Products = () => {
     const navigate = useNavigate();
     const { addToCart } = useCart();
     const { isSeller, isAdmin } = useAuth();
+    useDocumentTitle('Browse Products');
 
     const fetchProducts = useCallback(async () => {
         try {
@@ -45,7 +48,7 @@ const Products = () => {
     const handleAddToCart = (e, product) => {
         e.preventDefault();
         addToCart(product, 1);
-        alert('Product added to cart!');
+        toast.success('Product added to cart!');
     };
 
     const handleBuyNow = (e, product) => {

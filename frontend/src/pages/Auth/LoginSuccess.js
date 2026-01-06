@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
 
 const LoginSuccess = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { refreshAuth } = useAuth();
     const [error, setError] = useState(null);
+    useDocumentTitle('Completing Login...');
 
     useEffect(() => {
         const handleSocialLogin = async () => {

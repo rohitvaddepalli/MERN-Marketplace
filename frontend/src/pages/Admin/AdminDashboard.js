@@ -4,9 +4,11 @@ import { useAuth } from '../../context/AuthContext';
 import { adminAPI } from '../../services/api';
 import AdminSidebar from '../../components/AdminSidebar/AdminSidebar';
 import './AdminDashboard.css';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
 
 const AdminDashboard = () => {
     const { user } = useAuth();
+    useDocumentTitle('Admin Dashboard');
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
 

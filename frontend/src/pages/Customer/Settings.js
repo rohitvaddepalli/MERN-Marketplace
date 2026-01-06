@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { authAPI } from '../../services/api';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
+import toast from 'react-hot-toast';
 import './Settings.css';
 
 const Settings = () => {
     const { user, updateUser } = useAuth();
     const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState({ type: '', text: '' });
+    useDocumentTitle('Account Settings');
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -43,7 +45,6 @@ const Settings = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        setMessage({ type: '', text: '' });
 
         try {
             const updateData = {
@@ -62,12 +63,12 @@ const Settings = () => {
             const response = await authAPI.updateProfile(updateData);
 
             if (response.data.success) {
-                setMessage({ type: 'success', text: 'Profile updated successfully!' });
+                toast.success('Profile updated successfully!');
                 updateUser(response.data.user);
             }
         } catch (error) {
             console.error('Error updating profile:', error);
-            setMessage({ type: 'error', text: error.response?.data?.message || 'Failed to update profile' });
+            toast.error(error.response?.data?.message || 'Failed to update profile');
         } finally {
             setLoading(false);
         }
@@ -81,12 +82,6 @@ const Settings = () => {
                 <div className="settings-container">
                     <div className="card">
                         <h2>Personal Information</h2>
-
-                        {message.text && (
-                            <div className={`alert alert-${message.type}`}>
-                                {message.text}
-                            </div>
-                        )}
 
                         <form onSubmit={handleSubmit}>
                             <div className="form-group">

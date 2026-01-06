@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { productAPI } from '../../services/api';
 import Sidebar from '../../components/Sidebar/Sidebar';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
+import toast from 'react-hot-toast';
 import './InventoryManagement.css';
 
 const InventoryManagement = () => {
@@ -8,6 +10,7 @@ const InventoryManagement = () => {
     const [loading, setLoading] = useState(true);
     const [showImport, setShowImport] = useState(false);
     const [importData, setImportData] = useState('');
+    useDocumentTitle('Inventory Management');
 
     useEffect(() => {
         fetchLowStockProducts();
@@ -54,10 +57,10 @@ const InventoryManagement = () => {
             a.click();
             window.URL.revokeObjectURL(url);
 
-            alert('Products exported successfully!');
+            toast.success('Products exported successfully!');
         } catch (error) {
             console.error('Error exporting products:', error);
-            alert('Failed to export products');
+            toast.error('Failed to export products');
         }
     };
 
@@ -84,13 +87,13 @@ const InventoryManagement = () => {
             });
 
             await productAPI.bulkImportProducts({ products });
-            alert(`Successfully imported ${products.length} products!`);
+            toast.success(`Successfully imported ${products.length} products!`);
             setShowImport(false);
             setImportData('');
             fetchLowStockProducts();
         } catch (error) {
             console.error('Error importing products:', error);
-            alert('Failed to import products. Please check the CSV format.');
+            toast.error('Failed to import products. Please check the CSV format.');
         }
     };
 

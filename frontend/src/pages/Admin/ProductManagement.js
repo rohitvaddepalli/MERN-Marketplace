@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { adminAPI } from '../../services/api';
 import AdminSidebar from '../../components/AdminSidebar/AdminSidebar';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
+import toast from 'react-hot-toast';
 import './AdminManagement.css';
 
 const ProductManagement = () => {
@@ -12,6 +14,7 @@ const ProductManagement = () => {
         page: 1,
         limit: 10
     });
+    useDocumentTitle('Product Management (Admin)');
     const [pagination, setPagination] = useState({
         currentPage: 1,
         totalPages: 1,
@@ -44,10 +47,11 @@ const ProductManagement = () => {
 
         try {
             await adminAPI.deleteProduct(id);
+            toast.success('Product deleted successfully');
             fetchProducts();
         } catch (error) {
             console.error('Error deleting product:', error);
-            alert(error.response?.data?.message || 'Failed to delete product');
+            toast.error(error.response?.data?.message || 'Failed to delete product');
         }
     };
 

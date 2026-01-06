@@ -2,11 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { userAPI } from '../../services/api';
 import { useCart } from '../../context/CartContext';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
+import toast from 'react-hot-toast';
 
 const Wishlist = () => {
     const [wishlist, setWishlist] = useState([]);
     const [loading, setLoading] = useState(true);
     const { addToCart } = useCart();
+    useDocumentTitle('My Wishlist');
 
     useEffect(() => {
         fetchWishlist();
@@ -27,14 +30,16 @@ const Wishlist = () => {
         try {
             await userAPI.removeFromWishlist(productId);
             setWishlist(wishlist.filter(item => item._id !== productId));
+            toast.success('Removed from wishlist');
         } catch (error) {
             console.error('Error removing from wishlist:', error);
+            toast.error('Failed to remove from wishlist');
         }
     };
 
     const handleAddToCart = (product) => {
         addToCart(product, 1);
-        alert('Product added to cart!');
+        toast.success('Product added to cart!');
     };
 
     if (loading) {

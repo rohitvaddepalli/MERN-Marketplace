@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { BASE_API_URL } from '../../services/api';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
 import './ResetPassword.css';
 
 const ResetPassword = () => {
@@ -14,6 +15,7 @@ const ResetPassword = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
+    useDocumentTitle('Reset Password');
 
     const { password, confirmPassword } = formData;
 

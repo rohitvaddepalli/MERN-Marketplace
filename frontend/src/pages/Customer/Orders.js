@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { orderAPI } from '../../services/api';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
 
 const CustomerOrders = () => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
+    useDocumentTitle('My Orders');
 
     useEffect(() => {
         fetchOrders();

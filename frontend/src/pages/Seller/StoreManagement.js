@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { storeAPI } from '../../services/api';
+import { storeAPI, uploadAPI } from '../../services/api';
+import toast from 'react-hot-toast';
 import Sidebar from '../../components/Sidebar/Sidebar';
 
 const StoreManagement = () => {
@@ -56,27 +57,21 @@ const StoreManagement = () => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const convertToBase64 = (file) => {
-        return new Promise((resolve, reject) => {
-            const fileReader = new FileReader();
-            fileReader.readAsDataURL(file);
-            fileReader.onload = () => {
-                resolve(fileReader.result);
-            };
-            fileReader.onerror = (error) => {
-                reject(error);
-            };
-        });
-    };
 
     const handleImageUpload = async (e, field) => {
         const file = e.target.files[0];
         if (file) {
+            const data = new FormData();
+            data.append('images', file);
+
+            const uploadToast = toast.loading(`Uploading ${field}...`);
             try {
-                const base64 = await convertToBase64(file);
-                setFormData({ ...formData, [field]: base64 });
+                const response = await uploadAPI.uploadImages(data);
+                setFormData({ ...formData, [field]: response.data.urls[0] });
+                toast.success(`${field} uploaded successfully`, { id: uploadToast });
             } catch (error) {
-                console.error("Error converting file to base64", error);
+                console.error(`Error uploading ${field}`, error);
+                toast.error(`Failed to upload ${field}`, { id: uploadToast });
             }
         }
     };
@@ -105,15 +100,15 @@ const StoreManagement = () => {
 
             if (store) {
                 await storeAPI.updateStore(store._id, storeData);
-                alert('Store updated successfully!');
+                toast.success('Store updated successfully!');
             } else {
                 await storeAPI.createStore(storeData);
-                alert('Store created successfully!');
+                toast.success('Store created successfully!');
             }
             fetchStore();
         } catch (error) {
             console.error('Error saving store:', error);
-            alert(error.response?.data?.message || 'Failed to save store');
+            toast.error(error.response?.data?.message || 'Failed to save store');
         }
     };
 

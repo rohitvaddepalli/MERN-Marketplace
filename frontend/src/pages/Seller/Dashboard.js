@@ -4,9 +4,11 @@ import { useAuth } from '../../context/AuthContext';
 import { storeAPI, productAPI, orderAPI } from '../../services/api';
 import Sidebar from '../../components/Sidebar/Sidebar';
 import '../Customer/Dashboard.css';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
 
 const SellerDashboard = () => {
     const { user } = useAuth();
+    useDocumentTitle('Seller Dashboard');
     const [store, setStore] = useState(null);
     const [products, setProducts] = useState([]);
     const [orders, setOrders] = useState([]);

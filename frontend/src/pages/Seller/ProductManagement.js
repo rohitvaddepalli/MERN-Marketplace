@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { productAPI, storeAPI } from '../../services/api';
+import { productAPI, storeAPI, uploadAPI } from '../../services/api';
+import toast from 'react-hot-toast';
 import Sidebar from '../../components/Sidebar/Sidebar';
 
 const ProductManagement = () => {
@@ -43,29 +44,23 @@ const ProductManagement = () => {
     };
 
 
-    const convertToBase64 = (file) => {
-        return new Promise((resolve, reject) => {
-            const fileReader = new FileReader();
-            fileReader.readAsDataURL(file);
-            fileReader.onload = () => {
-                resolve(fileReader.result);
-            };
-            fileReader.onerror = (error) => {
-                reject(error);
-            };
-        });
-    };
 
     const handleImageUpload = async (index, e) => {
         const file = e.target.files[0];
         if (file) {
+            const data = new FormData();
+            data.append('images', file);
+
+            const uploadToast = toast.loading('Uploading image...');
             try {
-                const base64 = await convertToBase64(file);
+                const response = await uploadAPI.uploadImages(data);
                 const newImages = [...formData.images];
-                newImages[index] = base64;
+                newImages[index] = response.data.urls[0];
                 setFormData({ ...formData, images: newImages });
+                toast.success('Image uploaded successfully', { id: uploadToast });
             } catch (error) {
-                console.error("Error converting file to base64", error);
+                console.error("Error uploading image", error);
+                toast.error('Failed to upload image', { id: uploadToast });
             }
         }
     };
@@ -83,17 +78,17 @@ const ProductManagement = () => {
 
             if (editingProduct) {
                 await productAPI.updateProduct(editingProduct._id, productData);
-                alert('Product updated successfully!');
+                toast.success('Product updated successfully!');
             } else {
                 await productAPI.createProduct(productData);
-                alert('Product created successfully!');
+                toast.success('Product created successfully!');
             }
 
             resetForm();
             fetchData();
         } catch (error) {
             console.error('Error saving product:', error);
-            alert(error.response?.data?.message || 'Failed to save product');
+            toast.error(error.response?.data?.message || 'Failed to save product');
         }
     };
 
@@ -116,11 +111,11 @@ const ProductManagement = () => {
         if (window.confirm('Are you sure you want to delete this product?')) {
             try {
                 await productAPI.deleteProduct(id);
-                alert('Product deleted successfully!');
+                toast.success('Product deleted successfully!');
                 fetchData();
             } catch (error) {
                 console.error('Error deleting product:', error);
-                alert('Failed to delete product');
+                toast.error('Failed to delete product');
             }
         }
     };

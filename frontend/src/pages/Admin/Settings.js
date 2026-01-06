@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { adminAPI } from '../../services/api';
 import AdminSidebar from '../../components/AdminSidebar/AdminSidebar';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
+import toast from 'react-hot-toast';
 import '../Admin/AdminManagement.css';
 
 const AdminSettings = () => {
@@ -10,6 +12,7 @@ const AdminSettings = () => {
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    useDocumentTitle('Admin Settings');
 
     useEffect(() => {
         fetchSettings();
@@ -40,10 +43,10 @@ const AdminSettings = () => {
 
         try {
             await adminAPI.updateSettings(settings);
-            alert('Settings updated successfully!');
+            toast.success('Settings updated successfully!');
         } catch (error) {
             console.error('Error updating settings:', error);
-            alert(error.response?.data?.message || 'Failed to update settings');
+            toast.error(error.response?.data?.message || 'Failed to update settings');
         } finally {
             setSaving(false);
         }

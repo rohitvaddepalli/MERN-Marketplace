@@ -4,10 +4,12 @@ import { productAPI, storeAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import './Home.css';
 import RecentlyViewed from '../../components/Products/RecentlyViewed';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
 
 const Home = () => {
     const { user, isAuthenticated } = useAuth();
     const navigate = useNavigate();
+    useDocumentTitle('Home');
     const [featuredProducts, setFeaturedProducts] = useState([]);
     const [featuredStores, setFeaturedStores] = useState([]);
     const [loading, setLoading] = useState(true);

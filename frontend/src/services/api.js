@@ -138,6 +138,15 @@ export const settingsAPI = {
     getSettings: () => api.get('/settings')
 };
 
+// Upload API
+export const uploadAPI = {
+    uploadImages: (formData) => api.post('/upload', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data'
+        }
+    })
+};
+
 export { API_URL };
 export const BASE_API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 

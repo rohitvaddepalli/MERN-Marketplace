@@ -4,11 +4,14 @@ import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { orderAPI, settingsAPI } from '../../services/api';
 import './Checkout.css';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
+import toast from 'react-hot-toast';
 
 const Checkout = () => {
     const { cartItems, getCartTotal, clearCart, addToCart, calculateItemPrice } = useCart();
     const { user } = useAuth();
     const navigate = useNavigate();
+    useDocumentTitle('Checkout');
     const [loading, setLoading] = useState(false);
     const [settings, setSettings] = useState({ taxRate: 8, shippingFee: 10 });
     const [formData, setFormData] = useState({
@@ -139,7 +142,7 @@ const Checkout = () => {
             }, 100);
         } catch (error) {
             console.error('Error placing order:', error);
-            alert('Failed to place order. Please try again.');
+            toast.error(error.response?.data?.message || 'Failed to place order. Please try again.');
         } finally {
             setLoading(false);
         }

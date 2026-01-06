@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { adminAPI } from '../../services/api';
 import AdminSidebar from '../../components/AdminSidebar/AdminSidebar';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
+import toast from 'react-hot-toast';
 import './AdminManagement.css';
 
 const StoreManagement = () => {
@@ -13,6 +15,7 @@ const StoreManagement = () => {
         page: 1,
         limit: 10
     });
+    useDocumentTitle('Store Management (Admin)');
     const [pagination, setPagination] = useState({
         currentPage: 1,
         totalPages: 1,
@@ -43,9 +46,11 @@ const StoreManagement = () => {
     const handleToggleStatus = async (id, currentStatus) => {
         try {
             await adminAPI.updateStoreStatus(id, { isActive: !currentStatus });
+            toast.success(`Store ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
             fetchStores();
         } catch (error) {
             console.error('Error updating store status:', error);
+            toast.error('Failed to update store status');
         }
     };
 
@@ -54,10 +59,11 @@ const StoreManagement = () => {
 
         try {
             await adminAPI.deleteStore(id);
+            toast.success('Store deleted successfully');
             fetchStores();
         } catch (error) {
             console.error('Error deleting store:', error);
-            alert(error.response?.data?.message || 'Failed to delete store');
+            toast.error(error.response?.data?.message || 'Failed to delete store');
         }
     };
 

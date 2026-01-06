@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { storeAPI } from '../../services/api';
+import useDocumentTitle from '../../hooks/useDocumentTitle';
 
 const Stores = () => {
     const [stores, setStores] = useState([]);
     const [loading, setLoading] = useState(true);
+    useDocumentTitle('Browse Stores');
 
     useEffect(() => {
         fetchStores();
