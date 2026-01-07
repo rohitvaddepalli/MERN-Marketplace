@@ -90,9 +90,48 @@ If Render is unavailable, **Railway** is an excellent alternative:
 
 ---
 
+## Alternative: Deployment on Vercel
+
+Vercel is an excellent platform for hosting the application. While primarily optimized for frontends, it can host MERN apps effectively.
+
+### Option A: Unified Deployment (Simplest)
+To deploy the entire app to Vercel as one unit:
+
+1.  Log in to [Vercel](https://vercel.com).
+2.  Click **Add New** > **Project** and import your repository.
+3.  In the **Configure Project** screen:
+    *   **Framework Preset**: Other
+    *   **Root Directory**: Keep as `.` (root)
+    *   **Build Command**: `npm run build`
+    *   **Output Directory**: `frontend/build` (Vercel will serve your built frontend)
+4.  **Environment Variables**: Add all variables from Step 5.
+5.  **Note**: Vercel might require a `vercel.json` in the root for API routing. If you encounter 404s on API calls, create a `vercel.json` as shown in the troubleshooting section.
+
+### Option B: Frontend on Vercel + Backend on Render (High Performance)
+Deploying the frontend alone to Vercel often provides the best speed and global performance.
+
+1.  **Backend**: Follow Step 4 to deploy the backend to Render/Railway.
+2.  **Frontend**:
+    *   Import repository to Vercel, but set **Root Directory** to `frontend`.
+    *   Set **Framework Preset** to `Create React App`.
+    *   Add **Environment Variable**: `REACT_APP_API_URL` = `https://your-backend.onrender.com`.
+3.  **CORS**: Ensure the Vercel URL is added to the backend's `FRONTEND_URL` variable.
+
+---
+
 ## Troubleshooting
 
 *   **Build Failure**: Ensure all `devDependencies` are listed correctly. Render runs `npm install` before the build command.
 *   **Database Error**: Double-check the `MONGODB_URI` password (special characters must be URL encoded) and Atlas IP whitelist.
 *   **Images not showing**: Check Cloudinary credentials and ensure `NODE_ENV` is set to `production`.
 *   **CORS Issues**: Ensure `FRONTEND_URL` exactly matches your Render URL (no trailing slash).
+*   **Vercel 404 on API**: If your backend routes don't work on Vercel, create a `vercel.json` in your root directory:
+    ```json
+    {
+      "version": 2,
+      "rewrites": [
+        { "source": "/api/(.*)", "destination": "/backend/server.js" },
+        { "source": "/(.*)", "destination": "/frontend/build/$1" }
+      ]
+    }
+    ```

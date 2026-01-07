@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const isProduction = process.env.NODE_ENV === 'production' || !window.location.host.includes('localhost');
 
-const API_URL = isProduction
+const API_URL = (isProduction && !process.env.REACT_APP_API_URL)
     ? '/api'
     : (process.env.REACT_APP_API_URL ? `${process.env.REACT_APP_API_URL}/api` : 'http://localhost:5000/api');
 
@@ -150,7 +150,7 @@ export const uploadAPI = {
 };
 
 export { API_URL };
-export const BASE_API_URL = isProduction
+export const BASE_API_URL = (isProduction && !process.env.REACT_APP_API_URL)
     ? window.location.origin
     : (process.env.REACT_APP_API_URL || 'http://localhost:5000');
 
