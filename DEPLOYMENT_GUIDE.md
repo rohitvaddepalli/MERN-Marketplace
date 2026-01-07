@@ -67,6 +67,27 @@ In the Render dashboard for your service, go to **Environment** and add the foll
 3.  Copy this URL.
 4.  If you want to be extra safe, go to **Environment** settings again and add/update `FRONTEND_URL` with this value.
 
+---
+
+## Step 7: Optional: Social Login (Google)
+
+1.  Go to the [Google Cloud Console](https://console.cloud.google.com/).
+2.  Create a new project.
+3.  Navigate to **APIs & Services** > **Credentials**.
+4.  Configure the **OAuth Consent Screen**.
+5.  Create **OAuth 2.0 Client IDs**:
+    *   **Application Type**: Web Application.
+    *   **Authorized JavaScript Origins**: `https://your-app.onrender.com` (and `http://localhost:5000` for dev).
+    *   **Authorized Redirect URIs**: `https://your-app.onrender.com/api/auth/google/callback` (and `http://localhost:5000/api/auth/google/callback` for dev).
+6.  Copy your **Client ID** and **Client Secret**.
+7.  Add them to your environment variables:
+    *   `GOOGLE_CLIENT_ID`: Your Google Client ID.
+    *   `GOOGLE_CLIENT_SECRET`: Your Google Client Secret.
+
+---
+
+## Step 8: Testing your Deployment
+
 1.  Once Render finishes building (look for "Build successful" and "Server running..."), visit your Render URL.
 2.  The application should load.
 3.  Test functionality:
@@ -135,3 +156,5 @@ Deploying the frontend alone to Vercel often provides the best speed and global 
       ]
     }
     ```
+*   **Google OAuth Warnings**: If you see `⚠️ Google OAuth not configured` during startup, this is **normal** if you haven't added the credentials. Social login will be disabled but the rest of the app will work fine.
+*   **Uploads Directory**: `📁 Created uploads directory` is a status message confirming the server has initialized the local storage folder for temporary file handling.
