@@ -5,6 +5,13 @@
     margin-top: var(--spacing-xl);
 }
 
+.page-header {
+    margin-bottom: var(--spacing-xl);
+    padding: var(--spacing-lg);
+    border-radius: var(--border-radius-lg);
+    border-bottom: 2px solid var(--border-color);
+}
+
 .filters-sidebar {
     background: white;
     padding: var(--spacing-lg);

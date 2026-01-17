@@ -335,3 +335,57 @@ export const getAllOrders = async (req, res) => {
         });
     }
 };
+
+// @desc    Cancel order
+// @route   PUT /api/orders/:id/cancel
+// @access  Private/Customer
+export const cancelOrder = async (req, res) => {
+    try {
+        const order = await Order.findById(req.params.id);
+
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                message: 'Order not found'
+            });
+        }
+
+        // Ensure user is the customer who placed the order
+        if (order.customer.toString() !== req.user._id.toString()) {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized to cancel this order'
+            });
+        }
+
+        // Only allow cancellation if order is pending or processing
+        if (order.status !== 'pending' && order.status !== 'processing') {
+            return res.status(400).json({
+                success: false,
+                message: `Cannot cancel order in ${order.status} status`
+            });
+        }
+
+        order.status = 'cancelled';
+        await order.save();
+
+        // Restore stock
+        for (const item of order.items) {
+            if (item.product) {
+                await Product.findByIdAndUpdate(item.product, {
+                    $inc: { stock: item.quantity }
+                });
+            }
+        }
+
+        res.status(200).json({
+            success: true,
+            order
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};

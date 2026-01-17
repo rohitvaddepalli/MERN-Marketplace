@@ -105,7 +105,8 @@ export const orderAPI = {
     getMyOrders: () => api.get('/orders/myorders'),
     getOrder: (id) => api.get(`/orders/${id}`),
     updateOrderStatus: (id, data) => api.put(`/orders/${id}/status`, data),
-    getSellerOrders: () => api.get('/orders/seller/orders')
+    getSellerOrders: () => api.get('/orders/seller/orders'),
+    cancelOrder: (id) => api.put(`/orders/${id}/cancel`)
 };
 
 // Admin API
