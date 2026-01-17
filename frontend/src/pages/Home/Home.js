@@ -2,14 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { productAPI, storeAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { Helmet } from 'react-helmet-async';
 import './Home.css';
 import RecentlyViewed from '../../components/Products/RecentlyViewed';
-import useDocumentTitle from '../../hooks/useDocumentTitle';
+import ImageWithFallback from '../../components/Common/ImageWithFallback';
+import {
+    PLACEHOLDER_ELECTRONICS,
+    PLACEHOLDER_FASHION,
+    PLACEHOLDER_HOME,
+    DEFAULT_PRODUCT_IMAGE,
+    DEFAULT_STORE_BANNER,
+    DEFAULT_STORE_LOGO
+} from '../../constants/images';
 
 const Home = () => {
     const { user, isAuthenticated } = useAuth();
     const navigate = useNavigate();
-    useDocumentTitle('Home');
     const [featuredProducts, setFeaturedProducts] = useState([]);
     const [featuredStores, setFeaturedStores] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -46,6 +54,14 @@ const Home = () => {
 
     return (
         <div className="home-page">
+            <Helmet>
+                <title>Marketplace | Discover Amazing Products from Local Sellers</title>
+                <meta name="description" content="Browse thousands of unique products from verified sellers. Support local businesses and find exactly what you're looking for on Marketplace." />
+                <meta property="og:title" content="Marketplace | Discover Amazing Products" />
+                <meta property="og:description" content="Browse thousands of unique products from verified sellers. Support local businesses and find exactly what you're looking for." />
+                <meta property="og:type" content="website" />
+            </Helmet>
+
             {/* Hero Section - Non-authenticated users (Floating Cards) */}
             {!isAuthenticated && (
                 <section className="hero-section">
@@ -76,24 +92,24 @@ const Home = () => {
                             </div>
                             <div className="hero-image">
                                 <div className="hero-card hero-card-1">
-                                    <img
-                                        src="https://placehold.co/250x250/FF6B35/FFFFFF?text=Electronics"
+                                    <ImageWithFallback
+                                        src={PLACEHOLDER_ELECTRONICS}
                                         alt="Electronics"
-                                        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit', opacity: '0.9' }}
+                                        className="hero-card-img"
                                     />
                                 </div>
                                 <div className="hero-card hero-card-2">
-                                    <img
-                                        src="https://placehold.co/200x200/F7931E/FFFFFF?text=Fashion"
+                                    <ImageWithFallback
+                                        src={PLACEHOLDER_FASHION}
                                         alt="Fashion"
-                                        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit', opacity: '0.9' }}
+                                        className="hero-card-img"
                                     />
                                 </div>
                                 <div className="hero-card hero-card-3">
-                                    <img
-                                        src="https://placehold.co/220x220/1B4965/FFFFFF?text=Home"
+                                    <ImageWithFallback
+                                        src={PLACEHOLDER_HOME}
                                         alt="Home"
-                                        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit', opacity: '0.9' }}
+                                        className="hero-card-img"
                                     />
                                 </div>
                             </div>
@@ -132,10 +148,10 @@ const Home = () => {
                                     <div className="hero-scroll-column scroll-up">
                                         {[...(featuredProducts.length > 0 ? featuredProducts : Array(6).fill(null)), ...(featuredProducts.length > 0 ? featuredProducts : Array(6).fill(null))].map((product, index) => (
                                             <Link to={product ? `/products/${product._id}` : '#'} key={`col1-${index}`} className="hero-scroll-card">
-                                                <img
-                                                    src={product?.images?.[0] || `https://placehold.co/100x100/FF6B35/FFFFFF?text=Product`}
+                                                <ImageWithFallback
+                                                    src={product?.images?.[0]}
+                                                    fallbackSrc={PLACEHOLDER_ELECTRONICS}
                                                     alt={product?.name || 'Product'}
-                                                    onError={(e) => e.target.src = 'https://placehold.co/100x100/FF6B35/FFFFFF?text=New'}
                                                 />
                                                 <div className="hero-scroll-info">
                                                     <h4>{product?.name || 'New Arrival'}</h4>
@@ -150,10 +166,10 @@ const Home = () => {
                                     <div className="hero-scroll-column scroll-down">
                                         {[...(featuredProducts.length > 0 ? [...featuredProducts].reverse() : Array(6).fill(null)), ...(featuredProducts.length > 0 ? [...featuredProducts].reverse() : Array(6).fill(null))].map((product, index) => (
                                             <Link to={product ? `/products/${product._id}` : '#'} key={`col2-${index}`} className="hero-scroll-card">
-                                                <img
-                                                    src={product?.images?.[0] || `https://placehold.co/100x100/F7931E/FFFFFF?text=Trending`}
+                                                <ImageWithFallback
+                                                    src={product?.images?.[0]}
+                                                    fallbackSrc={PLACEHOLDER_FASHION}
                                                     alt={product?.name || 'Product'}
-                                                    onError={(e) => e.target.src = 'https://placehold.co/100x100/F7931E/FFFFFF?text=Hot'}
                                                 />
                                                 <div className="hero-scroll-info">
                                                     <h4>{product?.name || 'Trending'}</h4>
@@ -192,10 +208,10 @@ const Home = () => {
                             {featuredProducts.map((product) => (
                                 <Link to={`/products/${product._id}`} key={product._id} className="product-card">
                                     <div className="product-image">
-                                        <img
-                                            src={product.images?.[0] || 'https://placehold.co/300'}
+                                        <ImageWithFallback
+                                            src={product.images?.[0]}
+                                            fallbackSrc={DEFAULT_PRODUCT_IMAGE}
                                             alt={product.name}
-                                            onError={(e) => e.target.src = 'https://placehold.co/300'}
                                         />
                                         {product.compareAtPrice && (
                                             <div className="product-badge">
@@ -245,10 +261,10 @@ const Home = () => {
                         {featuredStores.map((store) => (
                             <Link to={`/stores/${store._id}`} key={store._id} className="store-card">
                                 <div className="store-banner">
-                                    <img src={store.banner} alt={store.name} onError={(e) => e.target.src = 'https://placehold.co/400x150'} />
+                                    <ImageWithFallback src={store.banner} fallbackSrc={DEFAULT_STORE_BANNER} alt={store.name} />
                                 </div>
                                 <div className="store-content">
-                                    <img src={store.logo} alt={store.name} className="store-logo" onError={(e) => e.target.src = 'https://placehold.co/80'} />
+                                    <ImageWithFallback src={store.logo} fallbackSrc={DEFAULT_STORE_LOGO} alt={store.name} className="store-logo" />
                                     <h3>{store.name}</h3>
                                     <p className="store-category">{store.category}</p>
                                     <div className="store-stats">

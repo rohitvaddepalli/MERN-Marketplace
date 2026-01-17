@@ -11,6 +11,7 @@ import xss from 'xss-clean';
 import mongoSanitize from 'express-mongo-sanitize';
 import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
+import compression from 'compression';
 import './config/passport.js';
 
 // Load env vars
@@ -92,6 +93,9 @@ const app = express();
 // Trust proxy for Render/Cloudflare deployment
 // Required for express-rate-limit to work correctly behind proxies
 app.set('trust proxy', 1);
+
+// Enable compression for all responses
+app.use(compression());
 
 // Security middleware - Helmet sets various HTTP headers for security
 app.use(helmet({
