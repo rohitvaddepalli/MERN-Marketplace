@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import { HelmetProvider } from 'react-helmet-async';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
+import './App.css';
 
 // Components
 import Navbar from './components/Navbar/Navbar';
@@ -54,7 +55,7 @@ const AdminOrderManagement = React.lazy(() => import('./pages/Admin/OrderManagem
 const AdminSettings = React.lazy(() => import('./pages/Admin/Settings'));
 const AdminAnalytics = React.lazy(() => import('./pages/Admin/Analytics'));
 
-import './App.css';
+
 
 // Protected Route Component
 const ProtectedRoute = ({ children, requireRole }) => {
