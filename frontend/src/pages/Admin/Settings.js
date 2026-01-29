@@ -4,6 +4,7 @@ import AdminSidebar from '../../components/AdminSidebar/AdminSidebar';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import toast from 'react-hot-toast';
 import '../Admin/AdminManagement.css';
+import logger from '../../utils/logger';
 
 const AdminSettings = () => {
     const [settings, setSettings] = useState({
@@ -23,7 +24,7 @@ const AdminSettings = () => {
             const response = await adminAPI.getSettings();
             setSettings(response.data.settings);
         } catch (error) {
-            console.error('Error fetching settings:', error);
+            logger.error('Error fetching settings:', error);
         } finally {
             setLoading(false);
         }
@@ -45,7 +46,7 @@ const AdminSettings = () => {
             await adminAPI.updateSettings(settings);
             toast.success('Settings updated successfully!');
         } catch (error) {
-            console.error('Error updating settings:', error);
+            logger.error('Error updating settings:', error);
             toast.error(error.response?.data?.message || 'Failed to update settings');
         } finally {
             setSaving(false);

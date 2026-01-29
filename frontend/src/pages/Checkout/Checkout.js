@@ -6,6 +6,8 @@ import { orderAPI, settingsAPI } from '../../services/api';
 import './Checkout.css';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import toast from 'react-hot-toast';
+import logger from '../../utils/logger';
+import { DEFAULT_PRODUCT_IMAGE } from '../../constants/images';
 
 const Checkout = () => {
     const { cartItems, getCartTotal, clearCart, addToCart, calculateItemPrice } = useCart();
@@ -56,7 +58,7 @@ const Checkout = () => {
                 // Clear the stored data
                 sessionStorage.removeItem('buyNowProduct');
             } catch (err) {
-                console.error('Error processing buy now product:', err);
+                logger.error('Error processing buy now product:', err);
             }
         }
     }, [addToCart]);
@@ -66,7 +68,7 @@ const Checkout = () => {
             const response = await settingsAPI.getSettings();
             setSettings(response.data.settings);
         } catch (error) {
-            console.error('Error fetching settings:', error);
+            logger.error('Error fetching settings:', error);
             // Use default values if fetch fails
         }
     };
@@ -141,7 +143,7 @@ const Checkout = () => {
                 clearCart();
             }, 100);
         } catch (error) {
-            console.error('Error placing order:', error);
+            logger.error('Error placing order:', error);
             toast.error(error.response?.data?.message || 'Failed to place order. Please try again.');
         } finally {
             setLoading(false);
@@ -367,7 +369,7 @@ const Checkout = () => {
                         <div className="summary-items">
                             {cartItems.map((item) => (
                                 <div key={item._id} className="summary-item">
-                                    <img src={item.images?.[0] || 'https://placehold.co/60'} alt={item.name} onError={(e) => e.target.src = 'https://placehold.co/60'} />
+                                    <img src={item.images?.[0] || DEFAULT_PRODUCT_IMAGE} alt={item.name} onError={(e) => e.target.src = DEFAULT_PRODUCT_IMAGE} />
                                     <div className="summary-item-details">
                                         <h4>{item.name}</h4>
                                         <span>Qty: {item.quantity}</span>

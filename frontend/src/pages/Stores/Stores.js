@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { storeAPI } from '../../services/api';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
+import logger from '../../utils/logger';
+import { DEFAULT_STORE_BANNER, DEFAULT_STORE_LOGO } from '../../constants/images';
 
 const Stores = () => {
     const [stores, setStores] = useState([]);
@@ -17,7 +19,7 @@ const Stores = () => {
             const response = await storeAPI.getStores();
             setStores(response.data.stores || []);
         } catch (error) {
-            console.error('Error fetching stores:', error);
+            logger.error('Error fetching stores:', error);
         } finally {
             setLoading(false);
         }
@@ -38,10 +40,10 @@ const Stores = () => {
                         {stores.map((store) => (
                             <Link to={`/stores/${store._id}`} key={store._id} className="store-card">
                                 <div className="store-banner">
-                                    <img src={store.banner} alt={store.name} onError={(e) => e.target.src = 'https://placehold.co/400x150'} />
+                                    <img src={store.banner || DEFAULT_STORE_BANNER} alt={store.name} onError={(e) => e.target.src = DEFAULT_STORE_BANNER} />
                                 </div>
                                 <div className="store-content">
-                                    <img src={store.logo} alt={store.name} className="store-logo" onError={(e) => e.target.src = 'https://placehold.co/80'} />
+                                    <img src={store.logo || DEFAULT_STORE_LOGO} alt={store.name} className="store-logo" onError={(e) => e.target.src = DEFAULT_STORE_LOGO} />
                                     <h3>{store.name}</h3>
                                     <p className="store-category">{store.category}</p>
                                     <div className="store-stats">

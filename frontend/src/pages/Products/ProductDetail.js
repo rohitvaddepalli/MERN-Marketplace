@@ -7,6 +7,8 @@ import ProductReviews from '../../components/Products/ProductReviews';
 import RecentlyViewed from '../../components/Products/RecentlyViewed';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import toast from 'react-hot-toast';
+import logger from '../../utils/logger';
+import { DEFAULT_PRODUCT_IMAGE } from '../../constants/images';
 
 const ProductDetail = () => {
     const { id } = useParams();
@@ -24,7 +26,7 @@ const ProductDetail = () => {
             const response = await productAPI.getProduct(id);
             setProduct(response.data.product);
         } catch (error) {
-            console.error('Error fetching product:', error);
+            logger.error('Error fetching product:', error);
         } finally {
             setLoading(false);
         }
@@ -45,7 +47,7 @@ const ProductDetail = () => {
                     // Only keep the first image and replace large base64 with placeholder
                     images: product.images && product.images.length > 0 ? [
                         (product.images[0].length > 5000)
-                            ? 'https://placehold.co/200?text=Product'
+                            ? DEFAULT_PRODUCT_IMAGE
                             : product.images[0]
                     ] : [],
                     store: product.store ? { _id: product.store._id, name: product.store.name } : null
@@ -56,7 +58,7 @@ const ProductDetail = () => {
                 const newViewed = [minimizedProduct, ...viewed.filter(p => p._id !== product._id)].slice(0, 10);
                 localStorage.setItem('recentlyViewed', JSON.stringify(newViewed));
             } catch (error) {
-                console.error('Error saving to recently viewed:', error);
+                logger.error('Error saving to recently viewed:', error);
                 // If quota exceeded, we might want to clear the list to recover
                 if (error.name === 'QuotaExceededError') {
                     localStorage.removeItem('recentlyViewed');
@@ -64,7 +66,7 @@ const ProductDetail = () => {
             }
 
             if (isAuthenticated && id) {
-                userAPI.addToRecentlyViewed(id).catch(err => console.error('Error adding to recently viewed:', err));
+                userAPI.addToRecentlyViewed(id).catch(err => logger.error('Error adding to recently viewed:', err));
             }
         }
     }, [product, isAuthenticated, id]);
@@ -126,10 +128,10 @@ const ProductDetail = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-2xl)', marginTop: 'var(--spacing-xl)' }}>
                     <div>
                         <img
-                            src={product.images?.[0] || 'https://placehold.co/600'}
+                            src={product.images?.[0] || DEFAULT_PRODUCT_IMAGE}
                             alt={product.name}
                             style={{ width: '100%', borderRadius: 'var(--border-radius-lg)' }}
-                            onError={(e) => e.target.src = 'https://placehold.co/600'}
+                            onError={(e) => e.target.src = DEFAULT_PRODUCT_IMAGE}
                         />
                     </div>
                     <div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { productAPI, storeAPI, uploadAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import Sidebar from '../../components/Sidebar/Sidebar';
+import logger from '../../utils/logger';
 
 const ProductManagement = () => {
     const [products, setProducts] = useState([]);
@@ -33,7 +34,7 @@ const ProductManagement = () => {
             setProducts(productsRes.data.products || []);
             setStore(storeRes.data.store);
         } catch (error) {
-            console.error('Error fetching data:', error);
+            logger.error('Error fetching data:', error);
         } finally {
             setLoading(false);
         }
@@ -59,7 +60,7 @@ const ProductManagement = () => {
                 setFormData({ ...formData, images: newImages });
                 toast.success('Image uploaded successfully', { id: uploadToast });
             } catch (error) {
-                console.error("Error uploading image", error);
+                logger.error("Error uploading image", error);
                 toast.error('Failed to upload image', { id: uploadToast });
             }
         }
@@ -87,7 +88,7 @@ const ProductManagement = () => {
             resetForm();
             fetchData();
         } catch (error) {
-            console.error('Error saving product:', error);
+            logger.error('Error saving product:', error);
             toast.error(error.response?.data?.message || 'Failed to save product');
         }
     };
@@ -114,7 +115,7 @@ const ProductManagement = () => {
                 toast.success('Product deleted successfully!');
                 fetchData();
             } catch (error) {
-                console.error('Error deleting product:', error);
+                logger.error('Error deleting product:', error);
                 toast.error('Failed to delete product');
             }
         }

@@ -4,6 +4,7 @@ import AdminSidebar from '../../components/AdminSidebar/AdminSidebar';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import toast from 'react-hot-toast';
 import './AdminManagement.css';
+import logger from '../../utils/logger';
 
 const ProductManagement = () => {
     const [products, setProducts] = useState([]);
@@ -32,7 +33,7 @@ const ProductManagement = () => {
                 total: response.data.total
             });
         } catch (error) {
-            console.error('Error fetching products:', error);
+            logger.error('Error fetching products:', error);
         } finally {
             setLoading(false);
         }
@@ -50,7 +51,7 @@ const ProductManagement = () => {
             toast.success('Product deleted successfully');
             fetchProducts();
         } catch (error) {
-            console.error('Error deleting product:', error);
+            logger.error('Error deleting product:', error);
             toast.error(error.response?.data?.message || 'Failed to delete product');
         }
     };
