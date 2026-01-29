@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
-import { BASE_API_URL } from '../../services/api';
+import { auth } from '../../firebase';
+import { sendPasswordResetEmail } from 'firebase/auth';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import './ForgotPassword.css';
 
@@ -18,15 +18,10 @@ const ForgotPassword = () => {
         setError('');
 
         try {
-            const response = await axios.post(`${BASE_API_URL}/api/auth/forgotpassword`, {
-                email
-            });
-
-            if (response.data.success) {
-                setSubmitted(true);
-            }
+            await sendPasswordResetEmail(auth, email);
+            setSubmitted(true);
         } catch (err) {
-            setError(err.response?.data?.message || 'Failed to send reset email. Please try again.');
+            setError(err.message || 'Failed to send reset email. Please try again.');
         } finally {
             setLoading(false);
         }

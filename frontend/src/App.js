@@ -55,12 +55,17 @@ const AdminOrderManagement = React.lazy(() => import('./pages/Admin/OrderManagem
 const AdminSettings = React.lazy(() => import('./pages/Admin/Settings'));
 const AdminAnalytics = React.lazy(() => import('./pages/Admin/Analytics'));
 
+// Error Pages
+const NotFound = React.lazy(() => import('./pages/Error/NotFound'));
+const ServerError = React.lazy(() => import('./pages/Error/ServerError'));
+
 
 
 // Protected Route Component
 const ProtectedRoute = ({ children, requireRole }) => {
   const { isAuthenticated, user, loading } = useAuth();
 
+  // Show loading while auth is initializing
   if (loading) {
     return (
       <div className="loading-page">
@@ -69,12 +74,31 @@ const ProtectedRoute = ({ children, requireRole }) => {
     );
   }
 
+  // Redirect to login if not authenticated
   if (!isAuthenticated) {
     return <Navigate to="/login" />;
   }
 
+  // If a specific role is required, wait for user data to be fully loaded
+  // This prevents redirecting sellers/admins before their role is fetched from Firestore
+  if (requireRole && !user?.role) {
+    return (
+      <div className="loading-page">
+        <div className="spinner"></div>
+      </div>
+    );
+  }
+
+  // Check if user has the required role
   if (requireRole && user?.role !== requireRole) {
-    return <Navigate to="/" />;
+    // Redirect based on actual role
+    if (user.role === 'admin') {
+      return <Navigate to="/admin/dashboard" replace />;
+    } else if (user.role === 'seller') {
+      return <Navigate to="/seller/dashboard" replace />;
+    } else {
+      return <Navigate to="/" replace />;
+    }
   }
 
   return children;
@@ -257,8 +281,8 @@ function App() {
                       }
                     />
 
-                    {/* Fallback */}
-                    <Route path="*" element={<Navigate to="/" />} />
+                    {/* Fallback - 404 Not Found */}
+                    <Route path="*" element={<NotFound />} />
                   </Routes>
                 </React.Suspense>
               </div>

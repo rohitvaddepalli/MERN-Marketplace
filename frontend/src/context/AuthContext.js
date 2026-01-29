@@ -1,5 +1,15 @@
-import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
-import { authAPI, BASE_API_URL } from '../services/api';
+import React, { createContext, useState, useContext, useEffect, useMemo } from 'react';
+import { auth, db } from '../firebase';
+import {
+    onAuthStateChanged,
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
+    signOut,
+    signInWithPopup,
+    GoogleAuthProvider,
+    updateProfile
+} from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const AuthContext = createContext(null);
 
@@ -15,98 +25,134 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // Fetch current user from backend
-    const checkAuth = useCallback(async () => {
-        try {
-            const response = await authAPI.getMe();
-            if (response.data.success && response.data.user) {
-                setUser(response.data.user);
-                localStorage.setItem('user', JSON.stringify(response.data.user));
+    // Listen for auth state changes
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+            if (firebaseUser) {
+                try {
+                    // Get extra user data from Firestore (role, etc.)
+                    const userDocRef = doc(db, 'users', firebaseUser.uid);
+                    const userDoc = await getDoc(userDocRef);
+
+                    if (userDoc.exists()) {
+                        setUser({
+                            uid: firebaseUser.uid,
+                            email: firebaseUser.email,
+                            displayName: firebaseUser.displayName,
+                            photoURL: firebaseUser.photoURL,
+                            ...userDoc.data()
+                        });
+                    } else {
+                        // Fallback if no firestore doc exists
+                        setUser({
+                            uid: firebaseUser.uid,
+                            email: firebaseUser.email,
+                            displayName: firebaseUser.displayName,
+                            photoURL: firebaseUser.photoURL,
+                            role: 'customer' // Default
+                        });
+                    }
+                } catch (error) {
+                    console.error("Error fetching user data:", error);
+                    // Still set basic user with default role to prevent redirect loops
+                    setUser({
+                        uid: firebaseUser.uid,
+                        email: firebaseUser.email,
+                        displayName: firebaseUser.displayName,
+                        photoURL: firebaseUser.photoURL,
+                        role: 'customer' // Default role to prevent undefined
+                    });
+                }
             } else {
                 setUser(null);
-                localStorage.removeItem('user');
             }
-        } catch (error) {
-            console.error('Auth check failed:', error);
-            setUser(null);
-            localStorage.removeItem('user');
-        } finally {
             setLoading(false);
-        }
+        });
+
+        return () => unsubscribe();
     }, []);
 
-    // Initial auth check
-    useEffect(() => {
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-            try {
-                setUser(JSON.parse(storedUser));
-            } catch (e) {
-                localStorage.removeItem('user');
-            }
-        }
-        checkAuth();
-    }, [checkAuth]);
-
-    // Login with email and password
-    const login = useCallback(async (email, password) => {
+    // Login
+    const login = async (email, password) => {
         try {
-            const response = await authAPI.login({ email, password });
-            const userData = response.data.user;
-
-            setUser(userData);
-            localStorage.setItem('user', JSON.stringify(userData));
-
-            return { success: true, role: userData.role };
+            await signInWithEmailAndPassword(auth, email, password);
+            return { success: true };
         } catch (error) {
             console.error('Login error:', error);
             return {
                 success: false,
-                message: error.response?.data?.message || 'Login failed'
+                message: error.message
             };
         }
-    }, []);
+    };
 
-    // Register with email and password
-    const register = useCallback(async (data) => {
+    // Register
+    const register = async (data) => {
         try {
-            const response = await authAPI.register(data);
-            const userData = response.data.user;
+            const { email, password, name, role, phone } = data;
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
 
-            setUser(userData);
-            localStorage.setItem('user', JSON.stringify(userData));
+            await updateProfile(user, { displayName: name });
 
-            return { success: true, role: userData.role };
+            // Create user document in Firestore
+            await setDoc(doc(db, 'users', user.uid), {
+                name,
+                email,
+                role: role || 'customer',
+                phone: phone || '',
+                createdAt: new Date().toISOString(),
+                avatar: user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`
+            });
+
+            return { success: true, role };
         } catch (error) {
             console.error('Registration error:', error);
             return {
                 success: false,
-                message: error.response?.data?.message || 'Registration failed'
+                message: error.message
             };
         }
-    }, []);
+    };
 
-    // Login with Google (Directly to backend)
-    const loginWithGoogle = useCallback(() => {
-        window.location.href = `${BASE_API_URL}/api/auth/google`;
-    }, []);
-
-    // Logout
-    const logout = useCallback(async () => {
+    // Google Login
+    const loginWithGoogle = async () => {
         try {
-            await authAPI.logout();
+            const provider = new GoogleAuthProvider();
+            const result = await signInWithPopup(auth, provider);
+            const user = result.user;
+
+            const userDocRef = doc(db, 'users', user.uid);
+            const userDoc = await getDoc(userDocRef);
+
+            if (!userDoc.exists()) {
+                await setDoc(userDocRef, {
+                    name: user.displayName,
+                    email: user.email,
+                    role: 'customer',
+                    createdAt: new Date().toISOString(),
+                    avatar: user.photoURL
+                });
+            }
+            return { success: true };
+        } catch (error) {
+            console.error('Google Auth error:', error);
+            return { success: false, message: error.message };
+        }
+    };
+
+    const logout = async () => {
+        try {
+            await signOut(auth);
             setUser(null);
-            localStorage.removeItem('user');
         } catch (error) {
             console.error('Logout error:', error);
         }
-    }, []);
+    };
 
-    // Update user profile
-    const updateUser = useCallback((updatedUser) => {
-        setUser(updatedUser);
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-    }, []);
+    const updateUser = (updatedUser) => {
+        setUser(prev => ({ ...prev, ...updatedUser }));
+    };
 
     const value = useMemo(() => ({
         user,
@@ -116,12 +162,11 @@ export const AuthProvider = ({ children }) => {
         loginWithGoogle,
         logout,
         updateUser,
-        refreshAuth: checkAuth,
         isAuthenticated: !!user,
         isSeller: user?.role === 'seller',
-        isCustomer: user?.role === 'customer',
+        isCustomer: user?.role === 'customer' || !user?.role,
         isAdmin: user?.role === 'admin'
-    }), [user, loading, login, register, loginWithGoogle, logout, updateUser, checkAuth]);
+    }), [user, loading]);
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

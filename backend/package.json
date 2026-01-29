@@ -2,7 +2,10 @@
     "name": "marketplace-backend",
     "version": "1.0.0",
     "description": "Backend for Marketplace Application",
-    "main": "server.js",
+    "main": "firebase-entry.js",
+    "engines": {
+        "node": "18"
+    },
     "type": "module",
     "scripts": {
         "dev": "nodemon server.js",
@@ -24,6 +27,8 @@
         "express-rate-limit": "^8.2.1",
         "express-session": "^1.18.2",
         "express-validator": "^7.3.1",
+        "firebase-admin": "^13.6.0",
+        "firebase-functions": "^7.0.3",
         "helmet": "^8.1.0",
         "jsonwebtoken": "^9.0.2",
         "mongoose": "^8.0.3",

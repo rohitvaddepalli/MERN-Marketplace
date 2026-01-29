@@ -291,9 +291,14 @@ if (process.env.NODE_ENV === 'production') {
 // Error handler middleware (must be last)
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 5000;
+// Export app for Firebase Functions
+export { app };
 
-app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📍 Environment: ${process.env.NODE_ENV}`);
-});
+// Only listen if run directly (not imported)
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+    const PORT = process.env.PORT || 5000;
+    app.listen(PORT, () => {
+        console.log(`🚀 Server running on port ${PORT}`);
+        console.log(`📍 Environment: ${process.env.NODE_ENV}`);
+    });
+}

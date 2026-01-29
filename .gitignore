@@ -7,3 +7,4 @@ frontend/build
 .firebaserc
 firebase-debug.log
 *.log
+.vscode

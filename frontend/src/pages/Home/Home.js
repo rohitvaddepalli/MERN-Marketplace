@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { productAPI, storeAPI } from '../../services/api';
+import { seedDatabase, clearDatabase } from '../../utils/seeder';
 import { useAuth } from '../../context/AuthContext';
 import { Helmet } from 'react-helmet-async';
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -10,31 +11,37 @@ import 'swiper/css/effect-cards';
 import './Home.css';
 import RecentlyViewed from '../../components/Products/RecentlyViewed';
 import ImageWithFallback from '../../components/Common/ImageWithFallback';
+import { SkeletonGrid } from '../../components/Common/Skeleton';
 import {
     PLACEHOLDER_ELECTRONICS,
     PLACEHOLDER_FASHION,
     PLACEHOLDER_HOME,
+    PLACEHOLDER_SPORTS,
     DEFAULT_PRODUCT_IMAGE,
     DEFAULT_STORE_BANNER,
     DEFAULT_STORE_LOGO
 } from '../../constants/images';
 
 const Home = () => {
-    const { user, isAuthenticated } = useAuth();
+    const { user, isAuthenticated, loading: authLoading } = useAuth();
     const navigate = useNavigate();
     const [featuredProducts, setFeaturedProducts] = useState([]);
     const [featuredStores, setFeaturedStores] = useState([]);
     const [loading, setLoading] = useState(true);
+    const hasNavigated = useRef(false);
 
     useEffect(() => {
-        if (isAuthenticated && user) {
+        // Redirect sellers and admins to their dashboards (only once and when fully loaded)
+        if (isAuthenticated && user?.role && !authLoading && !hasNavigated.current) {
             if (user.role === 'admin') {
-                navigate('/admin/dashboard');
+                hasNavigated.current = true;
+                navigate('/admin/dashboard', { replace: true });
             } else if (user.role === 'seller') {
-                navigate('/seller/dashboard');
+                hasNavigated.current = true;
+                navigate('/seller/dashboard', { replace: true });
             }
         }
-    }, [isAuthenticated, user, navigate]);
+    }, [isAuthenticated, user, authLoading, navigate]);
 
     useEffect(() => {
         fetchData();
@@ -146,8 +153,8 @@ const Home = () => {
                                     </SwiperSlide>
                                     <SwiperSlide>
                                         <div className="hero-slide-card">
-                                            <img
-                                                src="https://placehold.co/400x400/2ecc71/ffffff?text=Sports"
+                                            <ImageWithFallback
+                                                src={PLACEHOLDER_SPORTS}
                                                 alt="Sports"
                                                 className="hero-slide-img"
                                             />
@@ -257,6 +264,38 @@ const Home = () => {
                 </section>
             )}
 
+            {/* Seed & Clear Database Buttons - DEVELOPMENT ONLY & ADMIN ONLY */}
+            {process.env.NODE_ENV === 'development' && user?.role === 'admin' && (
+                <div className="container" style={{ marginTop: '20px', textAlign: 'center', display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                    <button
+                        onClick={async () => {
+                            if (window.confirm("Are you sure you want to seed the database?")) {
+                                const res = await seedDatabase();
+                                alert(res.message);
+                                fetchData();
+                            }
+                        }}
+                        className="btn btn-outline"
+                    >
+                        🌱 Seed Database
+                    </button>
+                    <button
+                        onClick={async () => {
+                            if (window.confirm("Are you sure you want to DELETE ALL PRODUCTS? This cannot be undone.")) {
+                                const res = await clearDatabase();
+                                alert(res.message);
+                                fetchData();
+                            }
+                        }}
+                        className="btn btn-outline"
+                        style={{ borderColor: 'red', color: 'red' }}
+                    >
+                        🗑️ Clear Database
+                    </button>
+                </div>
+            )
+            }
+
             {/* Featured Products */}
             <section className="featured-section">
                 <div className="container">
@@ -271,9 +310,7 @@ const Home = () => {
                     </div>
 
                     {loading ? (
-                        <div className="loading-container">
-                            <div className="spinner"></div>
-                        </div>
+                        <SkeletonGrid items={8} type="product" />
                     ) : (
                         <div className="products-grid">
                             {featuredProducts.map((product) => (
@@ -444,7 +481,7 @@ const Home = () => {
                     </div>
                 </div>
             </footer>
-        </div>
+        </div >
     );
 };
 

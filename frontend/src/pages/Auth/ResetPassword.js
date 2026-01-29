@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
-import { BASE_API_URL } from '../../services/api';
+import { auth } from '../../firebase';
+import { confirmPasswordReset } from 'firebase/auth';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import './ResetPassword.css';
 
 const ResetPassword = () => {
-    const { token } = useParams();
+    const { token } = useParams(); // Note: Firebase reset links use 'oobCode' parameter, usually handled by a different flow, but we can try to adapt.
     const navigate = useNavigate();
     const [formData, setFormData] = useState({
         password: '',
@@ -43,19 +43,13 @@ const ResetPassword = () => {
         setLoading(true);
 
         try {
-            const response = await axios.put(
-                `${BASE_API_URL}/api/auth/resetpassword/${token}`,
-                { password }
-            );
-
-            if (response.data.success) {
-                setSuccess(true);
-                setTimeout(() => {
-                    navigate('/login');
-                }, 3000);
-            }
+            await confirmPasswordReset(auth, token, password);
+            setSuccess(true);
+            setTimeout(() => {
+                navigate('/login');
+            }, 3000);
         } catch (err) {
-            setError(err.response?.data?.message || 'Failed to reset password. Please try again.');
+            setError(err.message || 'Failed to reset password. Please try again.');
         } finally {
             setLoading(false);
         }
