@@ -1,4 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import logger from '../utils/logger';
+import { DEFAULT_PRODUCT_IMAGE } from '../constants/images';
 
 const CartContext = createContext(null);
 
@@ -31,13 +33,13 @@ export const CartProvider = ({ children }) => {
                 // Handle images array
                 if (sanitizedItem.images && Array.isArray(sanitizedItem.images)) {
                     sanitizedItem.images = sanitizedItem.images.map(img =>
-                        (typeof img === 'string' && img.length > 1000) ? 'https://placehold.co/100' : img
+                        (typeof img === 'string' && img.length > 1000) ? DEFAULT_PRODUCT_IMAGE : img
                     );
                 }
 
                 // Handle single image property if it exists
                 if (sanitizedItem.image && typeof sanitizedItem.image === 'string' && sanitizedItem.image.length > 1000) {
-                    sanitizedItem.image = 'https://placehold.co/100';
+                    sanitizedItem.image = DEFAULT_PRODUCT_IMAGE;
                 }
 
                 return sanitizedItem;
@@ -45,17 +47,17 @@ export const CartProvider = ({ children }) => {
 
             localStorage.setItem('cart', JSON.stringify(cartToSave));
         } catch (error) {
-            console.error('Error saving cart to localStorage:', error);
+            logger.error('Error saving cart to localStorage:', error);
             // If quota is exceeded, we might want to try saving without any images as a fallback
             if (error.name === 'QuotaExceededError') {
                 try {
                     const minimalCart = cartItems.map(({ images, image, ...rest }) => ({
                         ...rest,
-                        images: ['https://placehold.co/100'] // Use placeholder
+                        images: [DEFAULT_PRODUCT_IMAGE] // Use placeholder
                     }));
                     localStorage.setItem('cart', JSON.stringify(minimalCart));
                 } catch (retryError) {
-                    console.error('Failed to save minimal cart:', retryError);
+                    logger.error('Failed to save minimal cart:', retryError);
                 }
             }
         }

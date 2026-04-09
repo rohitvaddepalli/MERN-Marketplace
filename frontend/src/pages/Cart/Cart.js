@@ -5,6 +5,8 @@ import { settingsAPI } from '../../services/api';
 import './Cart.css';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import toast from 'react-hot-toast';
+import logger from '../../utils/logger';
+import { DEFAULT_PRODUCT_IMAGE } from '../../constants/images';
 
 const Cart = () => {
     const { cartItems, updateQuantity, removeFromCart, getCartTotal, getCartCount, calculateItemPrice } = useCart();
@@ -21,7 +23,7 @@ const Cart = () => {
             const response = await settingsAPI.getSettings();
             setSettings(response.data.settings);
         } catch (error) {
-            console.error('Error fetching settings:', error);
+            logger.error('Error fetching settings:', error);
             // Use default values if fetch fails
         }
     };
@@ -58,10 +60,10 @@ const Cart = () => {
                         {cartItems.map((item) => (
                             <div key={item._id} className="cart-item">
                                 <img
-                                    src={item.images?.[0] || 'https://placehold.co/100'}
+                                    src={item.images?.[0] || DEFAULT_PRODUCT_IMAGE}
                                     alt={item.name}
                                     className="cart-item-image"
-                                    onError={(e) => e.target.src = 'https://placehold.co/100'}
+                                    onError={(e) => e.target.src = DEFAULT_PRODUCT_IMAGE}
                                 />
                                 <div className="cart-item-details">
                                     <h3>{item.name}</h3>

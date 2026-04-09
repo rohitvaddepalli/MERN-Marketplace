@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { storeAPI, productAPI } from '../../services/api';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
+import logger from '../../utils/logger';
+import { DEFAULT_STORE_BANNER, DEFAULT_STORE_LOGO, DEFAULT_PRODUCT_IMAGE } from '../../constants/images';
 
 const StoreDetail = () => {
     const { id } = useParams();
@@ -20,7 +22,7 @@ const StoreDetail = () => {
             setStore(storeRes.data.store);
             setProducts(productsRes.data.products || []);
         } catch (error) {
-            console.error('Error fetching store:', error);
+            logger.error('Error fetching store:', error);
         } finally {
             setLoading(false);
         }
@@ -54,12 +56,12 @@ const StoreDetail = () => {
     return (
         <div className="page-container" style={{ paddingTop: 0 }}>
             <div className="store-banner" style={{ height: '300px', marginBottom: '0', borderRadius: '0', position: 'relative', zIndex: 1 }}>
-                <img src={store.banner} alt={store.name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '0' }} onError={(e) => e.target.src = 'https://placehold.co/1200x300'} />
+                <img src={store.banner || DEFAULT_STORE_BANNER} alt={store.name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '0' }} onError={(e) => e.target.src = DEFAULT_STORE_BANNER} />
             </div>
             <div className="container" style={{ position: 'relative', zIndex: 10 }}>
                 <div style={{ textAlign: 'center', marginBottom: 'var(--spacing-2xl)', marginTop: '-120px', position: 'relative', zIndex: 10 }}>
                     <img
-                        src={store.logo}
+                        src={store.logo || DEFAULT_STORE_LOGO}
                         alt={store.name}
                         style={{
                             width: '200px',
@@ -74,7 +76,7 @@ const StoreDetail = () => {
                             position: 'relative',
                             zIndex: 10
                         }}
-                        onError={(e) => e.target.src = 'https://placehold.co/200'}
+                        onError={(e) => e.target.src = DEFAULT_STORE_LOGO}
                     />
                     <h1>{store.name}</h1>
                     <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--spacing-md)' }}>{store.description}</p>
@@ -86,7 +88,7 @@ const StoreDetail = () => {
                     {products.map((product) => (
                         <Link to={`/products/${product._id}`} key={product._id} className="product-card">
                             <div className="product-image">
-                                <img src={product.images?.[0] || 'https://placehold.co/300'} alt={product.name} onError={(e) => e.target.src = 'https://placehold.co/300'} />
+                                <img src={product.images?.[0] || DEFAULT_PRODUCT_IMAGE} alt={product.name} onError={(e) => e.target.src = DEFAULT_PRODUCT_IMAGE} />
                             </div>
                             <div className="product-info">
                                 <h3 className="product-name">{product.name}</h3>

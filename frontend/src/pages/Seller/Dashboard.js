@@ -5,6 +5,7 @@ import { storeAPI, productAPI, orderAPI } from '../../services/api';
 import Sidebar from '../../components/Sidebar/Sidebar';
 import '../Customer/Dashboard.css';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
+import logger from '../../utils/logger';
 
 const SellerDashboard = () => {
     const { user } = useAuth();
@@ -27,7 +28,7 @@ const SellerDashboard = () => {
             setProducts(productsRes.data.products || []);
             setOrders(ordersRes.data.orders || []);
         } catch (error) {
-            console.error('Error fetching data:', error);
+            logger.error('Error fetching data:', error);
         } finally {
             setLoading(false);
         }

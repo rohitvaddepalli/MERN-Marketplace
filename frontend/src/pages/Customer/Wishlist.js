@@ -4,6 +4,8 @@ import { userAPI } from '../../services/api';
 import { useCart } from '../../context/CartContext';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import toast from 'react-hot-toast';
+import logger from '../../utils/logger';
+import { DEFAULT_PRODUCT_IMAGE } from '../../constants/images';
 
 const Wishlist = () => {
     const [wishlist, setWishlist] = useState([]);
@@ -20,7 +22,7 @@ const Wishlist = () => {
             const response = await userAPI.getWishlist();
             setWishlist(response.data.wishlist || []);
         } catch (error) {
-            console.error('Error fetching wishlist:', error);
+            logger.error('Error fetching wishlist:', error);
         } finally {
             setLoading(false);
         }
@@ -32,7 +34,7 @@ const Wishlist = () => {
             setWishlist(wishlist.filter(item => item._id !== productId));
             toast.success('Removed from wishlist');
         } catch (error) {
-            console.error('Error removing from wishlist:', error);
+            logger.error('Error removing from wishlist:', error);
             toast.error('Failed to remove from wishlist');
         }
     };
@@ -74,9 +76,9 @@ const Wishlist = () => {
                             <div key={product._id} className="product-card">
                                 <Link to={`/products/${product._id}`} className="product-image">
                                     <img
-                                        src={product.images?.[0] || 'https://placehold.co/300'}
+                                        src={product.images?.[0] || DEFAULT_PRODUCT_IMAGE}
                                         alt={product.name}
-                                        onError={(e) => e.target.src = 'https://placehold.co/300'}
+                                        onError={(e) => e.target.src = DEFAULT_PRODUCT_IMAGE}
                                     />
                                 </Link>
                                 <div className="product-info">

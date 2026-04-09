@@ -3,6 +3,7 @@ import { orderAPI } from '../../services/api';
 import Sidebar from '../../components/Sidebar/Sidebar';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import toast from 'react-hot-toast';
+import logger from '../../utils/logger';
 
 const OrderManagement = () => {
     const [orders, setOrders] = useState([]);
@@ -19,7 +20,7 @@ const OrderManagement = () => {
             const response = await orderAPI.getSellerOrders();
             setOrders(response.data.orders || []);
         } catch (error) {
-            console.error('Error fetching orders:', error);
+            logger.error('Error fetching orders:', error);
         } finally {
             setLoading(false);
         }
@@ -31,7 +32,7 @@ const OrderManagement = () => {
             toast.success(`Order status updated to ${newStatus}`);
             fetchOrders();
         } catch (error) {
-            console.error('Error updating order status:', error);
+            logger.error('Error updating order status:', error);
             toast.error(error.response?.data?.message || 'Failed to update order status');
         }
     };

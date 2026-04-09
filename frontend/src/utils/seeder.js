@@ -1,5 +1,6 @@
 import { db } from '../firebase';
 import { collection, doc, writeBatch, getDocs } from 'firebase/firestore';
+import logger from './logger';
 
 const sampleProducts = [
     {
@@ -79,10 +80,10 @@ export const seedDatabase = async () => {
         });
 
         await batch.commit();
-        console.log("Database seeded successfully!");
+        logger.log("Database seeded successfully!");
         return { success: true, message: "Database seeded with sample products!" };
     } catch (error) {
-        console.error("Error seeding database:", error);
+        logger.error("Error seeding database:", error);
         return { success: false, message: error.message };
     }
 };
@@ -97,10 +98,10 @@ export const clearDatabase = async () => {
         });
 
         await batch.commit();
-        console.log("Database cleared successfully!");
+        logger.log("Database cleared successfully!");
         return { success: true, message: "Database cleared!" };
     } catch (error) {
-        console.error("Error clearing database:", error);
+        logger.error("Error clearing database:", error);
         return { success: false, message: error.message };
     }
 };

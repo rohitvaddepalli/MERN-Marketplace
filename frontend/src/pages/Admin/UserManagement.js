@@ -4,6 +4,7 @@ import AdminSidebar from '../../components/AdminSidebar/AdminSidebar';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import toast from 'react-hot-toast';
 import './AdminManagement.css';
+import logger from '../../utils/logger';
 
 const UserManagement = () => {
     const [users, setUsers] = useState([]);
@@ -32,7 +33,7 @@ const UserManagement = () => {
                 total: response.data.total
             });
         } catch (error) {
-            console.error('Error fetching users:', error);
+            logger.error('Error fetching users:', error);
         } finally {
             setLoading(false);
         }
@@ -50,7 +51,7 @@ const UserManagement = () => {
             toast.success('User deleted successfully');
             fetchUsers();
         } catch (error) {
-            console.error('Error deleting user:', error);
+            logger.error('Error deleting user:', error);
             toast.error(error.response?.data?.message || 'Failed to delete user');
         }
     };

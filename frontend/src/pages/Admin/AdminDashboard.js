@@ -5,6 +5,7 @@ import { adminAPI } from '../../services/api';
 import AdminSidebar from '../../components/AdminSidebar/AdminSidebar';
 import './AdminDashboard.css';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
+import logger from '../../utils/logger';
 
 const AdminDashboard = () => {
     const { user } = useAuth();
@@ -21,7 +22,7 @@ const AdminDashboard = () => {
             const response = await adminAPI.getDashboardStats();
             setStats(response.data.stats);
         } catch (error) {
-            console.error('Error fetching stats:', error);
+            logger.error('Error fetching stats:', error);
         } finally {
             setLoading(false);
         }

@@ -12,6 +12,7 @@ import './Home.css';
 import RecentlyViewed from '../../components/Products/RecentlyViewed';
 import ImageWithFallback from '../../components/Common/ImageWithFallback';
 import { SkeletonGrid } from '../../components/Common/Skeleton';
+import logger from '../../utils/logger';
 import {
     PLACEHOLDER_ELECTRONICS,
     PLACEHOLDER_FASHION,
@@ -57,7 +58,7 @@ const Home = () => {
             setFeaturedProducts(productsRes.data.products || []);
             setFeaturedStores(storesRes.data.stores?.slice(0, 6) || []);
         } catch (error) {
-            console.error('Error fetching data:', error);
+            logger.error('Error fetching data:', error);
         } finally {
             setLoading(false);
         }

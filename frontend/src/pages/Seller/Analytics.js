@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { analyticsAPI } from '../../services/api';
 import Sidebar from '../../components/Sidebar/Sidebar';
 import './Analytics.css';
+import logger from '../../utils/logger';
 
 const Analytics = () => {
     const [salesData, setSalesData] = useState(null);
@@ -27,7 +28,7 @@ const Analytics = () => {
             setProductData(products.data.analytics);
             setForecastData(forecast.data.forecast);
         } catch (error) {
-            console.error('Error fetching analytics:', error);
+            logger.error('Error fetching analytics:', error);
         } finally {
             setLoading(false);
         }

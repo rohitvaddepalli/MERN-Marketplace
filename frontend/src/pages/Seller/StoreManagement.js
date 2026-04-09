@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { storeAPI, uploadAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import Sidebar from '../../components/Sidebar/Sidebar';
+import logger from '../../utils/logger';
 
 const StoreManagement = () => {
     const [store, setStore] = useState(null);
@@ -47,7 +48,7 @@ const StoreManagement = () => {
                 });
             }
         } catch (error) {
-            console.error('Error fetching store:', error);
+            logger.error('Error fetching store:', error);
         } finally {
             setLoading(false);
         }
@@ -70,7 +71,7 @@ const StoreManagement = () => {
                 setFormData({ ...formData, [field]: response.data.urls[0] });
                 toast.success(`${field} uploaded successfully`, { id: uploadToast });
             } catch (error) {
-                console.error(`Error uploading ${field}`, error);
+                logger.error(`Error uploading ${field}`, error);
                 toast.error(`Failed to upload ${field}`, { id: uploadToast });
             }
         }
@@ -107,7 +108,7 @@ const StoreManagement = () => {
             }
             fetchStore();
         } catch (error) {
-            console.error('Error saving store:', error);
+            logger.error('Error saving store:', error);
             toast.error(error.response?.data?.message || 'Failed to save store');
         }
     };

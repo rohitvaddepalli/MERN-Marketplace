@@ -7,6 +7,8 @@ import './Products.css';
 import SkeletonProduct from '../../components/Products/SkeletonProduct';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import toast from 'react-hot-toast';
+import logger from '../../utils/logger';
+import { DEFAULT_PRODUCT_IMAGE } from '../../constants/images';
 
 const Products = () => {
     const [products, setProducts] = useState([]);
@@ -31,7 +33,7 @@ const Products = () => {
             const response = await productAPI.getProducts(filters);
             setProducts(response.data.products || []);
         } catch (error) {
-            console.error('Error fetching products:', error);
+            logger.error('Error fetching products:', error);
         } finally {
             setLoading(false);
         }
@@ -168,9 +170,9 @@ const Products = () => {
                                     <Link to={`/products/${product._id}`} key={product._id} className="product-card">
                                         <div className="product-image">
                                             <img
-                                                src={product.images?.[0] || 'https://placehold.co/300'}
+                                                src={product.images?.[0] || DEFAULT_PRODUCT_IMAGE}
                                                 alt={product.name}
-                                                onError={(e) => e.target.src = 'https://placehold.co/300'}
+                                                onError={(e) => e.target.src = DEFAULT_PRODUCT_IMAGE}
                                             />
                                             {product.compareAtPrice && (
                                                 <div className="product-badge">Sale</div>

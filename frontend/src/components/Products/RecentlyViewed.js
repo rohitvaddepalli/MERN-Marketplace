@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { userAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import logger from '../../utils/logger';
+import { DEFAULT_PRODUCT_IMAGE } from '../../constants/images';
 
 const RecentlyViewed = () => {
     const [products, setProducts] = useState([]);
@@ -25,7 +27,7 @@ const RecentlyViewed = () => {
                 .filter(product => product !== null); // Filter out any null products
             setProducts(viewedProducts);
         } catch (error) {
-            console.error('Error fetching recently viewed:', error);
+            logger.error('Error fetching recently viewed:', error);
         }
     };
 
@@ -57,10 +59,10 @@ const RecentlyViewed = () => {
                     >
                         <div style={{ height: '200px', overflow: 'hidden' }}>
                             <img
-                                src={product.images?.[0] || 'https://placehold.co/200'}
+                                src={product.images?.[0] || DEFAULT_PRODUCT_IMAGE}
                                 alt={product.name}
                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                onError={(e) => e.target.src = 'https://placehold.co/200'}
+                                onError={(e) => e.target.src = DEFAULT_PRODUCT_IMAGE}
                             />
                         </div>
                         <div style={{ padding: 'var(--spacing-md)' }}>
