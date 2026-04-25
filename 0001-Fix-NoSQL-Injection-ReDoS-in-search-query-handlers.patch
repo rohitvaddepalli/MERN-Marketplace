@@ -1,0 +1,191 @@
+From 8fa52ebd04b877e92e950e62bcc450e0d3b10fba Mon Sep 17 00:00:00 2001
+From: "google-labs-jules[bot]"
+ <161369871+google-labs-jules[bot]@users.noreply.github.com>
+Date: Sat, 25 Apr 2026 17:55:21 +0000
+Subject: [PATCH] =?UTF-8?q?=F0=9F=94=92=20Fix=20NoSQL=20Injection=20/=20Re?=
+ =?UTF-8?q?DoS=20in=20search=20query=20handlers?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+🎯 What: Direct use of user input in regex search queries can lead to NoSQL Injection or ReDoS attacks.
+⚠️ Risk: A malicious user could craft a search string that causes the regex engine to take exponential time to match, leading to denial of service, or execute unauthorized operations.
+🛡️ Solution: Extracted the sanitization logic to a shared `securityUtils.js` file and applied it to all occurrences in `admin.js`, `productController.js`, and `storeController.js`.
+---
+ backend/controllers/admin.js             | 27 ++++++++++++++----------
+ backend/controllers/productController.js | 27 +-----------------------
+ backend/controllers/storeController.js   |  6 ++++--
+ backend/utils/securityUtils.js           | 26 +++++++++++++++++++++++
+ 4 files changed, 47 insertions(+), 39 deletions(-)
+ create mode 100644 backend/utils/securityUtils.js
+
+diff --git a/backend/controllers/admin.js b/backend/controllers/admin.js
+index 0375b7f..5571ddb 100644
+--- a/backend/controllers/admin.js
++++ b/backend/controllers/admin.js
+@@ -3,6 +3,7 @@ import Store from '../models/Store.js';
+ import Product from '../models/Product.js';
+ import Order from '../models/Order.js';
+ import Settings from '../models/Settings.js';
++import { sanitizeSearchInput } from '../utils/securityUtils.js';
+
+ // @desc    Get dashboard statistics
+ // @route   GET /api/admin/stats
+@@ -76,10 +77,11 @@ export const getAllUsers = async (req, res) => {
+         const query = {};
+
+         if (role) query.role = role;
+-        if (search) {
++        const safeSearch = sanitizeSearchInput(search);
++        if (safeSearch) {
+             query.$or = [
+-                { name: { $regex: search, $options: 'i' } },
+-                { email: { $regex: search, $options: 'i' } }
++                { name: { $regex: safeSearch, $options: 'i' } },
++                { email: { $regex: safeSearch, $options: 'i' } }
+             ];
+         }
+
+@@ -118,10 +120,11 @@ export const getAllStores = async (req, res) => {
+
+         if (category) query.category = category;
+         if (isActive !== undefined && isActive !== '') query.isActive = isActive === 'true';
+-        if (search) {
++        const safeSearch = sanitizeSearchInput(search);
++        if (safeSearch) {
+             query.$or = [
+-                { name: { $regex: search, $options: 'i' } },
+-                { description: { $regex: search, $options: 'i' } }
++                { name: { $regex: safeSearch, $options: 'i' } },
++                { description: { $regex: safeSearch, $options: 'i' } }
+             ];
+         }
+
+@@ -159,10 +162,11 @@ export const getAllProducts = async (req, res) => {
+         const query = {};
+
+         if (category) query.category = category;
+-        if (search) {
++        const safeSearch = sanitizeSearchInput(search);
++        if (safeSearch) {
+             query.$or = [
+-                { name: { $regex: search, $options: 'i' } },
+-                { description: { $regex: search, $options: 'i' } }
++                { name: { $regex: safeSearch, $options: 'i' } },
++                { description: { $regex: safeSearch, $options: 'i' } }
+             ];
+         }
+
+@@ -201,8 +205,9 @@ export const getAllOrders = async (req, res) => {
+
+         if (status) query.status = status;
+         if (paymentStatus) query.paymentStatus = paymentStatus;
+-        if (search) {
+-            query.orderNumber = { $regex: search, $options: 'i' };
++        const safeSearch = sanitizeSearchInput(search);
++        if (safeSearch) {
++            query.orderNumber = { $regex: safeSearch, $options: 'i' };
+         }
+
+         const orders = await Order.find(query)
+diff --git a/backend/controllers/productController.js b/backend/controllers/productController.js
+index e4a4c90..55e5088 100644
+--- a/backend/controllers/productController.js
++++ b/backend/controllers/productController.js
+@@ -1,5 +1,6 @@
+ import Product from '../models/Product.js';
+ import Store from '../models/Store.js';
++import { sanitizeSearchInput } from '../utils/securityUtils.js';
+
+ // SECURITY: Whitelist of fields allowed for product updates
+ // Prevents mass assignment attacks that could modify seller, store, rating, reviewCount, etc.
+@@ -16,32 +17,6 @@ const ALLOWED_PRODUCT_CREATE_FIELDS = [
+     'tags', 'isActive', 'sku', 'weight', 'dimensions'
+ ];
+
+-// Maximum length for search/filter inputs to prevent abuse
+-const MAX_SEARCH_LENGTH = 100;
+-
+-/**
+- * Escapes special regex characters in a string to prevent ReDoS attacks
+- * @param {string} str - Input string
+- * @returns {string} - Escaped string safe for use in RegExp
+- */
+-const escapeRegex = (str) => {
+-    if (!str || typeof str !== 'string') return '';
+-    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+-};
+-
+-/**
+- * Sanitizes and limits search input
+- * @param {string} input - User input
+- * @returns {string|null} - Sanitized input or null if invalid
+- */
+-const sanitizeSearchInput = (input) => {
+-    if (!input || typeof input !== 'string') return null;
+-    // Trim and limit length
+-    const trimmed = input.trim().slice(0, MAX_SEARCH_LENGTH);
+-    // Escape regex special characters
+-    return escapeRegex(trimmed);
+-};
+-
+ /**
+  * Helper to pick only allowed fields from an object
+  * @param {Object} source - Source object
+diff --git a/backend/controllers/storeController.js b/backend/controllers/storeController.js
+index d1b0012..b200998 100644
+--- a/backend/controllers/storeController.js
++++ b/backend/controllers/storeController.js
+@@ -1,5 +1,6 @@
+ import Store from '../models/Store.js';
+ import Product from '../models/Product.js';
++import { sanitizeSearchInput } from '../utils/securityUtils.js';
+
+ // @desc    Create store
+ // @route   POST /api/stores
+@@ -52,8 +53,9 @@ export const getStores = async (req, res) => {
+             query.category = category;
+         }
+
+-        if (search) {
+-            query.name = { $regex: search, $options: 'i' };
++        const safeSearch = sanitizeSearchInput(search);
++        if (safeSearch) {
++            query.name = { $regex: safeSearch, $options: 'i' };
+         }
+
+         const stores = await Store.find(query)
+diff --git a/backend/utils/securityUtils.js b/backend/utils/securityUtils.js
+new file mode 100644
+index 0000000..e9a05ff
+--- /dev/null
++++ b/backend/utils/securityUtils.js
+@@ -0,0 +1,26 @@
++// Maximum length for search/filter inputs to prevent abuse
++export const MAX_SEARCH_LENGTH = 100;
++
++/**
++ * Escapes special regex characters in a string to prevent ReDoS attacks
++ * @param {string} str - Input string
++ * @returns {string} - Escaped string safe for use in RegExp
++ */
++export const escapeRegex = (str) => {
++    if (!str || typeof str !== 'string') return '';
++    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
++};
++
++/**
++ * Sanitizes and limits search input
++ * @param {string} input - User input
++ * @returns {string|null} - Sanitized input or null if invalid
++ */
++export const sanitizeSearchInput = (input) => {
++    if (!input || typeof input !== 'string') return null;
++    // Trim and limit length
++    const trimmed = input.trim().slice(0, MAX_SEARCH_LENGTH);
++    if (!trimmed) return null;
++    // Escape regex special characters
++    return escapeRegex(trimmed);
++};
+--
+2.53.0
