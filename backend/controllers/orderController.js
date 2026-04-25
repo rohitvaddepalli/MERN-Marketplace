@@ -138,10 +138,14 @@ export const createOrder = async (req, res) => {
         const order = await Order.create(orderData);
 
         // Update product stock
-        for (const item of verifiedItems) {
-            await Product.findByIdAndUpdate(item.product, {
-                $inc: { stock: -item.quantity }
-            });
+        if (verifiedItems.length > 0) {
+            const bulkOps = verifiedItems.map(item => ({
+                updateOne: {
+                    filter: { _id: item.product },
+                    update: { $inc: { stock: -item.quantity } }
+                }
+            }));
+            await Product.bulkWrite(bulkOps);
         }
 
         res.status(201).json({
@@ -370,12 +374,15 @@ export const cancelOrder = async (req, res) => {
         await order.save();
 
         // Restore stock
-        for (const item of order.items) {
-            if (item.product) {
-                await Product.findByIdAndUpdate(item.product, {
-                    $inc: { stock: item.quantity }
-                });
-            }
+        const itemsWithProduct = order.items.filter(item => item.product);
+        if (itemsWithProduct.length > 0) {
+            const bulkOps = itemsWithProduct.map(item => ({
+                updateOne: {
+                    filter: { _id: item.product },
+                    update: { $inc: { stock: item.quantity } }
+                }
+            }));
+            await Product.bulkWrite(bulkOps);
         }
 
         res.status(200).json({
