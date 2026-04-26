@@ -71,7 +71,9 @@ export const getDashboardStats = async (req, res) => {
 // @access  Private/Admin
 export const getAllUsers = async (req, res) => {
     try {
-        const { role, search, page = 1, limit = 10 } = req.query;
+        const { role, search } = req.query;
+        const pageNum = Math.max(1, parseInt(req.query.page, 10) || 1);
+        const limitNum = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 10));
 
         const query = {};
 
@@ -86,16 +88,16 @@ export const getAllUsers = async (req, res) => {
         const users = await User.find(query)
             .select('-password')
             .sort({ createdAt: -1 })
-            .limit(limit * 1)
-            .skip((page - 1) * limit);
+            .limit(limitNum)
+            .skip((pageNum - 1) * limitNum);
 
         const count = await User.countDocuments(query);
 
         res.status(200).json({
             success: true,
             users,
-            totalPages: Math.ceil(count / limit),
-            currentPage: page,
+            totalPages: Math.ceil(count / limitNum),
+            currentPage: pageNum,
             total: count
         });
     } catch (error) {
@@ -112,7 +114,9 @@ export const getAllUsers = async (req, res) => {
 // @access  Private/Admin
 export const getAllStores = async (req, res) => {
     try {
-        const { category, isActive, search, page = 1, limit = 10 } = req.query;
+        const { category, isActive, search } = req.query;
+        const pageNum = Math.max(1, parseInt(req.query.page, 10) || 1);
+        const limitNum = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 10));
 
         const query = {};
 
@@ -128,16 +132,16 @@ export const getAllStores = async (req, res) => {
         const stores = await Store.find(query)
             .populate('owner', 'name email')
             .sort({ createdAt: -1 })
-            .limit(limit * 1)
-            .skip((page - 1) * limit);
+            .limit(limitNum)
+            .skip((pageNum - 1) * limitNum);
 
         const count = await Store.countDocuments(query);
 
         res.status(200).json({
             success: true,
             stores,
-            totalPages: Math.ceil(count / limit),
-            currentPage: page,
+            totalPages: Math.ceil(count / limitNum),
+            currentPage: pageNum,
             total: count
         });
     } catch (error) {
@@ -154,7 +158,9 @@ export const getAllStores = async (req, res) => {
 // @access  Private/Admin
 export const getAllProducts = async (req, res) => {
     try {
-        const { category, search, page = 1, limit = 10 } = req.query;
+        const { category, search } = req.query;
+        const pageNum = Math.max(1, parseInt(req.query.page, 10) || 1);
+        const limitNum = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 10));
 
         const query = {};
 
@@ -169,16 +175,16 @@ export const getAllProducts = async (req, res) => {
         const products = await Product.find(query)
             .populate('store', 'name')
             .sort({ createdAt: -1 })
-            .limit(limit * 1)
-            .skip((page - 1) * limit);
+            .limit(limitNum)
+            .skip((pageNum - 1) * limitNum);
 
         const count = await Product.countDocuments(query);
 
         res.status(200).json({
             success: true,
             products,
-            totalPages: Math.ceil(count / limit),
-            currentPage: page,
+            totalPages: Math.ceil(count / limitNum),
+            currentPage: pageNum,
             total: count
         });
     } catch (error) {
@@ -195,7 +201,9 @@ export const getAllProducts = async (req, res) => {
 // @access  Private/Admin
 export const getAllOrders = async (req, res) => {
     try {
-        const { status, paymentStatus, search, page = 1, limit = 10 } = req.query;
+        const { status, paymentStatus, search } = req.query;
+        const pageNum = Math.max(1, parseInt(req.query.page, 10) || 1);
+        const limitNum = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 10));
 
         const query = {};
 
@@ -210,16 +218,16 @@ export const getAllOrders = async (req, res) => {
             .populate('items.product', 'name')
             .populate('items.store', 'name')
             .sort({ createdAt: -1 })
-            .limit(limit * 1)
-            .skip((page - 1) * limit);
+            .limit(limitNum)
+            .skip((pageNum - 1) * limitNum);
 
         const count = await Order.countDocuments(query);
 
         res.status(200).json({
             success: true,
             orders,
-            totalPages: Math.ceil(count / limit),
-            currentPage: page,
+            totalPages: Math.ceil(count / limitNum),
+            currentPage: pageNum,
             total: count
         });
     } catch (error) {
