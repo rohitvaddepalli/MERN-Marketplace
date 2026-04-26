@@ -3,6 +3,8 @@ import Store from '../models/Store.js';
 import Product from '../models/Product.js';
 import Order from '../models/Order.js';
 import Settings from '../models/Settings.js';
+import { sanitizeSearchInput } from '../utils/securityUtils.js';
+
 
 // @desc    Get dashboard statistics
 // @route   GET /api/admin/stats
@@ -76,10 +78,12 @@ export const getAllUsers = async (req, res) => {
         const query = {};
 
         if (role) query.role = role;
-        if (search) {
+
+        const sanitizedSearch = sanitizeSearchInput(search);
+        if (sanitizedSearch) {
             query.$or = [
-                { name: { $regex: search, $options: 'i' } },
-                { email: { $regex: search, $options: 'i' } }
+                { name: { $regex: sanitizedSearch, $options: 'i' } },
+                { email: { $regex: sanitizedSearch, $options: 'i' } }
             ];
         }
 
@@ -118,10 +122,12 @@ export const getAllStores = async (req, res) => {
 
         if (category) query.category = category;
         if (isActive !== undefined && isActive !== '') query.isActive = isActive === 'true';
-        if (search) {
+
+        const sanitizedSearch = sanitizeSearchInput(search);
+        if (sanitizedSearch) {
             query.$or = [
-                { name: { $regex: search, $options: 'i' } },
-                { description: { $regex: search, $options: 'i' } }
+                { name: { $regex: sanitizedSearch, $options: 'i' } },
+                { description: { $regex: sanitizedSearch, $options: 'i' } }
             ];
         }
 
@@ -159,10 +165,12 @@ export const getAllProducts = async (req, res) => {
         const query = {};
 
         if (category) query.category = category;
-        if (search) {
+
+        const sanitizedSearch = sanitizeSearchInput(search);
+        if (sanitizedSearch) {
             query.$or = [
-                { name: { $regex: search, $options: 'i' } },
-                { description: { $regex: search, $options: 'i' } }
+                { name: { $regex: sanitizedSearch, $options: 'i' } },
+                { description: { $regex: sanitizedSearch, $options: 'i' } }
             ];
         }
 
@@ -201,8 +209,10 @@ export const getAllOrders = async (req, res) => {
 
         if (status) query.status = status;
         if (paymentStatus) query.paymentStatus = paymentStatus;
-        if (search) {
-            query.orderNumber = { $regex: search, $options: 'i' };
+
+        const sanitizedSearch = sanitizeSearchInput(search);
+        if (sanitizedSearch) {
+            query.orderNumber = { $regex: sanitizedSearch, $options: 'i' };
         }
 
         const orders = await Order.find(query)
