@@ -1,3 +1,4 @@
+import { sanitizeSearchInput } from '../utils/securityUtils.js';
 import Store from '../models/Store.js';
 import Product from '../models/Product.js';
 
@@ -52,8 +53,10 @@ export const getStores = async (req, res) => {
             query.category = category;
         }
 
-        if (search) {
-            query.name = { $regex: search, $options: 'i' };
+        // SECURITY: Sanitize search input to prevent ReDoS and NoSQL Injection
+        const safeSearch = sanitizeSearchInput(search);
+        if (safeSearch) {
+            query.name = { $regex: safeSearch, $options: 'i' };
         }
 
         const stores = await Store.find(query)
