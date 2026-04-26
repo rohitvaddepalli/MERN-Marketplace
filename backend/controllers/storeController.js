@@ -1,5 +1,6 @@
 import Store from '../models/Store.js';
 import Product from '../models/Product.js';
+import { sanitizeSearchInput } from '../utils/sanitize.js';
 
 // @desc    Create store
 // @route   POST /api/stores
@@ -53,7 +54,10 @@ export const getStores = async (req, res) => {
         }
 
         if (search) {
-            query.name = { $regex: search, $options: 'i' };
+            const safeSearch = sanitizeSearchInput(search);
+            if (safeSearch) {
+                query.name = { $regex: safeSearch, $options: 'i' };
+            }
         }
 
         const stores = await Store.find(query)

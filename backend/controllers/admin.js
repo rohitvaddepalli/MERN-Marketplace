@@ -3,6 +3,7 @@ import Store from '../models/Store.js';
 import Product from '../models/Product.js';
 import Order from '../models/Order.js';
 import Settings from '../models/Settings.js';
+import { sanitizeSearchInput } from '../utils/sanitize.js';
 
 // @desc    Get dashboard statistics
 // @route   GET /api/admin/stats
@@ -77,10 +78,13 @@ export const getAllUsers = async (req, res) => {
 
         if (role) query.role = role;
         if (search) {
-            query.$or = [
-                { name: { $regex: search, $options: 'i' } },
-                { email: { $regex: search, $options: 'i' } }
-            ];
+            const safeSearch = sanitizeSearchInput(search);
+            if (safeSearch) {
+                query.$or = [
+                    { name: { $regex: safeSearch, $options: 'i' } },
+                    { email: { $regex: safeSearch, $options: 'i' } }
+                ];
+            }
         }
 
         const users = await User.find(query)
@@ -119,10 +123,13 @@ export const getAllStores = async (req, res) => {
         if (category) query.category = category;
         if (isActive !== undefined && isActive !== '') query.isActive = isActive === 'true';
         if (search) {
-            query.$or = [
-                { name: { $regex: search, $options: 'i' } },
-                { description: { $regex: search, $options: 'i' } }
-            ];
+            const safeSearch = sanitizeSearchInput(search);
+            if (safeSearch) {
+                query.$or = [
+                    { name: { $regex: safeSearch, $options: 'i' } },
+                    { description: { $regex: safeSearch, $options: 'i' } }
+                ];
+            }
         }
 
         const stores = await Store.find(query)
@@ -160,10 +167,13 @@ export const getAllProducts = async (req, res) => {
 
         if (category) query.category = category;
         if (search) {
-            query.$or = [
-                { name: { $regex: search, $options: 'i' } },
-                { description: { $regex: search, $options: 'i' } }
-            ];
+            const safeSearch = sanitizeSearchInput(search);
+            if (safeSearch) {
+                query.$or = [
+                    { name: { $regex: safeSearch, $options: 'i' } },
+                    { description: { $regex: safeSearch, $options: 'i' } }
+                ];
+            }
         }
 
         const products = await Product.find(query)
@@ -202,7 +212,10 @@ export const getAllOrders = async (req, res) => {
         if (status) query.status = status;
         if (paymentStatus) query.paymentStatus = paymentStatus;
         if (search) {
-            query.orderNumber = { $regex: search, $options: 'i' };
+            const safeSearch = sanitizeSearchInput(search);
+            if (safeSearch) {
+                query.orderNumber = { $regex: safeSearch, $options: 'i' };
+            }
         }
 
         const orders = await Order.find(query)
