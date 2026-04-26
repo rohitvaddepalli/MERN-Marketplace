@@ -33,9 +33,14 @@ export const createOrder = async (req, res) => {
         let serverItemsPrice = 0;
         const verifiedItems = [];
 
+        // PERFORMANCE: Optimization - Fetch all products in a single query to avoid N+1 problem
+        const productIds = [...new Set(items.map(item => item.product))];
+        const products = await Product.find({ _id: { $in: productIds } });
+        const productMap = new Map(products.map(p => [p._id.toString(), p]));
+
         // Verify products exist, have sufficient stock, and compute server-side prices
         for (const item of items) {
-            const product = await Product.findById(item.product);
+            const product = productMap.get(item.product.toString());
             if (!product) {
                 return res.status(404).json({
                     success: false,
@@ -137,11 +142,16 @@ export const createOrder = async (req, res) => {
 
         const order = await Order.create(orderData);
 
-        // Update product stock
-        for (const item of verifiedItems) {
-            await Product.findByIdAndUpdate(item.product, {
-                $inc: { stock: -item.quantity }
-            });
+        // PERFORMANCE: Optimization - Update product stock using bulkWrite to avoid N+1 problem
+        const stockUpdates = verifiedItems.map(item => ({
+            updateOne: {
+                filter: { _id: item.product },
+                update: { $inc: { stock: -item.quantity } }
+            }
+        }));
+
+        if (stockUpdates.length > 0) {
+            await Product.bulkWrite(stockUpdates);
         }
 
         res.status(201).json({
@@ -369,13 +379,18 @@ export const cancelOrder = async (req, res) => {
         order.status = 'cancelled';
         await order.save();
 
-        // Restore stock
-        for (const item of order.items) {
-            if (item.product) {
-                await Product.findByIdAndUpdate(item.product, {
-                    $inc: { stock: item.quantity }
-                });
-            }
+        // PERFORMANCE: Optimization - Restore product stock using bulkWrite to avoid N+1 problem
+        const stockRestorations = order.items
+            .filter(item => item.product)
+            .map(item => ({
+                updateOne: {
+                    filter: { _id: item.product },
+                    update: { $inc: { stock: item.quantity } }
+                }
+            }));
+
+        if (stockRestorations.length > 0) {
+            await Product.bulkWrite(stockRestorations);
         }
 
         res.status(200).json({
