@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { orderAPI } from '../../services/api';
 import './Dashboard.css';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
+import logger from '../../utils/logger';
 
 const CustomerDashboard = () => {
     const { user } = useAuth();
@@ -20,7 +21,7 @@ const CustomerDashboard = () => {
             const response = await orderAPI.getMyOrders();
             setOrders(response.data.orders || []);
         } catch (error) {
-            console.error('Error fetching orders:', error);
+            logger.error('Error fetching orders:', error);
         } finally {
             setLoading(false);
         }

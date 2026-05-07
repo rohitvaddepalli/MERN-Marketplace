@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
+import logger from '../../utils/logger';
 
 const LoginSuccess = () => {
     const navigate = useNavigate();
@@ -28,7 +29,7 @@ const LoginSuccess = () => {
                     // Redirect to home after successful auth
                     navigate('/', { replace: true });
                 } catch (err) {
-                    console.error('Social login error:', err);
+                    logger.error('Social login error:', err);
                     setError('Failed to complete login. Please try again.');
                     setTimeout(() => navigate('/login', { replace: true }), 2000);
                 }

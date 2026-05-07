@@ -6,6 +6,7 @@ import useDocumentTitle from '../../hooks/useDocumentTitle';
 import ImageWithFallback from '../../components/Common/ImageWithFallback';
 import { DEFAULT_PRODUCT_IMAGE } from '../../constants/images';
 import './Dashboard.css';
+import logger from '../../utils/logger';
 
 const CustomerOrders = () => {
     const [orders, setOrders] = useState([]);
@@ -23,7 +24,7 @@ const CustomerOrders = () => {
             const response = await orderAPI.getMyOrders();
             setOrders(response.data.orders || []);
         } catch (error) {
-            console.error('Error fetching orders:', error);
+            logger.error('Error fetching orders:', error);
             toast.error('Failed to load orders');
         } finally {
             setLoading(false);
@@ -48,7 +49,7 @@ const CustomerOrders = () => {
                 ));
             }
         } catch (error) {
-            console.error('Error cancelling order:', error);
+            logger.error('Error cancelling order:', error);
             toast.error(error.response?.data?.message || 'Failed to cancel order');
         } finally {
             setShowCancelModal(false);

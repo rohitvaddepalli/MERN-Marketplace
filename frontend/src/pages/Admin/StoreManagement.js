@@ -4,6 +4,7 @@ import AdminSidebar from '../../components/AdminSidebar/AdminSidebar';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import toast from 'react-hot-toast';
 import './AdminManagement.css';
+import logger from '../../utils/logger';
 
 const StoreManagement = () => {
     const [stores, setStores] = useState([]);
@@ -33,7 +34,7 @@ const StoreManagement = () => {
                 total: response.data.total
             });
         } catch (error) {
-            console.error('Error fetching stores:', error);
+            logger.error('Error fetching stores:', error);
         } finally {
             setLoading(false);
         }
@@ -49,7 +50,7 @@ const StoreManagement = () => {
             toast.success(`Store ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
             fetchStores();
         } catch (error) {
-            console.error('Error updating store status:', error);
+            logger.error('Error updating store status:', error);
             toast.error('Failed to update store status');
         }
     };
@@ -62,7 +63,7 @@ const StoreManagement = () => {
             toast.success('Store deleted successfully');
             fetchStores();
         } catch (error) {
-            console.error('Error deleting store:', error);
+            logger.error('Error deleting store:', error);
             toast.error(error.response?.data?.message || 'Failed to delete store');
         }
     };

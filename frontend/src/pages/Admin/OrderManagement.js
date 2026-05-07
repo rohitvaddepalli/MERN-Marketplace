@@ -4,6 +4,7 @@ import AdminSidebar from '../../components/AdminSidebar/AdminSidebar';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import toast from 'react-hot-toast';
 import './AdminManagement.css';
+import logger from '../../utils/logger';
 
 const OrderManagement = () => {
     const [orders, setOrders] = useState([]);
@@ -33,7 +34,7 @@ const OrderManagement = () => {
                 total: response.data.total
             });
         } catch (error) {
-            console.error('Error fetching orders:', error);
+            logger.error('Error fetching orders:', error);
         } finally {
             setLoading(false);
         }
@@ -51,7 +52,7 @@ const OrderManagement = () => {
             toast.success('Order deleted successfully');
             fetchOrders();
         } catch (error) {
-            console.error('Error deleting order:', error);
+            logger.error('Error deleting order:', error);
             toast.error(error.response?.data?.message || 'Failed to delete order');
         }
     };

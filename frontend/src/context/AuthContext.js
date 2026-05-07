@@ -10,6 +10,7 @@ import {
     updateProfile
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import logger from '../utils/logger';
 
 const AuthContext = createContext(null);
 
@@ -53,7 +54,7 @@ export const AuthProvider = ({ children }) => {
                         });
                     }
                 } catch (error) {
-                    console.error("Error fetching user data:", error);
+                    logger.error("Error fetching user data:", error);
                     // Still set basic user with default role to prevent redirect loops
                     setUser({
                         uid: firebaseUser.uid,
@@ -78,7 +79,7 @@ export const AuthProvider = ({ children }) => {
             await signInWithEmailAndPassword(auth, email, password);
             return { success: true };
         } catch (error) {
-            console.error('Login error:', error);
+            logger.error('Login error:', error);
             return {
                 success: false,
                 message: error.message
@@ -107,7 +108,7 @@ export const AuthProvider = ({ children }) => {
 
             return { success: true, role };
         } catch (error) {
-            console.error('Registration error:', error);
+            logger.error('Registration error:', error);
             return {
                 success: false,
                 message: error.message
@@ -136,7 +137,7 @@ export const AuthProvider = ({ children }) => {
             }
             return { success: true };
         } catch (error) {
-            console.error('Google Auth error:', error);
+            logger.error('Google Auth error:', error);
             return { success: false, message: error.message };
         }
     };
@@ -146,7 +147,7 @@ export const AuthProvider = ({ children }) => {
             await signOut(auth);
             setUser(null);
         } catch (error) {
-            console.error('Logout error:', error);
+            logger.error('Logout error:', error);
         }
     };
 

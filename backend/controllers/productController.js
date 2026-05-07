@@ -146,14 +146,28 @@ export const getProducts = async (req, res) => {
         if (sort === 'price-desc') sortOption = '-price';
         if (sort === 'rating') sortOption = '-rating';
 
-        const products = await Product.find(query)
-            .populate('store', 'name logo')
-            .populate('seller', 'name')
-            .sort(sortOption);
+        // Pagination setup
+        const page = parseInt(req.query.page, 10) || 1;
+        // Default limit of 50 to bound the query while providing enough items for typical display
+        const limit = parseInt(req.query.limit, 10) || 50;
+        const skip = (page - 1) * limit;
+
+        const [products, total] = await Promise.all([
+            Product.find(query)
+                .populate('store', 'name logo')
+                .populate('seller', 'name')
+                .sort(sortOption)
+                .skip(skip)
+                .limit(limit),
+            Product.countDocuments(query)
+        ]);
 
         res.status(200).json({
             success: true,
             count: products.length,
+            total,
+            page,
+            pages: Math.ceil(total / limit),
             products
         });
     } catch (error) {

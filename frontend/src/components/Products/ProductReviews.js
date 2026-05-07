@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { productAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
+import logger from '../../utils/logger';
 
 const ProductReviews = ({ productId, reviews: initialReviews = [] }) => {
     const [reviews, setReviews] = useState(initialReviews);
@@ -14,7 +15,7 @@ const ProductReviews = ({ productId, reviews: initialReviews = [] }) => {
             const response = await productAPI.getReviews(productId);
             setReviews(response.data.reviews);
         } catch (error) {
-            console.error('Error fetching reviews:', error);
+            logger.error('Error fetching reviews:', error);
         }
     }, [productId]);
 

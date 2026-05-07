@@ -4,6 +4,7 @@ import { authAPI } from '../../services/api';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import toast from 'react-hot-toast';
 import './Settings.css';
+import logger from '../../utils/logger';
 
 const Settings = () => {
     const { user, updateUser } = useAuth();
@@ -67,7 +68,7 @@ const Settings = () => {
                 updateUser(response.data.user);
             }
         } catch (error) {
-            console.error('Error updating profile:', error);
+            logger.error('Error updating profile:', error);
             toast.error(error.response?.data?.message || 'Failed to update profile');
         } finally {
             setLoading(false);

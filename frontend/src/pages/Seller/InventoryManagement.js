@@ -4,6 +4,7 @@ import Sidebar from '../../components/Sidebar/Sidebar';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import toast from 'react-hot-toast';
 import './InventoryManagement.css';
+import logger from '../../utils/logger';
 
 const InventoryManagement = () => {
     const [lowStockProducts, setLowStockProducts] = useState([]);
@@ -21,7 +22,7 @@ const InventoryManagement = () => {
             const response = await productAPI.getLowStockProducts();
             setLowStockProducts(response.data.products || []);
         } catch (error) {
-            console.error('Error fetching low stock products:', error);
+            logger.error('Error fetching low stock products:', error);
         } finally {
             setLoading(false);
         }
@@ -59,7 +60,7 @@ const InventoryManagement = () => {
 
             toast.success('Products exported successfully!');
         } catch (error) {
-            console.error('Error exporting products:', error);
+            logger.error('Error exporting products:', error);
             toast.error('Failed to export products');
         }
     };
@@ -92,7 +93,7 @@ const InventoryManagement = () => {
             setImportData('');
             fetchLowStockProducts();
         } catch (error) {
-            console.error('Error importing products:', error);
+            logger.error('Error importing products:', error);
             toast.error('Failed to import products. Please check the CSV format.');
         }
     };
