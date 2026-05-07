@@ -1,373 +1,88 @@
-# Security Implementation Guide
+# 007 Security Audit Report
 
-## Overview
+## 1. System Summary
 
-This document outlines the security measures implemented in the Marketplace application to protect against common web application vulnerabilities.
+**Target:** MERN Marketplace Application (Backend + Frontend)
+**Scope:** Static source code analysis, Express server configurations, CORS policies, Security middlewares, and Authentication.
+**Context:** The system is a marketplace platform based on Node.js, Express, MongoDB, and React, with image uploads delegated to Cloudinary and authentication via Passport/Express-Session.
 
----
+## 2. Attack Map
 
-## Table of Contents
+**Inputs and Outputs:**
+- **Inputs:** API Endpoints (`/api/*`), image uploads, OAuth, and authentication forms.
+- **Outputs:** API JSON responses, file exports, Cloudinary image URLs.
+- **Trust Boundaries:** The Express backend acts as the primary boundary protecting the MongoDB database.
 
-1. [Authentication Security](#authentication-security)
-2. [Authorization Controls](#authorization-controls)
-3. [Input Validation & Sanitization](#input-validation--sanitization)
-4. [Rate Limiting](#rate-limiting)
-5. [Session Security](#session-security)
-6. [HTTP Security Headers](#http-security-headers)
-7. [CORS Configuration](#cors-configuration)
-8. [Data Protection](#data-protection)
-9. [Environment Configuration](#environment-configuration)
-10. [Security Checklist](#security-checklist)
+**Critical Assets:**
+- **Secrets:** `JWT_SECRET`, `SESSION_SECRET`, `MONGODB_URI`, Cloudinary Credentials, Google OAuth Credentials.
+- **Data:** User sessions, PII (Personal Identifiable Information), Payment Orders, and Products.
 
----
+**Execution Points:**
+- Body parser middleware, local/Cloudinary image processing.
 
-## Authentication Security
+## 3. Vulnerabilities Found
 
-### HTTP-Only Cookie Authentication
+| # | Severity | Vulnerability | Vector | Impact | Fix |
+|---|----------|---------------|--------|--------|-----|
+| 1 | **HIGH** | **Excessive JSON Payload Limit** (`50mb`) | DoS attack by sending a massive JSON payload. | Memory exhaustion in Node.js (Event Loop Blocking / OOM). | Reduce `express.json({ limit: '50mb' })` to `100kb` or `1mb`. |
+| 2 | **MEDIUM** | **Permissive CSP connectSrc** | Data exfiltration in case of XSS bypass. | CSP allows `connectSrc: ["'self'", "*"]`, permitting scripts to send data anywhere. | Remove the `*` and list specific API domains. |
+| 3 | **LOW** | **Lack of Anti-CSRF Token** | CSRF (Cross-Site Request Forgery) attack. | Although it uses `sameSite: 'lax'`, older browsers might be vulnerable to request forgery. | Implement CSRF middleware (e.g., csurf) for mutating requests. |
 
-**Location:** `backend/controllers/authController.js`, `backend/middleware/auth.js`
+## 4. Threat Model (STRIDE)
 
-Tokens are now stored in HTTP-only cookies instead of localStorage:
+- **Spoofing (Identity):** The use of `express-session` with MongoDB and `httpOnly` + `secure` mitigates session hijacking well. The absence of 2FA is a business risk.
+- **Tampering:** Inputs are protected by `xss-clean` e `express-mongo-sanitize`. Images sent via Cloudinary prevent local file execution.
+- **Repudiation:** The system needs a clearer audit trail. There is no evidence of detailed logs (e.g., `morgan`, pino/winston) for incoming requests.
+- **Information Disclosure:** The use of `helmet` protects against common HTTP header leaks.
+- **Denial of Service (DoS):** The `50MB` body parser limit is a severe risk for regular API requests.
+- **Elevation of Privilege:** Auth routes have strict rate-limiting. No apparent vulnerability as long as the business logic is solid.
 
-```javascript
-// Cookie options
-{
-    httpOnly: true,      // Prevents XSS attacks - JS cannot access
-    secure: true,        // HTTPS only in production
-    sameSite: 'strict',  // CSRF protection
-    maxAge: 7 * 24 * 60 * 60 * 1000  // 7 days
-}
-```
+## 5. Proposed Fixes
 
-**Benefits:**
-- XSS attacks cannot steal tokens
-- Tokens are automatically sent with requests
-- Server-side logout clears credentials
+1. **In `backend/server.js`:**
+   Change from:
+   ```javascript
+   app.use(express.json({ limit: '50mb' }));
+   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+   ```
+   To:
+   ```javascript
+   app.use(express.json({ limit: '1mb' }));
+   app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+   ```
 
-### Password Security
+2. **In CSP inside `server.js`:**
+   Change:
+   ```javascript
+   connectSrc: ["'self'", "*"],
+   ```
+   To list only the required domains.
 
-- Passwords are hashed using bcrypt (12 salt rounds)
-- Password reset tokens are hashed before storage
-- Reset tokens expire after 10 minutes
+## 6. Hardening And Improvements
 
-### Social Login Security
+- **Centralized Logging:** Add `morgan` or `pino` to ensure robust logging with PII and secrets masking.
+- **Specific Validation:** `xss-clean` and `mongoSanitize` are heuristics. The ideal approach is to use a library like `zod` or `joi` to validate the exact schema on every route.
+- **Anti-CSRF:** Integrate an Anti-CSRF token if the client uses stateful cookie authentication.
 
-**Location:** `backend/controllers/authController.js`
+## 7. Scoring
 
-- OAuth tokens use URL fragments (`#authenticated=true`) instead of query params
-- Query params are visible in browser history and server logs
-- Fragments are never sent to the server
+| Domain | Score (0-100) | Observation |
+|--------|---------------|-------------|
+| Secrets & Credentials | 90 | Strict `.env` verification on startup. |
+| Input Validation | 70 | Generic protection with sanitize, but massive payloads allowed. |
+| Authentication & AuthZ | 85 | Correct session config with TTL and security flags, but lacks logs. |
+| Data Protection | 85 | Good CSP and Helmet policies. |
+| Resilience | 75 | Excellent rate-limit, but susceptible to ReDoS from JSON parsing. |
+| Monitoring | 40 | Absence of persistent auditable logs. |
 
----
+**Final Score: 74**
 
-## Authorization Controls
+## 8. Final Verdict
 
-### Role-Based Access Control
+**Approved with Reservations**
 
-**Location:** `backend/middleware/auth.js`
+**Technical Justification:** The backend presents mature environment protection configurations, security header middlewares, session management with MongoDB, and adaptable rate-limiting for production. However, it is *essential* to reduce the body-parser limit from 50mb to mitigate critical risks of DoS attacks.
 
-```javascript
-authorize('admin')     // Admin only
-authorize('seller')    // Seller only
-authorize('customer')  // Customer only
-authorize('admin', 'seller')  // Admin or Seller
-```
-
-### Protected Endpoints
-
-| Endpoint | Required Role |
-|----------|---------------|
-| `GET /api/orders` (all orders) | Admin only |
-| `PUT /api/admin/*` | Admin only |
-| `POST /api/products` | Seller only |
-| `GET /api/orders/seller/orders` | Seller only |
-| `GET /api/orders/myorders` | Customer only |
-
-### Registration Security
-
-**Location:** `backend/controllers/authController.js`
-
-- Role is **always** set to `'customer'` server-side
-- User-provided `role` in registration payload is ignored
-- Role elevation requires admin action via protected routes
-
----
-
-## Input Validation & Sanitization
-
-### NoSQL Injection Prevention
-
-**Location:** `backend/server.js`
-
-```javascript
-import mongoSanitize from 'express-mongo-sanitize';
-app.use(mongoSanitize());
-```
-
-Sanitizes input against query selector injection (e.g., `{"$gt": ""}`)
-
-### XSS Protection
-
-**Location:** `backend/server.js`
-
-```javascript
-import xss from 'xss-clean';
-app.use(xss());
-```
-
-Sanitizes user input in request body, params, and query strings.
-
-### Regex DoS (ReDoS) Prevention
-
-**Location:** `backend/controllers/productController.js`
-
-```javascript
-// Escape special regex characters
-const escapeRegex = (str) => {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-};
-
-// Limit and sanitize search input
-const sanitizeSearchInput = (input) => {
-    const trimmed = input.trim().slice(0, 100);  // Max 100 chars
-    return escapeRegex(trimmed);
-};
-```
-
-### Mass Assignment Prevention
-
-**Location:** `backend/controllers/storeController.js`, `backend/controllers/productController.js`
-
-Only whitelisted fields can be updated:
-
-```javascript
-// Store - allowed fields
-['name', 'description', 'category', 'address', 'contact', 'logo', 'banner']
-
-// Product - allowed fields
-['name', 'description', 'price', 'compareAtPrice', 'stock', 'lowStockThreshold',
- 'category', 'subcategory', 'brand', 'images', 'specifications', 'variants',
- 'tags', 'isActive', 'sku', 'weight', 'dimensions']
-```
-
-**Protected fields:** `owner`, `seller`, `store`, `rating`, `reviewCount`, `createdAt`
-
----
-
-## Rate Limiting
-
-**Location:** `backend/server.js`
-
-### General API Rate Limit
-```javascript
-{
-    windowMs: 15 * 60 * 1000,  // 15 minutes
-    limit: 1000                // 1000 requests per window
-}
-```
-
-### Auth Routes Rate Limit (Stricter)
-```javascript
-{
-    windowMs: 15 * 60 * 1000,  // 15 minutes
-    limit: 100                 // 100 requests per window
-}
-```
-
-Applied to `/api/auth/*` to prevent brute-force attacks.
-
----
-
-## Session Security
-
-**Location:** `backend/server.js`
-
-### MongoDB Session Store
-
-Sessions are stored in MongoDB for:
-- Persistence across server restarts
-- Scalability across multiple server instances
-- Automatic cleanup via TTL indexes
-
-```javascript
-MongoStore.create({
-    mongoUrl: process.env.MONGODB_URI,
-    ttl: 24 * 60 * 60,        // 24 hours
-    autoRemove: 'native',     // Use MongoDB TTL
-    crypto: { secret: '...' } // Encrypt session data
-})
-```
-
-### Secure Cookie Configuration
-
-```javascript
-{
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 24 * 60 * 60 * 1000
-}
-```
-
----
-
-## HTTP Security Headers
-
-**Location:** `backend/server.js`
-
-Using `helmet` middleware:
-
-```javascript
-app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-            fontSrc: ["'self'", "https://fonts.gstatic.com"],
-            imgSrc: ["'self'", "data:", "https:", "blob:"],
-            scriptSrc: ["'self'"],
-            connectSrc: ["'self'", process.env.FRONTEND_URL]
-        }
-    },
-    crossOriginEmbedderPolicy: false
-}));
-```
-
-### Headers Set by Helmet
-
-| Header | Purpose |
-|--------|---------|
-| `X-Content-Type-Options: nosniff` | Prevent MIME sniffing |
-| `X-Frame-Options: SAMEORIGIN` | Prevent clickjacking |
-| `X-XSS-Protection: 0` | Rely on CSP instead |
-| `Content-Security-Policy` | Restrict resource loading |
-| `Strict-Transport-Security` | Force HTTPS |
-
----
-
-## CORS Configuration
-
-**Location:** `backend/server.js`
-
-```javascript
-const allowedOrigins = [
-    'http://localhost:3000',
-    'http://localhost:3001',
-    process.env.FRONTEND_URL
-];
-
-app.use(cors({
-    origin: function(origin, callback) {
-        if (!origin) return callback(null, true);  // Allow no-origin (mobile/curl)
-        if (allowedOrigins.includes(origin)) {
-            return callback(null, true);
-        }
-        return callback(new Error('CORS not allowed'), false);
-    },
-    credentials: true  // Allow cookies
-}));
-```
-
----
-
-## Data Protection
-
-### Sensitive Fields Hidden by Default
-
-In User model:
-```javascript
-password: { type: String, select: false }
-```
-
-### Safe User Response
-
-Only safe fields are returned in auth responses:
-```javascript
-{
-    id, name, email, role, avatar, phone, address
-}
-```
-
-Never returned: `password`, `resetPasswordToken`, `resetPasswordExpire`
-
----
-
-## Environment Configuration
-
-### Required Environment Variables
-
-```env
-# Critical Security Variables
-NODE_ENV=production
-JWT_SECRET=your-256-bit-secret-key-here
-JWT_EXPIRE=7d
-SESSION_SECRET=another-strong-random-secret
-
-# Database
-MONGODB_URI=mongodb+srv://...
-
-# Frontend URL (for CORS and redirects)
-FRONTEND_URL=https://your-frontend.com
-
-# Email (for password reset)
-SMTP_EMAIL=your-email@example.com
-SMTP_PASSWORD=your-email-password
-```
-
-### Generating Secure Secrets
-
-```bash
-# Generate a secure JWT_SECRET
-node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
-
-# Generate a secure SESSION_SECRET
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
-
----
-
-## Security Checklist
-
-### Before Production Deployment
-
-- [ ] Set `NODE_ENV=production`
-- [ ] Use strong, random `JWT_SECRET` (at least 256 bits)
-- [ ] Use strong, random `SESSION_SECRET`
-- [ ] Configure `FRONTEND_URL` for proper CORS
-- [ ] Enable HTTPS (SSL/TLS)
-- [ ] Review and restrict allowed CORS origins
-- [ ] Set up MongoDB with authentication
-- [ ] Configure proper firewall rules
-- [ ] Enable MongoDB access logs
-- [ ] Set up application logging/monitoring
-- [ ] Review rate limiting thresholds
-- [ ] Test authentication flows
-- [ ] Verify authorization on all protected routes
-
-### Ongoing Security Practices
-
-- [ ] Keep dependencies updated (`npm audit`)
-- [ ] Monitor for security vulnerabilities
-- [ ] Review access logs regularly
-- [ ] Rotate secrets periodically
-- [ ] Back up database regularly
-- [ ] Test password reset flow
-- [ ] Verify email configuration
-
----
-
-## Vulnerability Reporting
-
-If you discover a security vulnerability, please report it responsibly by contacting the development team directly rather than opening a public issue.
-
----
-
-## Version History
-
-| Date | Version | Changes |
-|------|---------|---------|
-| 2025-12-09 | 1.0.0 | Initial security implementation |
-
----
-
-*This document should be updated whenever security-related changes are made to the application.*
+**Conditions for Full Production:**
+- Reduction of the parser limit (`limit: '1mb'`).
+- Adjustment of `connectSrc` in CSP.

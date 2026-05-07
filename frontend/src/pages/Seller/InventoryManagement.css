@@ -80,5 +80,5 @@
 
 .badge-warning {
     background: linear-gradient(135deg, #ffd93d, #ffb347);
-    color: #333;
+    color: var(--text-primary);
 }

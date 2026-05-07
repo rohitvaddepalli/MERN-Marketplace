@@ -16,7 +16,7 @@
     grid-template-columns: 100px 1fr auto auto auto;
     gap: var(--spacing-lg);
     align-items: center;
-    background: white;
+    background: var(--bg-card);
     padding: var(--spacing-lg);
     border-radius: var(--border-radius-lg);
     box-shadow: var(--shadow);
@@ -58,7 +58,7 @@
     width: 32px;
     height: 32px;
     border: none;
-    background: white;
+    background: var(--bg-card);
     border-radius: var(--border-radius-sm);
     font-size: 1.25rem;
     font-weight: 700;
@@ -105,7 +105,7 @@
 }
 
 .cart-summary {
-    background: white;
+    background: var(--bg-card);
     padding: var(--spacing-xl);
     border-radius: var(--border-radius-lg);
     box-shadow: var(--shadow);

@@ -28,7 +28,7 @@
 }
 
 .admin-stat-card {
-    background: white;
+    background: var(--bg-card);
     border-radius: var(--border-radius-lg);
     padding: var(--spacing-lg);
     box-shadow: var(--shadow);
@@ -109,7 +109,7 @@
 }
 
 .admin-section {
-    background: white;
+    background: var(--bg-card);
     border-radius: var(--border-radius-lg);
     padding: var(--spacing-lg);
     box-shadow: var(--shadow);
@@ -213,7 +213,7 @@
 }
 
 .quick-action-card {
-    background: white;
+    background: var(--bg-card);
     border-radius: var(--border-radius-lg);
     padding: var(--spacing-lg);
     box-shadow: var(--shadow);

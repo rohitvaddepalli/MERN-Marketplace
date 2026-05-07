@@ -20,7 +20,7 @@
 }
 
 .page-header {
-  background: rgb(255, 255, 255);
+  background: var(--bg-card);
   padding: var(--spacing-xl) 0;
   margin-bottom: var(--spacing-xl);
   box-shadow: var(--shadow-sm);

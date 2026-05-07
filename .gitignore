@@ -1,10 +1,45 @@
+# Dependencies
 node_modules/
+npm-debug.log
+yarn-error.log
+yarn-debug.log
+
+# Environment Variables
 .env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 backend/.env
 frontend/.env
-frontend/build
+
+# Production Builds
+frontend/build/
+dist/
+build/
+
+# Firebase
 .firebase/
 .firebaserc
-firebase-debug.log
+firebase-debug.log*
+
+# Logs
 *.log
-.vscode
+logs/
+
+# IDE / Editor / System
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+.DS_Store
+Thumbs.db
+
+# Agent and Artifacts
+.agent/
+UIs/
+*.pyc
+__pycache__/
+ADMIN_GUIDE.md

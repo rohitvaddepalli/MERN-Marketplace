@@ -108,7 +108,7 @@ app.use(helmet({
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
             imgSrc: ["'self'", "data:", "https:", "blob:", "res.cloudinary.com"],
             scriptSrc: ["'self'", "'unsafe-inline'"],
-            connectSrc: ["'self'", "*"], // Allow connecting to any origin in production to prevent blockers
+            connectSrc: ["'self'", "https://api.cloudinary.com", "https://res.cloudinary.com"], // Hardened to specific domains
         },
     },
     crossOriginEmbedderPolicy: false,
@@ -151,8 +151,8 @@ app.use('/api', generalLimiter);
 app.use(cookieParser());
 
 // Body parser middleware
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // CORS middleware - Allow requests from frontend
 const allowedOrigins = [

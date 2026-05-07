@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { auth } from '../../firebase';
-import { sendPasswordResetEmail } from 'firebase/auth';
+import { authAPI } from '../../services/api';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import './ForgotPassword.css';
 
@@ -18,10 +17,10 @@ const ForgotPassword = () => {
         setError('');
 
         try {
-            await sendPasswordResetEmail(auth, email);
+            await authAPI.forgotPassword({ email });
             setSubmitted(true);
         } catch (err) {
-            setError(err.message || 'Failed to send reset email. Please try again.');
+            setError(err.response?.data?.message || 'Failed to send reset email. Please try again.');
         } finally {
             setLoading(false);
         }

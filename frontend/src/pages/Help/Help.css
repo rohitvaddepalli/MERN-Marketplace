@@ -51,7 +51,7 @@
 .category-btn {
     padding: var(--spacing-md) var(--spacing-xl);
     border: 2px solid var(--gray-light);
-    background: white;
+    background: var(--bg-card);
     border-radius: var(--border-radius-lg);
     font-size: 1rem;
     font-weight: 600;

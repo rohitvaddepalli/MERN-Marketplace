@@ -49,7 +49,7 @@
     border-radius: var(--border-radius);
     font-size: 1rem;
     transition: all var(--transition-fast);
-    background: white;
+    background: var(--bg-card);
 }
 
 .admin-search-input:focus {
@@ -63,7 +63,7 @@
 }
 
 .admin-filter-select .form-select {
-    background: white;
+    background: var(--bg-card);
 }
 
 .admin-results-info {
@@ -79,7 +79,7 @@
 
 /* Table Container */
 .admin-table-container {
-    background: white;
+    background: var(--bg-card);
     border-radius: var(--border-radius-lg);
     box-shadow: var(--shadow);
     overflow: hidden;
@@ -234,7 +234,7 @@
 .admin-pagination-btn {
     padding: 8px 16px;
     border: 2px solid var(--border-color);
-    background: white;
+    background: var(--bg-card);
     border-radius: var(--border-radius);
     color: var(--text-primary);
     font-weight: 600;
@@ -270,7 +270,7 @@
 .admin-empty-state {
     text-align: center;
     padding: var(--spacing-3xl);
-    background: white;
+    background: var(--bg-card);
     border-radius: var(--border-radius-lg);
     box-shadow: var(--shadow);
 }

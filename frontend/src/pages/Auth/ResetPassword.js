@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { auth } from '../../firebase';
-import { confirmPasswordReset } from 'firebase/auth';
+import { authAPI } from '../../services/api';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import './ResetPassword.css';
 
 const ResetPassword = () => {
-    const { token } = useParams(); // Note: Firebase reset links use 'oobCode' parameter, usually handled by a different flow, but we can try to adapt.
+    const { token } = useParams();
     const navigate = useNavigate();
     const [formData, setFormData] = useState({
         password: '',
@@ -43,13 +42,13 @@ const ResetPassword = () => {
         setLoading(true);
 
         try {
-            await confirmPasswordReset(auth, token, password);
+            await authAPI.resetPassword(token, { password });
             setSuccess(true);
             setTimeout(() => {
                 navigate('/login');
             }, 3000);
         } catch (err) {
-            setError(err.message || 'Failed to reset password. Please try again.');
+            setError(err.response?.data?.message || 'Failed to reset password. Please try again.');
         } finally {
             setLoading(false);
         }
