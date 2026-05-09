@@ -82,7 +82,8 @@
     background: var(--bg-card);
     border-radius: var(--border-radius-lg);
     box-shadow: var(--shadow);
-    overflow: hidden;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
     margin-bottom: var(--spacing-xl);
 }
 
@@ -291,12 +292,8 @@
 
 /* Responsive Design */
 @media (max-width: 1024px) {
-    .admin-table-container {
-        overflow-x: auto;
-    }
-
     .admin-table {
-        min-width: 900px;
+        min-width: 800px;
     }
 }
 

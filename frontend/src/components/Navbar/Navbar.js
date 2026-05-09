@@ -37,9 +37,10 @@ const Navbar = () => {
                             type="text"
                             placeholder="Search for products, stores..."
                             className="search-input"
+                            aria-label="Search for products, stores"
                         />
-                        <button className="search-btn">
-                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <button className="search-btn" aria-label="Submit search">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
                                 <path d="M9 17A8 8 0 1 0 9 1a8 8 0 0 0 0 16zM18 18l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                             </svg>
                         </button>
@@ -76,6 +77,8 @@ const Navbar = () => {
                                     <button
                                         className="user-menu-btn"
                                         onClick={() => setShowUserMenu(!showUserMenu)}
+                                        aria-expanded={showUserMenu}
+                                        aria-controls="user-dropdown-menu"
                                     >
                                         <img
                                             src={user?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=default'}
@@ -83,13 +86,13 @@ const Navbar = () => {
                                             className="user-avatar"
                                         />
                                         <span>{user?.name}</span>
-                                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                                             <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                                         </svg>
                                     </button>
 
                                     {showUserMenu && (
-                                        <div className="user-dropdown">
+                                        <div className="user-dropdown" id="user-dropdown-menu" role="menu">
                                             <Link
                                                 to={isSeller ? "/seller/dashboard" : isAdmin ? "/admin/dashboard" : "/customer/dashboard"}
                                                 className="dropdown-item"
@@ -127,7 +130,7 @@ const Navbar = () => {
                                                         className="dropdown-item"
                                                         onClick={() => setShowUserMenu(false)}
                                                     >
-                                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                                                             <circle cx="12" cy="12" r="3"></circle>
                                                             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                                                         </svg>
@@ -135,8 +138,8 @@ const Navbar = () => {
                                                     </Link>
                                                 </>
                                             )}
-                                            <button className="dropdown-item" onClick={handleLogout}>
-                                                <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+                                            <button className="dropdown-item" onClick={handleLogout} role="menuitem">
+                                                <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
                                                     <path d="M13 3h3a2 2 0 012 2v10a2 2 0 01-2 2h-3M8 16l-5-5m0 0l5-5m-5 5h13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                                                 </svg>
                                                 Logout

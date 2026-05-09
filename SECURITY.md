@@ -31,7 +31,7 @@
 ## 4. Threat Model (STRIDE)
 
 - **Spoofing (Identity):** The use of `express-session` with MongoDB and `httpOnly` + `secure` mitigates session hijacking well. The absence of 2FA is a business risk.
-- **Tampering:** Inputs are protected by `xss-clean` e `express-mongo-sanitize`. Images sent via Cloudinary prevent local file execution.
+- **Tampering:** Inputs are protected by `xss-clean` and `express-mongo-sanitize`. Images sent via Cloudinary prevent local file execution.
 - **Repudiation:** The system needs a clearer audit trail. There is no evidence of detailed logs (e.g., `morgan`, pino/winston) for incoming requests.
 - **Information Disclosure:** The use of `helmet` protects against common HTTP header leaks.
 - **Denial of Service (DoS):** The `50MB` body parser limit is a severe risk for regular API requests.
@@ -72,7 +72,7 @@
 | Input Validation | 70 | Generic protection with sanitize, but massive payloads allowed. |
 | Authentication & AuthZ | 85 | Correct session config with TTL and security flags, but lacks logs. |
 | Data Protection | 85 | Good CSP and Helmet policies. |
-| Resilience | 75 | Excellent rate-limit, but susceptible to ReDoS from JSON parsing. |
+| Resilience | 75 | Excellent rate-limit, but susceptible to DoS from large JSON payloads. |
 | Monitoring | 40 | Absence of persistent auditable logs. |
 
 **Final Score: 74**

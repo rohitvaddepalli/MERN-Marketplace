@@ -145,7 +145,7 @@
 .performance-rank {
     font-size: 2rem;
     font-weight: 700;
-    background: linear-gradient(135deg, #667eea, #764ba2);
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -199,7 +199,7 @@
 
 .category-card {
     padding: var(--spacing-lg);
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
     border-radius: var(--border-radius-lg);
     color: white;
     transition: all 0.3s ease;
@@ -207,7 +207,7 @@
 
 .category-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 8px 24px var(--primary-color-alpha);
 }
 
 .category-card h3 {
@@ -238,12 +238,12 @@
 }
 
 .urgent {
-    color: #dc3545;
+    color: var(--danger-color);
     font-weight: 700;
 }
 
 .warning {
-    color: #ffc107;
+    color: var(--warning-color);
     font-weight: 700;
 }
 

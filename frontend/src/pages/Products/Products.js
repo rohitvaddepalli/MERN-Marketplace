@@ -71,8 +71,9 @@ const Products = () => {
                     {/* Filters Sidebar */}
                     <aside className="filters-sidebar">
                         <div className="filter-section">
-                            <h3>Search</h3>
+                            <label htmlFor="search-input"><h3>Search</h3></label>
                             <input
+                                id="search-input"
                                 type="text"
                                 className="form-input"
                                 placeholder="Search products..."
@@ -82,8 +83,9 @@ const Products = () => {
                         </div>
 
                         <div className="filter-section">
-                            <h3>Sort By</h3>
+                            <label htmlFor="sort-select"><h3>Sort By</h3></label>
                             <select
+                                id="sort-select"
                                 className="form-select"
                                 value={filters.sort}
                                 onChange={(e) => handleFilterChange('sort', e.target.value)}
@@ -96,8 +98,9 @@ const Products = () => {
                         </div>
 
                         <div className="filter-section">
-                            <h3>Category</h3>
+                            <label htmlFor="category-select"><h3>Category</h3></label>
                             <select
+                                id="category-select"
                                 className="form-select"
                                 value={filters.category}
                                 onChange={(e) => handleFilterChange('category', e.target.value)}
@@ -113,8 +116,9 @@ const Products = () => {
                         </div>
 
                         <div className="filter-section">
-                            <h3>Brand</h3>
+                            <label htmlFor="brand-input"><h3>Brand</h3></label>
                             <input
+                                id="brand-input"
                                 type="text"
                                 className="form-input"
                                 placeholder="Filter by Brand"
@@ -124,8 +128,9 @@ const Products = () => {
                         </div>
 
                         <div className="filter-section">
-                            <h3>Color</h3>
+                            <label htmlFor="color-input"><h3>Color</h3></label>
                             <input
+                                id="color-input"
                                 type="text"
                                 className="form-input"
                                 placeholder="Filter by Color"
@@ -135,8 +140,9 @@ const Products = () => {
                         </div>
 
                         <div className="filter-section">
-                            <h3>Size</h3>
+                            <label htmlFor="size-input"><h3>Size</h3></label>
                             <input
+                                id="size-input"
                                 type="text"
                                 className="form-input"
                                 placeholder="Filter by Size"
@@ -167,54 +173,57 @@ const Products = () => {
                         ) : (
                             <div className="products-grid">
                                 {products.map((product) => (
-                                    <Link to={`/products/${product._id}`} key={product._id} className="product-card">
-                                        <div className="product-image">
-                                            <img
-                                                src={product.images?.[0] || DEFAULT_PRODUCT_IMAGE}
-                                                alt={product.name}
-                                                onError={(e) => e.target.src = DEFAULT_PRODUCT_IMAGE}
-                                            />
-                                            {product.compareAtPrice && (
-                                                <div className="product-badge">Sale</div>
-                                            )}
-                                        </div>
-                                        <div className="product-info">
-                                            <h3 className="product-name">{product.name}</h3>
-                                            <p className="product-store">{product.store?.name}</p>
-                                            <div className="product-footer">
-                                                <div className="product-price">
-                                                    <span className="current-price">₹{product.price}</span>
-                                                    {product.compareAtPrice && (
-                                                        <span className="old-price">₹{product.compareAtPrice}</span>
-                                                    )}
-                                                </div>
-                                                <div className="product-rating">
-                                                    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-                                                        <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
-                                                    </svg>
-                                                    <span>{product.rating || 4.5}</span>
+                                    <div key={product._id} className="product-card">
+                                        <Link to={`/products/${product._id}`} className="product-link-wrapper" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+                                            <div className="product-image">
+                                                <img
+                                                    src={product.images?.[0] || DEFAULT_PRODUCT_IMAGE}
+                                                    alt={product.name}
+                                                    loading="lazy"
+                                                    onError={(e) => e.target.src = DEFAULT_PRODUCT_IMAGE}
+                                                />
+                                                {product.compareAtPrice && (
+                                                    <div className="product-badge">Sale</div>
+                                                )}
+                                            </div>
+                                            <div className="product-info">
+                                                <h3 className="product-name">{product.name}</h3>
+                                                <p className="product-store">{product.store?.name}</p>
+                                                <div className="product-footer">
+                                                    <div className="product-price">
+                                                        <span className="current-price">₹{product.price}</span>
+                                                        {product.compareAtPrice && (
+                                                            <span className="old-price">₹{product.compareAtPrice}</span>
+                                                        )}
+                                                    </div>
+                                                    <div className="product-rating">
+                                                        <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                            <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
+                                                        </svg>
+                                                        <span>{product.rating || 4.5}</span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                            {!isSeller && !isAdmin && product.stock > 0 && (
-                                                <div className="product-actions" style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
-                                                    <button
-                                                        onClick={(e) => handleAddToCart(e, product)}
-                                                        className="btn btn-outline"
-                                                        style={{ flex: 1, padding: '8px', fontSize: '0.9rem' }}
-                                                    >
-                                                        Add
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => handleBuyNow(e, product)}
-                                                        className="btn btn-primary"
-                                                        style={{ flex: 1, padding: '8px', fontSize: '0.9rem' }}
-                                                    >
-                                                        Buy
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </Link>
+                                        </Link>
+                                        {!isSeller && !isAdmin && product.stock > 0 && (
+                                            <div className="product-actions-inline">
+                                                <button
+                                                    onClick={(e) => handleAddToCart(e, product)}
+                                                    className="btn btn-outline"
+                                                    aria-label={`Add ${product.name} to cart`}
+                                                >
+                                                    Add
+                                                </button>
+                                                <button
+                                                    onClick={(e) => handleBuyNow(e, product)}
+                                                    className="btn btn-primary"
+                                                    aria-label={`Buy ${product.name} now`}
+                                                >
+                                                    Buy
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
                                 ))}
                             </div>
                         )}

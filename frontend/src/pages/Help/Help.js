@@ -97,7 +97,8 @@ const Help = () => {
                     <h1>Help Center</h1>
                     <p>Find answers to your questions and get the support you need</p>
                     <div className="help-search">
-                        <input type="text" placeholder="Search for help..." />
+                        <label htmlFor="help-search-input" className="sr-only" style={{ display: 'none' }}>Search for help</label>
+                        <input id="help-search-input" type="text" placeholder="Search for help..." />
                         <button className="btn btn-primary">Search</button>
                     </div>
                 </div>
@@ -121,9 +122,17 @@ const Help = () => {
                     <div className="faq-section">
                         <h2>{categories.find(c => c.id === activeCategory)?.name} Questions</h2>
                         <div className="faq-list">
-                            {faqs[activeCategory].map((faq, index) => (
-                                <div key={index} className={`faq-item ${openFaq === index ? 'open' : ''}`}>
-                                    <button className="faq-question" onClick={() => toggleFaq(index)}>
+                            {faqs[activeCategory].map((faq, index) => {
+                                const isOpen = openFaq === index;
+                                const contentId = `faq-content-${activeCategory}-${index}`;
+                                return (
+                                <div key={index} className={`faq-item ${isOpen ? 'open' : ''}`}>
+                                    <button 
+                                        className="faq-question" 
+                                        onClick={() => toggleFaq(index)}
+                                        aria-expanded={isOpen}
+                                        aria-controls={contentId}
+                                    >
                                         <span>{faq.question}</span>
                                         <svg
                                             width="20"
@@ -137,11 +146,16 @@ const Help = () => {
                                             <polyline points="6 9 12 15 18 9" />
                                         </svg>
                                     </button>
-                                    <div className="faq-answer">
+                                    <div 
+                                        id={contentId}
+                                        className="faq-answer"
+                                        role="region"
+                                        aria-hidden={!isOpen}
+                                    >
                                         <p>{faq.answer}</p>
                                     </div>
                                 </div>
-                            ))}
+                            )})}
                         </div>
                     </div>
 

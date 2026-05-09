@@ -71,7 +71,7 @@ const ProductReviews = ({ productId, reviews: initialReviews = [] }) => {
                                             background: 'none',
                                             border: 'none',
                                             fontSize: '1.5rem',
-                                            color: star <= newReview.rating ? '#fbbf24' : '#e5e7eb',
+                                            color: star <= newReview.rating ? 'var(--accent-color)' : 'var(--border-color)',
                                             cursor: 'pointer'
                                         }}
                                     >
@@ -135,8 +135,8 @@ const ProductReviews = ({ productId, reviews: initialReviews = [] }) => {
                                 <div>
                                     <div style={{ fontWeight: '600' }}>{review.user?.name || 'Anonymous'}</div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)' }}>
-                                        <span style={{ color: '#fbbf24' }}>{'★'.repeat(review.rating)}</span>
-                                        <span style={{ color: '#e5e7eb' }}>{'★'.repeat(5 - review.rating)}</span>
+                                        <span style={{ color: 'var(--accent-color)' }}>{'★'.repeat(review.rating)}</span>
+                                        <span style={{ color: 'var(--border-color)' }}>{'★'.repeat(5 - review.rating)}</span>
                                     </div>
                                 </div>
                                 <div style={{ marginLeft: 'auto', color: 'var(--text-light)', fontSize: '0.9rem' }}>

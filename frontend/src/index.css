@@ -9,8 +9,22 @@
 
   --accent-color: #FFD23F;
   --success-color: #06D6A0;
+  --success-light: #D1F4E7;
+  --success-dark: #007A5A;
+  
   --warning-color: #F77F00;
+  --warning-light: #FFE8CC;
+  --warning-dark: #994D00;
+  
   --danger-color: #EF476F;
+  --danger-light: #FFE0E6;
+  --danger-dark: #B3002D;
+  
+  --info-color: #3A86FF;
+  --info-light: #D6EAFF;
+  --info-dark: #004D99;
+
+  --primary-color-alpha: rgba(255, 107, 53, 0.1);
 
   /* Neutral Colors */
   --dark: #1A1A2E;
@@ -65,8 +79,7 @@
   --transition-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Google Fonts Import */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Montserrat:wght@300;400;500;600;700;800&display=swap');
+/* Google Fonts Import removed in favor of index.html links */
 
 /* Reset & Base Styles */
 * {
@@ -377,7 +390,7 @@ select {
 .form-select:focus,
 .form-textarea:focus {
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
+  box-shadow: 0 0 0 3px var(--primary-color-alpha);
   outline: none;
 }
 
@@ -421,23 +434,23 @@ select {
 }
 
 .badge-success {
-  background: #D1F4E7;
-  color: #007A5A;
+  background: var(--success-light);
+  color: var(--success-dark);
 }
 
 .badge-warning {
-  background: #FFE8CC;
-  color: #994D00;
+  background: var(--warning-light);
+  color: var(--warning-dark);
 }
 
 .badge-danger {
-  background: #FFE0E6;
-  color: #B3002D;
+  background: var(--danger-light);
+  color: var(--danger-dark);
 }
 
 .badge-info {
-  background: #D6EAFF;
-  color: #004D99;
+  background: var(--info-light);
+  color: var(--info-dark);
 }
 
 /* Loading Spinner */
@@ -578,5 +591,15 @@ select {
     --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
     --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
     --shadow-hover: 0 12px 32px rgba(0, 0, 0, 0.4);
+
+    --success-light: rgba(6, 214, 160, 0.15);
+    --success-dark: #06D6A0;
+    --warning-light: rgba(247, 127, 0, 0.15);
+    --warning-dark: #F77F00;
+    --danger-light: rgba(239, 71, 111, 0.15);
+    --danger-dark: #EF476F;
+    --info-light: rgba(58, 134, 255, 0.15);
+    --info-dark: #3A86FF;
+    --primary-color-alpha: rgba(255, 107, 53, 0.2);
   }
 }
