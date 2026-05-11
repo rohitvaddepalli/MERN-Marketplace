@@ -109,7 +109,7 @@
 
 .admin-table tbody tr {
     border-bottom: 1px solid var(--border-color);
-    transition: all var(--transition-fast);
+    transition: background-color var(--transition-fast);
 }
 
 .admin-table tbody tr:hover {
@@ -326,5 +326,67 @@
 
     .admin-pagination-pages {
         flex-wrap: wrap;
+    }
+
+    /* Mobile card pattern: replace horizontal scroll with stacked rows */
+    .admin-table-container {
+        overflow-x: visible;
+    }
+
+    .admin-table,
+    .admin-table thead,
+    .admin-table tbody,
+    .admin-table th,
+    .admin-table td,
+    .admin-table tr {
+        display: block;
+    }
+
+    .admin-table thead {
+        /* Visually hide header row but keep for screen readers */
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border-width: 0;
+    }
+
+    .admin-table tbody tr {
+        margin-bottom: var(--spacing-md);
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        padding: var(--spacing-md);
+        background: var(--bg-card);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .admin-table tbody tr:last-child {
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .admin-table tbody tr td {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: var(--spacing-sm);
+        padding: var(--spacing-xs) 0;
+        font-size: 0.9rem;
+        border-bottom: none;
+    }
+
+    /* Show column name as a label before each cell's value */
+    .admin-table tbody tr td[data-label]::before {
+        content: attr(data-label);
+        font-weight: 700;
+        color: var(--text-secondary);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        flex-shrink: 0;
+        min-width: 90px;
     }
 }

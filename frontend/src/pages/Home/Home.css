@@ -104,6 +104,18 @@
     color: rgba(255, 255, 255, 0.9);
 }
 
+.hero-slide-name {
+    margin: 0 0 2px;
+    font-size: 1.2rem;
+    color: white;
+}
+
+.hero-slide-price {
+    margin: 0;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
 /* Hero Scroll Animation */
 .hero-scroll-wrapper {
     display: flex;
@@ -163,7 +175,7 @@
     display: flex;
     align-items: center;
     gap: var(--spacing-md);
-    transition: transform 0.3s ease;
+    transition: transform var(--transition), background-color var(--transition);
     text-decoration: none;
 }
 
@@ -491,7 +503,7 @@
     align-items: center;
     justify-content: center;
     color: white;
-    transition: all 0.3s ease;
+    transition: background-color var(--transition), transform var(--transition);
 }
 
 .footer-social a:hover {
@@ -512,7 +524,7 @@
 .footer-links a {
     color: rgba(255, 255, 255, 0.8);
     text-decoration: none;
-    transition: color 0.3s ease;
+    transition: color var(--transition);
     display: inline-block;
 }
 
@@ -535,7 +547,7 @@
     border-radius: var(--border-radius-md);
     text-decoration: none;
     text-align: center;
-    transition: all 0.3s ease;
+    transition: background-color var(--transition), border-color var(--transition);
     font-weight: 600;
 }
 
@@ -567,7 +579,7 @@
     color: rgba(255, 255, 255, 0.6);
     text-decoration: none;
     font-size: 0.875rem;
-    transition: color 0.3s ease;
+    transition: color var(--transition);
 }
 
 .footer-bottom-links a:hover {

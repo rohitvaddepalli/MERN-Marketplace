@@ -71,8 +71,9 @@ const Products = () => {
                     {/* Filters Sidebar */}
                     <aside className="filters-sidebar">
                         <div className="filter-section">
-                            <label htmlFor="search-input"><h3>Search</h3></label>
+                            <h3 id="search-heading">Search</h3>
                             <input
+                                aria-labelledby="search-heading"
                                 id="search-input"
                                 type="text"
                                 className="form-input"
@@ -83,8 +84,9 @@ const Products = () => {
                         </div>
 
                         <div className="filter-section">
-                            <label htmlFor="sort-select"><h3>Sort By</h3></label>
+                            <h3 id="sort-heading">Sort By</h3>
                             <select
+                                aria-labelledby="sort-heading"
                                 id="sort-select"
                                 className="form-select"
                                 value={filters.sort}
@@ -98,8 +100,9 @@ const Products = () => {
                         </div>
 
                         <div className="filter-section">
-                            <label htmlFor="category-select"><h3>Category</h3></label>
+                            <h3 id="category-heading">Category</h3>
                             <select
+                                aria-labelledby="category-heading"
                                 id="category-select"
                                 className="form-select"
                                 value={filters.category}
@@ -116,8 +119,9 @@ const Products = () => {
                         </div>
 
                         <div className="filter-section">
-                            <label htmlFor="brand-input"><h3>Brand</h3></label>
+                            <h3 id="brand-heading">Brand</h3>
                             <input
+                                aria-labelledby="brand-heading"
                                 id="brand-input"
                                 type="text"
                                 className="form-input"
@@ -128,8 +132,9 @@ const Products = () => {
                         </div>
 
                         <div className="filter-section">
-                            <label htmlFor="color-input"><h3>Color</h3></label>
+                            <h3 id="color-heading">Color</h3>
                             <input
+                                aria-labelledby="color-heading"
                                 id="color-input"
                                 type="text"
                                 className="form-input"
@@ -140,8 +145,9 @@ const Products = () => {
                         </div>
 
                         <div className="filter-section">
-                            <label htmlFor="size-input"><h3>Size</h3></label>
+                            <h3 id="size-heading">Size</h3>
                             <input
+                                aria-labelledby="size-heading"
                                 id="size-input"
                                 type="text"
                                 className="form-input"
@@ -174,7 +180,7 @@ const Products = () => {
                             <div className="products-grid">
                                 {products.map((product) => (
                                     <div key={product._id} className="product-card">
-                                        <Link to={`/products/${product._id}`} className="product-link-wrapper" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+                                        <Link to={`/products/${product._id}`} className="product-link-wrapper">
                                             <div className="product-image">
                                                 <img
                                                     src={product.images?.[0] || DEFAULT_PRODUCT_IMAGE}
@@ -197,10 +203,16 @@ const Products = () => {
                                                         )}
                                                     </div>
                                                     <div className="product-rating">
-                                                        <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                                            <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
-                                                        </svg>
-                                                        <span>{product.rating || 4.5}</span>
+                                                        {product.rating != null && isFinite(product.rating) ? (
+                                                            <>
+                                                                <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                                    <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
+                                                                </svg>
+                                                                <span>{product.rating}</span>
+                                                            </>
+                                                        ) : (
+                                                            <span>—</span>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>

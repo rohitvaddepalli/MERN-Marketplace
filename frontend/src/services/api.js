@@ -75,7 +75,8 @@ export const productAPI = {
     exportProducts: () => api.get('/products/export'),
     // Reviews
     createReview: (id, data) => api.post(`/products/${id}/reviews`, data),
-    getReviews: (id) => api.get(`/products/${id}/reviews`)
+    getReviews: (id) => api.get(`/products/${id}/reviews`),
+    markReviewHelpful: (productId, reviewId) => api.put(`/products/${productId}/reviews/${reviewId}/helpful`)
 };
 
 // User API

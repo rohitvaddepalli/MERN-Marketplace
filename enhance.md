@@ -12,6 +12,7 @@ Currently, the checkout flow lacks a robust, production-ready payment processor.
 *   **Enhancement:** Integrate **Stripe** or **Razorpay** for secure, PCI-compliant payment processing.
 *   **Implementation:**
     *   Backend: Add `/api/payments/create-intent` and webhook endpoints (`stripe.js`).
+    *   Verify webhook signatures to ensure requests originate from the payment provider.
     *   Frontend: Implement `react-stripe-js` in the `Checkout.js` component.
 *   **Affected Files:** `backend/routes/payment.js`, `frontend/src/pages/Checkout/Checkout.js`
 
@@ -27,6 +28,7 @@ Enhance buyer-seller communication and order tracking.
 *   **Enhancement:** Upgrade the rating system to support rich media (images/videos) and verified purchase badges.
 *   **Implementation:** 
     *   Add file upload capabilities to the review model.
+    *   Implement file type validation (images/videos only), size limits, and secure storage (e.g., S3 with signed URLs).
     *   Add a "Verified Purchaser" boolean based on order history.
 
 ---
@@ -41,9 +43,12 @@ Enhance buyer-seller communication and order tracking.
 *   **Affected Files:** `frontend/src/pages/Admin/AdminDashboard.js`, `frontend/src/pages/Seller/Analytics.js`
 
 ### 3.2. Bulk Inventory Management
-*   **Enhancement:** Allow sellers to upload/update products via CSV.
+*   **Enhancement:** Allow sellers to upload/update products via CSV securely and efficiently.
 *   **Implementation:**
-    *   Integrate `csv-parser` on the backend.
+    *   Integrate `csv-parser` on the backend with stream-parsing and backpressure to prevent memory exhaustion.
+    *   Add server-side file size/row-count limits via `multer` and validate MIME types before parsing.
+    *   Implement strict header/schema validation per row (check required columns, data types, numeric bounds for price/quantity).
+    *   Sanitize and escape all string fields to prevent injection attacks, and return controlled error responses for malformed rows.
     *   Create a drag-and-drop CSV upload zone in `InventoryManagement.js`.
 
 ---
@@ -64,6 +69,28 @@ Enhance buyer-seller communication and order tracking.
 
 ---
 
+## 5. Phase 4: AI-Powered Store Creation (Voice-to-Website)
+
+### 5.1. Voice-to-Storefront AI Generator
+*   **Enhancement:** Allow small retail shop owners to generate their entire storefront (store name, description, categories, contact info, and initial product listings) simply by speaking naturally.
+*   **Implementation:** 
+    *   Integrate Speech-to-Text APIs (e.g., Web Speech API or OpenAI Whisper).
+    *   Use an LLM (e.g., Gemini or OpenAI) to parse the transcribed text into structured data and automatically populate the `Store` and `Product` MongoDB collections.
+    *   **Security & Privacy:** In `VoiceSetup.js`, ensure user consent and explicit voice-data retention choice before recording; avoid logging raw audio. Redact PII and implement retention/deletion policies for audio/transcripts (GDPR/CCPA).
+    *   **Validation & Moderation:** In `aiSetup.js`, validate and sanitize all LLM outputs before use. Enforce strict MongoDB schema validation for Store and Product documents (reject or normalize unexpected fields). Implement content-moderation checks and flag AI-generated listings for required human approval before publishing.
+    *   **Operational Safeguards:** Add rate-limiting/memoization on the AI endpoint to prevent abuse/cost overruns. Implement robust error-handling and fallback paths (e.g., fallback to manual entry and clear error responses) with non-sensitive logging.
+*   **Affected Files:** `frontend/src/pages/Seller/VoiceSetup.js`, `backend/routes/aiSetup.js`
+
+### 5.2. Conversational Onboarding Assistant
+*   **Enhancement:** Replace complex registration forms with a conversational AI agent that guides the shop owner through store setup by asking simple questions.
+*   **Implementation:** Build an interactive chat/voice interface on the frontend that incrementally builds the seller's profile and store configuration.
+
+### 5.3. Automated AI Design & Layout Selection
+*   **Enhancement:** Automatically generate and apply custom themes, UI layouts, and banner images based on the semantic understanding of the shop owner's voice description (e.g., automatically applying a "fresh green" theme for an organic grocer).
+*   **Implementation:** Integrate with AI image generation APIs and pre-defined CSS theme maps.
+
+---
+
 ## Next Steps
 To proceed with any of these enhancements, please specify which feature you would like to prioritize. 
 
@@ -71,3 +98,4 @@ To proceed with any of these enhancements, please specify which feature you woul
 *   `/enhance integrate payment system`
 *   `/enhance add real time chat`
 *   `/enhance migrate to typescript`
+*   `/enhance build voice to storefront`

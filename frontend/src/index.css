@@ -383,7 +383,7 @@ select {
   border-radius: var(--border-radius);
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  transition: all var(--transition-fast);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .form-input:focus,
@@ -479,7 +479,7 @@ select {
 .page-enter-active {
   opacity: 1;
   transform: translateY(0);
-  transition: all var(--transition);
+  transition: opacity var(--transition), transform var(--transition);
 }
 
 .page-exit {
@@ -488,7 +488,7 @@ select {
 
 .page-exit-active {
   opacity: 0;
-  transition: all var(--transition-fast);
+  transition: opacity var(--transition-fast);
 }
 
 /* Scrollbar Styling */
@@ -553,6 +553,18 @@ select {
 }
 
 /* Accessibility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
 :focus-visible {
   outline: 3px solid var(--primary-color);
   outline-offset: 2px;

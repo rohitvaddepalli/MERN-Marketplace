@@ -1,4 +1,6 @@
 import express from 'express';
+import { createServer } from 'http';
+import { Server as SocketIOServer } from 'socket.io';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -12,6 +14,10 @@ import mongoSanitize from 'express-mongo-sanitize';
 import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
 import compression from 'compression';
+import jwt from 'jsonwebtoken';
+import fs from 'fs';
+import MongoStore from 'connect-mongo';
+import User from './models/User.js';
 import './config/passport.js';
 
 // Load env vars
@@ -89,8 +95,88 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+const httpServer = createServer(app);
 
-// Trust proxy for Render/Cloudflare deployment
+// ─── Allowed Origins (used by both CORS and Socket.io) ──────────────────────
+const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    process.env.FRONTEND_URL,
+    process.env.RENDER_EXTERNAL_URL,
+    'https://' + process.env.RENDER_EXTERNAL_URL
+].filter(Boolean);
+
+// ─── Socket.io Setup ─────────────────────────────────────────────────────────
+const io = new SocketIOServer(httpServer, {
+    cors: {
+        origin: allowedOrigins,
+        credentials: true
+    }
+});
+
+// Authenticate socket connections via JWT cookie or Authorization header
+io.use(async (socket, next) => {
+    try {
+        const cookieHeader = socket.handshake.headers.cookie || '';
+        const tokenMatch = cookieHeader.match(/access_token=([^;]+)/);
+        const token = tokenMatch
+            ? decodeURIComponent(tokenMatch[1])
+            : socket.handshake.auth?.token;
+
+        if (!token) return next(new Error('Authentication required'));
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const user = await User.findById(decoded.id).select('name role store');
+        if (!user) return next(new Error('User not found'));
+
+        socket.user = user;
+        next();
+    } catch {
+        next(new Error('Invalid token'));
+    }
+});
+
+io.on('connection', (socket) => {
+    const user = socket.user;
+
+    // Each user joins their personal room for targeted notifications
+    socket.join(`user:${user._id}`);
+
+    // Sellers join their store room so they receive order events
+    if (user.role === 'seller' && user.store) {
+        socket.join(`store:${user.store}`);
+    }
+
+    // Client requests to join an order room (buyer tracking their order)
+    socket.on('join:order', (orderId) => {
+        socket.join(`order:${orderId}`);
+    });
+
+    socket.on('leave:order', (orderId) => {
+        socket.leave(`order:${orderId}`);
+    });
+
+    // Direct chat: join a conversation room keyed by sorted user IDs
+    socket.on('join:chat', (roomId) => {
+        socket.join(`chat:${roomId}`);
+    });
+
+    socket.on('chat:message', (payload) => {
+        // Relay message to everyone in the chat room
+        io.to(`chat:${payload.roomId}`).emit('chat:message', {
+            ...payload,
+            sender: { _id: user._id, name: user.name },
+            createdAt: new Date().toISOString()
+        });
+    });
+
+    socket.on('disconnect', () => {});
+});
+
+// Attach io to app so controllers can emit events via req.app.get('io')
+app.set('io', io);
+
+
 // Required for express-rate-limit to work correctly behind proxies
 app.set('trust proxy', 1);
 
@@ -154,31 +240,18 @@ app.use(cookieParser());
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
-// CORS middleware - Allow requests from frontend
-const allowedOrigins = [
-    'http://localhost:3000',
-    'http://localhost:3001',
-    process.env.FRONTEND_URL, // Manual override
-    process.env.RENDER_EXTERNAL_URL, // Automatic Render URL
-    'https://' + process.env.RENDER_EXTERNAL_URL // Sometimes Render provides it without https
-].filter(Boolean); // Remove undefined values
-
 app.use(cors({
     origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin) return callback(null, true);
-
         if (allowedOrigins.indexOf(origin) === -1) {
-            const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-            return callback(new Error(msg), false);
+            return callback(new Error('CORS policy: origin not allowed'), false);
         }
         return callback(null, true);
     },
     credentials: true
 }));
 
-// SECURITY: Ensure uploads directory exists
-import fs from 'fs';
+
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
@@ -191,8 +264,7 @@ app.use('/uploads', express.static(uploadsDir));
 // Session middleware - hardened configuration with MongoDB store
 // The SESSION_SECRET validation is now handled by the env var enforcement above
 
-// Import connect-mongo for production session storage
-import MongoStore from 'connect-mongo';
+
 
 // Configure session with MongoDB store for production persistence
 const sessionConfig = {
@@ -291,14 +363,15 @@ if (process.env.NODE_ENV === 'production') {
 // Error handler middleware (must be last)
 app.use(errorHandler);
 
-// Export app for Firebase Functions
-export { app };
+// Export app and httpServer for Firebase Functions / tests
+export { app, httpServer };
 
 // Only listen if run directly (not imported)
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const PORT = process.env.PORT || 5000;
-    app.listen(PORT, () => {
+    httpServer.listen(PORT, () => {
         console.log(`🚀 Server running on port ${PORT}`);
         console.log(`📍 Environment: ${process.env.NODE_ENV}`);
+        console.log(`🔌 Socket.io ready`);
     });
 }

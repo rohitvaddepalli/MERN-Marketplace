@@ -13,7 +13,8 @@ import {
 } from '../controllers/productController.js';
 import {
     createReview,
-    getProductReviews
+    getProductReviews,
+    markReviewHelpful
 } from '../controllers/reviewController.js';
 import { protect, authorize } from '../middleware/auth.js';
 
@@ -29,6 +30,9 @@ router.post('/bulk-import', protect, authorize('seller'), bulkImportProducts);
 router.route('/:id/reviews')
     .post(protect, createReview)
     .get(getProductReviews);
+
+router.put('/:id/reviews/:reviewId/helpful', protect, markReviewHelpful);
+
 
 router.route('/')
     .get(getProducts)

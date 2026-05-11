@@ -30,7 +30,18 @@ const Home = () => {
     const [featuredStores, setFeaturedStores] = useState([]);
     const [loading, setLoading] = useState(true);
     const hasNavigated = useRef(false);
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const mql = window.matchMedia('(prefers-reduced-motion: reduce)');
+            setPrefersReducedMotion(mql.matches);
+            
+            const handler = (e) => setPrefersReducedMotion(e.matches);
+            mql.addEventListener('change', handler);
+            return () => mql.removeEventListener('change', handler);
+        }
+    }, []);
 
     useEffect(() => {
         // Redirect sellers and admins to their dashboards (only once and when fully loaded)
@@ -221,8 +232,8 @@ const Home = () => {
                                                                 className="hero-slide-img"
                                                             />
                                                             <div className="hero-slide-content">
-                                                                <h3 style={{ fontSize: '1.2rem', marginBottom: '0.2rem' }}>{product.name}</h3>
-                                                                <p style={{ fontWeight: 'bold', color: 'var(--primary-color)' }}>₹{product.price}</p>
+                                                                <h3 className="hero-slide-name">{product.name}</h3>
+                                                                <p className="hero-slide-price">₹{product.price}</p>
                                                             </div>
                                                         </div>
                                                     </Link>

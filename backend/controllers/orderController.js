@@ -148,6 +148,20 @@ export const createOrder = async (req, res) => {
             await Product.bulkWrite(bulkOps);
         }
 
+        // Emit real-time notification to seller's store room
+        const io = req.app.get('io');
+        if (io && verifiedItems.length > 0) {
+            const storeIds = [...new Set(verifiedItems.map(i => i.store).filter(Boolean))];
+            storeIds.forEach(storeId => {
+                io.to(`store:${storeId}`).emit('order:new', {
+                    orderId: order._id,
+                    orderNumber: order.orderNumber,
+                    totalPrice: order.totalPrice,
+                    itemCount: verifiedItems.length
+                });
+            });
+        }
+
         res.status(201).json({
             success: true,
             order
@@ -261,6 +275,23 @@ export const updateOrderStatus = async (req, res) => {
         }
 
         await order.save();
+
+        // Emit real-time status update to buyer and order room
+        const io = req.app.get('io');
+        if (io) {
+            const statusEvent = {
+                orderId: order._id,
+                orderNumber: order.orderNumber,
+                status: order.status,
+                updatedAt: new Date().toISOString()
+            };
+            // Buyer's personal room
+            if (order.customer) {
+                io.to(`user:${order.customer}`).emit('order:status', statusEvent);
+            }
+            // Order tracking room (anyone watching this order)
+            io.to(`order:${order._id}`).emit('order:status', statusEvent);
+        }
 
         res.status(200).json({
             success: true,

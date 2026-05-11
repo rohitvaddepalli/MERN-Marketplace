@@ -19,7 +19,31 @@ const reviewSchema = new mongoose.Schema({
     },
     comment: {
         type: String,
-        required: true
+        required: true,
+        maxlength: [1000, 'Review comment cannot exceed 1000 characters']
+    },
+    // Verified purchase badge — set server-side by checking order history
+    isVerifiedPurchase: {
+        type: Boolean,
+        default: false
+    },
+    // Rich media: up to 5 image/video URLs (stored via Cloudinary)
+    media: {
+        type: [{
+            url: { type: String, required: true },
+            type: { type: String, enum: ['image', 'video'], required: true },
+            publicId: { type: String } // Cloudinary public_id for deletion
+        }],
+        validate: {
+            validator: (arr) => arr.length <= 5,
+            message: 'A review may include at most 5 media files'
+        },
+        default: []
+    },
+    // Helpful votes
+    helpfulVotes: {
+        type: Number,
+        default: 0
     },
     createdAt: {
         type: Date,
@@ -33,9 +57,7 @@ reviewSchema.index({ product: 1, user: 1 }, { unique: true });
 // Static method to calculate average rating
 reviewSchema.statics.calcAverageRating = async function (productId) {
     const stats = await this.aggregate([
-        {
-            $match: { product: productId }
-        },
+        { $match: { product: productId } },
         {
             $group: {
                 _id: '$product',
@@ -58,12 +80,10 @@ reviewSchema.statics.calcAverageRating = async function (productId) {
     }
 };
 
-// Call calcAverageRating after save
 reviewSchema.post('save', function () {
     this.constructor.calcAverageRating(this.product);
 });
 
-// Call calcAverageRating before remove
 reviewSchema.pre('remove', function (next) {
     this.constructor.calcAverageRating(this.product);
     next();

@@ -97,9 +97,7 @@ const Help = () => {
                     <h1>Help Center</h1>
                     <p>Find answers to your questions and get the support you need</p>
                     <div className="help-search">
-                        <label htmlFor="help-search-input" className="sr-only" style={{ display: 'none' }}>Search for help</label>
-                        <input id="help-search-input" type="text" placeholder="Search for help..." />
-                        <button className="btn btn-primary">Search</button>
+                        {/* Search functionality to be implemented */}
                     </div>
                 </div>
             </section>

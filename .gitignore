@@ -40,6 +40,6 @@ Thumbs.db
 # Agent and Artifacts
 .agent/
 UIs/
+.orchids/
 *.pyc
 __pycache__/
-ADMIN_GUIDE.md
