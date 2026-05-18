@@ -86,9 +86,9 @@ const OrderManagement = () => {
     };
 
     return (
-        <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-secondary)' }}>
+        <div className="admin-layout">
             <AdminSidebar />
-            <div style={{ flex: 1, marginLeft: '260px', padding: 'var(--spacing-xl)' }}>
+            <div className="admin-content-area">
                 <div className="container" style={{ padding: 0 }}>
                     <div className="admin-page-header">
                         <h1>Order Management</h1>

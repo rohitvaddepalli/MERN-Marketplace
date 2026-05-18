@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { adminAPI } from '../../services/api';
 import AdminSidebar from '../../components/AdminSidebar/AdminSidebar';
 import './AdminDashboard.css';
+import '../Admin/AdminManagement.css';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import logger from '../../utils/logger';
 
@@ -30,9 +31,9 @@ const AdminDashboard = () => {
 
     if (loading) {
         return (
-            <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-secondary)' }}>
+            <div className="admin-layout">
                 <AdminSidebar />
-                <div style={{ flex: 1, marginLeft: '260px', padding: 'var(--spacing-xl)' }}>
+                <div className="admin-content-area">
                     <div
                         className="container"
                         style={{ display: 'flex', justifyContent: 'center', padding: '4rem' }}
@@ -166,9 +167,9 @@ const AdminDashboard = () => {
     ];
 
     return (
-        <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-secondary)' }}>
+        <div className="admin-layout">
             <AdminSidebar />
-            <div style={{ flex: 1, marginLeft: '260px', padding: 'var(--spacing-xl)' }}>
+            <div className="admin-content-area">
                 <div className="container" style={{ padding: 0 }}>
                     <div className="admin-dashboard-header">
                         <div>
@@ -206,14 +207,7 @@ const AdminDashboard = () => {
                         ))}
                     </div>
 
-                    <div
-                        style={{
-                            display: 'grid',
-                            gridTemplateColumns: '1fr 1fr',
-                            gap: 'var(--spacing-xl)',
-                            marginTop: 'var(--spacing-xl)',
-                        }}
-                    >
+                    <div className="admin-dashboard-grid">
                         <div className="admin-section">
                             <div className="admin-section-header">
                                 <h2>Recent Users</h2>

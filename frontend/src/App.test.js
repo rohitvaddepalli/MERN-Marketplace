@@ -10,10 +10,8 @@
  * Heavy context dependencies (AuthProvider, CartProvider, SocketProvider,
  * Firebase) are mocked so tests stay fast and deterministic.
  */
-import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
 
-// ── Mocks ─────────────────────────────────────────────────────────────────────
+// ── Mocks (BEFORE any imports) ────────────────────────────────────────────
 
 // Firebase — avoid real SDK initialisation in unit tests
 jest.mock('./firebase', () => ({
@@ -64,9 +62,10 @@ jest.mock('react-hot-toast', () => ({
     toast: { success: jest.fn(), error: jest.fn() },
 }));
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// ── Tests ───────────────────────────────────────────────────────────────
 
-// Import the real App after mocks are registered
+import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import App from './App';
 
 describe('App', () => {
@@ -76,7 +75,6 @@ describe('App', () => {
                 <App />
             </MemoryRouter>
         );
-        // If render throws, the test fails automatically
     });
 
     it('renders the Navbar', () => {

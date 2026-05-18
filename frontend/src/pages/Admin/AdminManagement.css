@@ -1,4 +1,84 @@
-/* Admin Page Header */
+/* ============================================================
+   Admin Dark Theme Layout
+   Scoped overrides — only apply inside .admin-layout
+   ============================================================ */
+.admin-layout {
+    display: flex;
+    min-height: 100vh;
+
+    /* Dark background palette */
+    --bg-primary:    #0f1117;
+    --bg-secondary:  #13151c;
+    --bg-card:       #1c1f2b;
+    --bg-elevated:   #252838;
+
+    /* Text */
+    --text-primary:   #e8eaf0;
+    --text-secondary: #8b90a8;
+    --text-light:     #5c6180;
+
+    /* Borders & shadows */
+    --border-color:   #2a2d3e;
+    --shadow-sm:      0 2px 4px  rgba(0,0,0,0.4);
+    --shadow:         0 4px 12px rgba(0,0,0,0.5);
+    --shadow-md:      0 8px 24px rgba(0,0,0,0.55);
+    --shadow-lg:      0 16px 48px rgba(0,0,0,0.6);
+    --shadow-hover:   0 12px 32px rgba(0,0,0,0.6);
+
+    /* Neutral greys mapped to dark equivalents */
+    --gray-lighter:  #1e2130;
+    --gray-light:    #252838;
+    --gray:          #3a3f58;
+    --gray-dark:     #8b90a8;
+
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+/* Scrollbar styling for admin area */
+.admin-layout ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+.admin-layout ::-webkit-scrollbar-track {
+    background: var(--bg-primary);
+}
+.admin-layout ::-webkit-scrollbar-thumb {
+    background: var(--gray);
+    border-radius: 3px;
+}
+.admin-layout ::-webkit-scrollbar-thumb:hover {
+    background: var(--gray-dark);
+}
+
+/* Content area that sits next to the fixed sidebar */
+.admin-content-area {
+    flex: 1;
+    margin-left: 260px;
+    padding: var(--spacing-xl);
+    min-height: 100vh;
+    background-color: var(--bg-secondary);
+}
+
+/* Make inputs / selects / textareas inherit dark theme inside admin */
+.admin-layout input,
+.admin-layout select,
+.admin-layout textarea {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+.admin-layout input::placeholder {
+    color: var(--text-light);
+}
+
+/* Table head background for dark theme */
+.admin-layout .admin-table thead {
+    background: linear-gradient(135deg, var(--bg-elevated), var(--bg-card));
+}
+
+/* Admin page header */
 .admin-page-header {
     margin-bottom: var(--spacing-2xl);
 }

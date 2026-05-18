@@ -286,3 +286,17 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* Dashboard recent-sections 2-col grid (replaces inline style) */
+.admin-dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-xl);
+    margin-top: var(--spacing-xl);
+}
+
+@media (max-width: 1024px) {
+    .admin-dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}

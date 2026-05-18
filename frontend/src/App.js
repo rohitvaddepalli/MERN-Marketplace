@@ -297,6 +297,16 @@ function App() {
                                                 }
                                             />
 
+                                            {/* Safe admin entry alias — obscures the real route in public-facing docs */}
+                                            <Route
+                                                path="/portal-admin"
+                                                element={
+                                                    <ProtectedRoute requireRole="admin">
+                                                        <Navigate to="/admin/dashboard" replace />
+                                                    </ProtectedRoute>
+                                                }
+                                            />
+
                                             {/* Fallback - 404 Not Found */}
                                             <Route path="*" element={<NotFound />} />
                                         </Routes>
