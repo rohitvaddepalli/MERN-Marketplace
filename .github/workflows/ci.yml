@@ -1,0 +1,134 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  # ─── Backend: lint + unit tests ───────────────────────────────────────────────
+  backend-unit:
+    name: Backend Unit Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm test
+        env:
+          NODE_ENV: test
+          JWT_SECRET: ${{ secrets.JWT_SECRET || 'ci-jwt-secret-must-be-at-least-32-chars-long' }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET || 'ci-session-secret-for-testing-purposes-only' }}
+          SMTP_EMAIL: noreply@example.com
+          SMTP_PASSWORD: dummy
+          FRONTEND_URL: http://localhost:3000
+
+  # ─── Backend: integration tests (requires MongoMemoryServer) ─────────────────
+  backend-integration:
+    name: Backend Integration Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: npm ci
+
+      - name: Run integration tests
+        run: npm run test:integration
+        env:
+          NODE_ENV: test
+          JWT_SECRET: ${{ secrets.JWT_SECRET || 'ci-jwt-secret-must-be-at-least-32-chars-long' }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET || 'ci-session-secret-for-testing-purposes-only' }}
+          SMTP_EMAIL: noreply@example.com
+          SMTP_PASSWORD: dummy
+          FRONTEND_URL: http://localhost:3000
+
+  # ─── Frontend: tests + build ──────────────────────────────────────────────────
+  frontend:
+    name: Frontend Tests & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Run frontend tests
+        run: npm test -- --watchAll=false
+        env:
+          CI: true
+
+      - name: Build frontend
+        run: npm run build
+        env:
+          CI: false  # Downgrade warnings to non-fatal for existing codebase
+          REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL || 'http://localhost:5000' }}
+
+  # ─── Validate environment file (drift detection) ────────────────────────────
+  env-drift:
+    name: Env Variable Drift Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check .env.example is present
+        run: |
+          if [ ! -f backend/.env.example ]; then
+            echo "❌ backend/.env.example is missing!"
+            exit 1
+          fi
+          echo "✅ .env.example found"
+
+  # ─── Deploy to Render (main/master only) ─────────────────────────────────────
+  deploy:
+    name: Deploy to Render
+    needs: [backend-unit, backend-integration, frontend]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+
+    steps:
+      - name: Trigger Render deploy
+        run: |
+          if [ -z "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" ]; then
+            echo "⚠️  RENDER_DEPLOY_HOOK_URL not set — skipping deploy trigger."
+            exit 0
+          fi
+          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+          echo "✅ Render deploy triggered"

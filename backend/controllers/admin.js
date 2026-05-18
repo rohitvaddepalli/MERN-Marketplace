@@ -4,6 +4,7 @@ import Product from '../models/Product.js';
 import Order from '../models/Order.js';
 import Settings from '../models/Settings.js';
 
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 // @desc    Get dashboard statistics
 // @route   GET /api/admin/stats
 // @access  Private/Admin
@@ -17,7 +18,7 @@ export const getDashboardStats = async (req, res) => {
             recentUsers,
             recentOrders,
             customerCount,
-            sellerCount
+            sellerCount,
         ] = await Promise.all([
             User.countDocuments(),
             Store.countDocuments(),
@@ -26,15 +27,12 @@ export const getDashboardStats = async (req, res) => {
             User.find().sort({ createdAt: -1 }).limit(5).select('-password'),
             Order.find().sort({ createdAt: -1 }).limit(5).populate('customer', 'name email'),
             User.countDocuments({ role: 'customer' }),
-            User.countDocuments({ role: 'seller' })
+            User.countDocuments({ role: 'seller' }),
         ]);
 
         // Calculate total revenue
         const orders = await Order.find({
-            $or: [
-                { paymentStatus: 'completed' },
-                { status: 'delivered' }
-            ]
+            $or: [{ paymentStatus: 'completed' }, { status: 'delivered' }],
         });
         const totalRevenue = orders.reduce((sum, order) => {
             const tax = order.taxPrice || 0;
@@ -54,14 +52,14 @@ export const getDashboardStats = async (req, res) => {
                 customerCount,
                 sellerCount,
                 recentUsers,
-                recentOrders
-            }
+                recentOrders,
+            },
         });
     } catch (error) {
         res.status(500).json({
             success: false,
             message: 'Error fetching dashboard stats',
-            error: error.message
+            error: error.message,
         });
     }
 };
@@ -78,8 +76,8 @@ export const getAllUsers = async (req, res) => {
         if (role) query.role = role;
         if (search) {
             query.$or = [
-                { name: { $regex: search, $options: 'i' } },
-                { email: { $regex: search, $options: 'i' } }
+                { name: { $regex: escapeRegex(search), $options: 'i' } },
+                { email: { $regex: escapeRegex(search), $options: 'i' } },
             ];
         }
 
@@ -96,13 +94,13 @@ export const getAllUsers = async (req, res) => {
             users,
             totalPages: Math.ceil(count / limit),
             currentPage: page,
-            total: count
+            total: count,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
             message: 'Error fetching users',
-            error: error.message
+            error: error.message,
         });
     }
 };
@@ -120,8 +118,8 @@ export const getAllStores = async (req, res) => {
         if (isActive !== undefined && isActive !== '') query.isActive = isActive === 'true';
         if (search) {
             query.$or = [
-                { name: { $regex: search, $options: 'i' } },
-                { description: { $regex: search, $options: 'i' } }
+                { name: { $regex: escapeRegex(search), $options: 'i' } },
+                { description: { $regex: escapeRegex(search), $options: 'i' } },
             ];
         }
 
@@ -138,13 +136,13 @@ export const getAllStores = async (req, res) => {
             stores,
             totalPages: Math.ceil(count / limit),
             currentPage: page,
-            total: count
+            total: count,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
             message: 'Error fetching stores',
-            error: error.message
+            error: error.message,
         });
     }
 };
@@ -161,8 +159,8 @@ export const getAllProducts = async (req, res) => {
         if (category) query.category = category;
         if (search) {
             query.$or = [
-                { name: { $regex: search, $options: 'i' } },
-                { description: { $regex: search, $options: 'i' } }
+                { name: { $regex: escapeRegex(search), $options: 'i' } },
+                { description: { $regex: escapeRegex(search), $options: 'i' } },
             ];
         }
 
@@ -179,13 +177,13 @@ export const getAllProducts = async (req, res) => {
             products,
             totalPages: Math.ceil(count / limit),
             currentPage: page,
-            total: count
+            total: count,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
             message: 'Error fetching products',
-            error: error.message
+            error: error.message,
         });
     }
 };
@@ -202,7 +200,7 @@ export const getAllOrders = async (req, res) => {
         if (status) query.status = status;
         if (paymentStatus) query.paymentStatus = paymentStatus;
         if (search) {
-            query.orderNumber = { $regex: search, $options: 'i' };
+            query.orderNumber = { $regex: escapeRegex(search), $options: 'i' };
         }
 
         const orders = await Order.find(query)
@@ -220,13 +218,13 @@ export const getAllOrders = async (req, res) => {
             orders,
             totalPages: Math.ceil(count / limit),
             currentPage: page,
-            total: count
+            total: count,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
             message: 'Error fetching orders',
-            error: error.message
+            error: error.message,
         });
     }
 };
@@ -247,20 +245,20 @@ export const updateStoreStatus = async (req, res) => {
         if (!store) {
             return res.status(404).json({
                 success: false,
-                message: 'Store not found'
+                message: 'Store not found',
             });
         }
 
         res.status(200).json({
             success: true,
             message: `Store ${isActive ? 'activated' : 'deactivated'} successfully`,
-            store
+            store,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
             message: 'Error updating store status',
-            error: error.message
+            error: error.message,
         });
     }
 };
@@ -275,7 +273,7 @@ export const deleteUser = async (req, res) => {
         if (!user) {
             return res.status(404).json({
                 success: false,
-                message: 'User not found'
+                message: 'User not found',
             });
         }
 
@@ -283,7 +281,7 @@ export const deleteUser = async (req, res) => {
         if (user.role === 'admin') {
             return res.status(403).json({
                 success: false,
-                message: 'Cannot delete admin users'
+                message: 'Cannot delete admin users',
             });
         }
 
@@ -291,13 +289,13 @@ export const deleteUser = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            message: 'User deleted successfully'
+            message: 'User deleted successfully',
         });
     } catch (error) {
         res.status(500).json({
             success: false,
             message: 'Error deleting user',
-            error: error.message
+            error: error.message,
         });
     }
 };
@@ -312,7 +310,7 @@ export const deleteStore = async (req, res) => {
         if (!store) {
             return res.status(404).json({
                 success: false,
-                message: 'Store not found'
+                message: 'Store not found',
             });
         }
 
@@ -323,13 +321,13 @@ export const deleteStore = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            message: 'Store and associated products deleted successfully'
+            message: 'Store and associated products deleted successfully',
         });
     } catch (error) {
         res.status(500).json({
             success: false,
             message: 'Error deleting store',
-            error: error.message
+            error: error.message,
         });
     }
 };
@@ -344,7 +342,7 @@ export const deleteProduct = async (req, res) => {
         if (!product) {
             return res.status(404).json({
                 success: false,
-                message: 'Product not found'
+                message: 'Product not found',
             });
         }
 
@@ -352,13 +350,13 @@ export const deleteProduct = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            message: 'Product deleted successfully'
+            message: 'Product deleted successfully',
         });
     } catch (error) {
         res.status(500).json({
             success: false,
             message: 'Error deleting product',
-            error: error.message
+            error: error.message,
         });
     }
 };
@@ -373,7 +371,7 @@ export const deleteOrder = async (req, res) => {
         if (!order) {
             return res.status(404).json({
                 success: false,
-                message: 'Order not found'
+                message: 'Order not found',
             });
         }
 
@@ -381,13 +379,13 @@ export const deleteOrder = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            message: 'Order deleted successfully'
+            message: 'Order deleted successfully',
         });
     } catch (error) {
         res.status(500).json({
             success: false,
             message: 'Error deleting order',
-            error: error.message
+            error: error.message,
         });
     }
 };
@@ -401,13 +399,13 @@ export const getSettings = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            settings
+            settings,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
             message: 'Error fetching settings',
-            error: error.message
+            error: error.message,
         });
     }
 };
@@ -423,33 +421,29 @@ export const updateSettings = async (req, res) => {
         if (taxRate !== undefined && (taxRate < 0 || taxRate > 100)) {
             return res.status(400).json({
                 success: false,
-                message: 'Tax rate must be between 0 and 100'
+                message: 'Tax rate must be between 0 and 100',
             });
         }
 
         if (shippingFee !== undefined && shippingFee < 0) {
             return res.status(400).json({
                 success: false,
-                message: 'Shipping fee cannot be negative'
+                message: 'Shipping fee cannot be negative',
             });
         }
 
-        const settings = await Settings.updateSettings(
-            { taxRate, shippingFee },
-            req.user._id
-        );
+        const settings = await Settings.updateSettings({ taxRate, shippingFee }, req.user._id);
 
         res.status(200).json({
             success: true,
             message: 'Settings updated successfully',
-            settings
+            settings,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
             message: 'Error updating settings',
-            error: error.message
+            error: error.message,
         });
     }
 };
-

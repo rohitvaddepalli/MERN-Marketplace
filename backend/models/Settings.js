@@ -1,24 +1,27 @@
 import mongoose from 'mongoose';
 
-const settingsSchema = new mongoose.Schema({
-    taxRate: {
-        type: Number,
-        default: 8,
-        min: 0,
-        max: 100
+const settingsSchema = new mongoose.Schema(
+    {
+        taxRate: {
+            type: Number,
+            default: 8,
+            min: 0,
+            max: 100,
+        },
+        shippingFee: {
+            type: Number,
+            default: 10,
+            min: 0,
+        },
+        updatedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+        },
     },
-    shippingFee: {
-        type: Number,
-        default: 10,
-        min: 0
-    },
-    updatedBy: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
+    {
+        timestamps: true,
     }
-}, {
-    timestamps: true
-});
+);
 
 // Ensure only one settings document exists
 settingsSchema.statics.getSettings = async function () {
@@ -42,4 +45,3 @@ settingsSchema.statics.updateSettings = async function (data, userId) {
 };
 
 export default mongoose.model('Settings', settingsSchema);
-

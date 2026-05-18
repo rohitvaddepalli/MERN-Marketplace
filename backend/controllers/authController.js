@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 // Generate JWT Token
 const generateToken = (id) => {
     return jwt.sign({ id }, process.env.JWT_SECRET, {
-        expiresIn: process.env.JWT_EXPIRE || '7d'
+        expiresIn: process.env.JWT_EXPIRE || '7d',
     });
 };
 
@@ -16,7 +16,7 @@ const getCookieOptions = () => {
         secure: isProduction, // Only send over HTTPS in production
         sameSite: isProduction ? 'strict' : 'lax', // CSRF protection
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
-        path: '/' // Cookie available for all paths
+        path: '/', // Cookie available for all paths
     };
 };
 
@@ -46,8 +46,8 @@ const sendTokenResponse = (user, statusCode, res, message = null) => {
             role: user.role,
             avatar: user.avatar,
             phone: user.phone,
-            address: user.address
-        }
+            address: user.address,
+        },
     };
 
     if (message) {
@@ -64,7 +64,8 @@ export const register = async (req, res) => {
     try {
         // SECURITY: Only allow 'customer' or 'seller' roles from public registration
         // Admin role must be granted via database or admin panel
-        let { name, email, password, phone, role } = req.body;
+        const { name, email, password, phone } = req.body;
+        let { role } = req.body;
 
         if (role && !['customer', 'seller'].includes(role)) {
             role = 'customer';
@@ -75,7 +76,7 @@ export const register = async (req, res) => {
         if (userExists) {
             return res.status(400).json({
                 success: false,
-                message: 'User already exists with this email'
+                message: 'User already exists with this email',
             });
         }
 
@@ -85,14 +86,14 @@ export const register = async (req, res) => {
             email,
             password,
             role: role || 'customer',
-            phone
+            phone,
         });
 
         sendTokenResponse(user, 201, res);
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -108,7 +109,7 @@ export const login = async (req, res) => {
         if (!email || !password) {
             return res.status(400).json({
                 success: false,
-                message: 'Please provide email and password'
+                message: 'Please provide email and password',
             });
         }
 
@@ -117,7 +118,7 @@ export const login = async (req, res) => {
         if (!user) {
             return res.status(401).json({
                 success: false,
-                message: 'Invalid credentials'
+                message: 'Invalid credentials',
             });
         }
 
@@ -126,7 +127,7 @@ export const login = async (req, res) => {
         if (!isMatch) {
             return res.status(401).json({
                 success: false,
-                message: 'Invalid credentials'
+                message: 'Invalid credentials',
             });
         }
 
@@ -134,7 +135,7 @@ export const login = async (req, res) => {
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -148,12 +149,12 @@ export const getMe = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            user
+            user,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -167,22 +168,22 @@ export const updateProfile = async (req, res) => {
             name: req.body.name,
             email: req.body.email,
             phone: req.body.phone,
-            address: req.body.address
+            address: req.body.address,
         };
 
         const user = await User.findByIdAndUpdate(req.user._id, fieldsToUpdate, {
             new: true,
-            runValidators: true
+            runValidators: true,
         });
 
         res.status(200).json({
             success: true,
-            user
+            user,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -198,7 +199,7 @@ export const forgotPassword = async (req, res) => {
         if (!user) {
             return res.status(404).json({
                 success: false,
-                message: 'No user found with this email'
+                message: 'No user found with this email',
             });
         }
 
@@ -208,7 +209,8 @@ export const forgotPassword = async (req, res) => {
         await user.save({ validateBeforeSave: false });
 
         // Create reset url
-        const frontendUrl = process.env.FRONTEND_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:3000';
+        const frontendUrl =
+            process.env.FRONTEND_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:3000';
         const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
 
         const message = `
@@ -231,12 +233,12 @@ export const forgotPassword = async (req, res) => {
             await sendEmail({
                 email: user.email,
                 subject: 'Password Reset Request - Marketplace',
-                message
+                message,
             });
 
             res.status(200).json({
                 success: true,
-                message: 'Password reset link sent to your email'
+                message: 'Password reset link sent to your email',
             });
         } catch (err) {
             console.error('Email error:', err);
@@ -247,13 +249,13 @@ export const forgotPassword = async (req, res) => {
 
             return res.status(500).json({
                 success: false,
-                message: 'Email could not be sent. Please try again later.'
+                message: 'Email could not be sent. Please try again later.',
             });
         }
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -273,13 +275,13 @@ export const resetPassword = async (req, res) => {
 
         const user = await User.findOne({
             resetPasswordToken,
-            resetPasswordExpire: { $gt: Date.now() }
+            resetPasswordExpire: { $gt: Date.now() },
         });
 
         if (!user) {
             return res.status(400).json({
                 success: false,
-                message: 'Invalid or expired reset token'
+                message: 'Invalid or expired reset token',
             });
         }
 
@@ -293,7 +295,7 @@ export const resetPassword = async (req, res) => {
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -303,7 +305,8 @@ export const resetPassword = async (req, res) => {
 // @access  Public
 export const socialLoginCallback = (req, res) => {
     const token = generateToken(req.user._id);
-    const frontendUrl = process.env.FRONTEND_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:3000';
+    const frontendUrl =
+        process.env.FRONTEND_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:3000';
 
     // Set HTTP-only cookie for the token
     res.cookie('access_token', token, getCookieOptions());
@@ -321,13 +324,11 @@ export const logout = (req, res) => {
     res.cookie('access_token', '', {
         httpOnly: true,
         expires: new Date(0), // Expire immediately
-        path: '/'
+        path: '/',
     });
 
     res.status(200).json({
         success: true,
-        message: 'Logged out successfully'
+        message: 'Logged out successfully',
     });
 };
-
-

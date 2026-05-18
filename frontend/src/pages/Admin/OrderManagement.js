@@ -14,13 +14,13 @@ const OrderManagement = () => {
         paymentStatus: '',
         search: '',
         page: 1,
-        limit: 10
+        limit: 10,
     });
     useDocumentTitle('Order Management (Admin)');
     const [pagination, setPagination] = useState({
         currentPage: 1,
         totalPages: 1,
-        total: 0
+        total: 0,
     });
 
     const fetchOrders = React.useCallback(async () => {
@@ -31,7 +31,7 @@ const OrderManagement = () => {
             setPagination({
                 currentPage: response.data.currentPage,
                 totalPages: response.data.totalPages,
-                total: response.data.total
+                total: response.data.total,
             });
         } catch (error) {
             logger.error('Error fetching orders:', error);
@@ -58,11 +58,11 @@ const OrderManagement = () => {
     };
 
     const handleFilterChange = (key, value) => {
-        setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
+        setFilters((prev) => ({ ...prev, [key]: value, page: 1 }));
     };
 
     const handlePageChange = (page) => {
-        setFilters(prev => ({ ...prev, page }));
+        setFilters((prev) => ({ ...prev, page }));
     };
 
     const getStatusBadgeClass = (status) => {
@@ -71,7 +71,7 @@ const OrderManagement = () => {
             processing: 'info',
             shipped: 'primary',
             delivered: 'success',
-            cancelled: 'danger'
+            cancelled: 'danger',
         };
         return `badge-${statusMap[status] || 'info'}`;
     };
@@ -80,7 +80,7 @@ const OrderManagement = () => {
         const statusMap = {
             pending: 'warning',
             completed: 'success',
-            failed: 'danger'
+            failed: 'danger',
         };
         return `badge-${statusMap[status] || 'info'}`;
     };
@@ -98,7 +98,12 @@ const OrderManagement = () => {
                     <div className="admin-filters-section">
                         <div className="admin-search-box">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                                <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                <path
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                />
                             </svg>
                             <input
                                 type="text"
@@ -127,7 +132,9 @@ const OrderManagement = () => {
                         <div className="admin-filter-select">
                             <select
                                 value={filters.paymentStatus}
-                                onChange={(e) => handleFilterChange('paymentStatus', e.target.value)}
+                                onChange={(e) =>
+                                    handleFilterChange('paymentStatus', e.target.value)
+                                }
                                 className="form-select"
                             >
                                 <option value="">All Payment Status</option>
@@ -165,21 +172,31 @@ const OrderManagement = () => {
                                     <tbody>
                                         {orders.map((order) => (
                                             <tr key={order._id}>
-                                                <td className="admin-order-number">#{order.orderNumber}</td>
+                                                <td className="admin-order-number">
+                                                    #{order.orderNumber}
+                                                </td>
                                                 <td>{order.customer?.name || 'Unknown'}</td>
                                                 <td>{order.items?.length || 0} items</td>
-                                                <td className="admin-price">${order.totalPrice?.toFixed(2)}</td>
+                                                <td className="admin-price">
+                                                    ${order.totalPrice?.toFixed(2)}
+                                                </td>
                                                 <td>
-                                                    <span className={`badge ${getPaymentStatusBadgeClass(order.paymentStatus)}`}>
+                                                    <span
+                                                        className={`badge ${getPaymentStatusBadgeClass(order.paymentStatus)}`}
+                                                    >
                                                         {order.paymentStatus}
                                                     </span>
                                                 </td>
                                                 <td>
-                                                    <span className={`badge ${getStatusBadgeClass(order.status)}`}>
+                                                    <span
+                                                        className={`badge ${getStatusBadgeClass(order.status)}`}
+                                                    >
                                                         {order.status}
                                                     </span>
                                                 </td>
-                                                <td>{new Date(order.createdAt).toLocaleDateString()}</td>
+                                                <td>
+                                                    {new Date(order.createdAt).toLocaleDateString()}
+                                                </td>
                                                 <td>
                                                     <div className="admin-table-actions">
                                                         <button
@@ -187,8 +204,18 @@ const OrderManagement = () => {
                                                             className="admin-action-btn admin-btn-delete"
                                                             title="Delete order"
                                                         >
-                                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                                                                <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                                            <svg
+                                                                width="18"
+                                                                height="18"
+                                                                viewBox="0 0 24 24"
+                                                                fill="none"
+                                                            >
+                                                                <path
+                                                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                                                    stroke="currentColor"
+                                                                    strokeWidth="2"
+                                                                    strokeLinecap="round"
+                                                                />
                                                             </svg>
                                                         </button>
                                                     </div>
@@ -210,7 +237,10 @@ const OrderManagement = () => {
                                     </button>
 
                                     <div className="admin-pagination-pages">
-                                        {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map(page => (
+                                        {Array.from(
+                                            { length: pagination.totalPages },
+                                            (_, i) => i + 1
+                                        ).map((page) => (
                                             <button
                                                 key={page}
                                                 onClick={() => handlePageChange(page)}

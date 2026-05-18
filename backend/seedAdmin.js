@@ -16,12 +16,12 @@ const seedAdmin = async () => {
             process.exit();
         }
 
-        const adminUser = await User.create({
+        const _adminUser = await User.create({
             name: 'Admin User',
             email: 'admin@example.com',
             password: 'adminpassword123', // The model will hash this
             role: 'admin',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin'
+            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin',
         });
 
         console.log('✅ Admin user created successfully');

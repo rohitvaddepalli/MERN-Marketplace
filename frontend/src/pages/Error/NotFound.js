@@ -14,18 +14,43 @@ const NotFound = () => {
             <div className="error-container">
                 <div className="error-content">
                     <div className="error-illustration">
-                        <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="100" cy="100" r="80" stroke="var(--primary-color)" strokeWidth="4" opacity="0.2" />
-                            <path d="M70 85C70 80.5817 73.5817 77 78 77H92C96.4183 77 100 80.5817 100 85V95C100 99.4183 96.4183 103 92 103H78C73.5817 103 70 99.4183 70 95V85Z" fill="var(--primary-color)" opacity="0.3" />
-                            <path d="M100 85C100 80.5817 103.582 77 108 77H122C126.418 77 130 80.5817 130 85V95C130 99.4183 126.418 103 122 103H108C103.582 103 100 99.4183 100 95V85Z" fill="var(--primary-color)" opacity="0.3" />
-                            <path d="M70 120C70 115 85 110 100 110C115 110 130 115 130 120V125C130 129.418 126.418 133 122 133H78C73.5817 133 70 129.418 70 125V120Z" fill="var(--primary-color)" />
+                        <svg
+                            width="200"
+                            height="200"
+                            viewBox="0 0 200 200"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                        >
+                            <circle
+                                cx="100"
+                                cy="100"
+                                r="80"
+                                stroke="var(--primary-color)"
+                                strokeWidth="4"
+                                opacity="0.2"
+                            />
+                            <path
+                                d="M70 85C70 80.5817 73.5817 77 78 77H92C96.4183 77 100 80.5817 100 85V95C100 99.4183 96.4183 103 92 103H78C73.5817 103 70 99.4183 70 95V85Z"
+                                fill="var(--primary-color)"
+                                opacity="0.3"
+                            />
+                            <path
+                                d="M100 85C100 80.5817 103.582 77 108 77H122C126.418 77 130 80.5817 130 85V95C130 99.4183 126.418 103 122 103H108C103.582 103 100 99.4183 100 95V85Z"
+                                fill="var(--primary-color)"
+                                opacity="0.3"
+                            />
+                            <path
+                                d="M70 120C70 115 85 110 100 110C115 110 130 115 130 120V125C130 129.418 126.418 133 122 133H78C73.5817 133 70 129.418 70 125V120Z"
+                                fill="var(--primary-color)"
+                            />
                         </svg>
                     </div>
 
                     <h1 className="error-code">404</h1>
                     <h2 className="error-title">Page Not Found</h2>
                     <p className="error-description">
-                        Oops! The page you're looking for doesn't exist. It might have been moved or deleted.
+                        Oops! The page you're looking for doesn't exist. It might have been moved or
+                        deleted.
                     </p>
 
                     <div className="error-actions">

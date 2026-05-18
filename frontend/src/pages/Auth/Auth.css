@@ -21,7 +21,6 @@
 }
 
 @keyframes float {
-
     0%,
     100% {
         transform: translate(0, 0) rotate(0deg);
@@ -139,7 +138,6 @@
 }
 
 @keyframes floatCard {
-
     0%,
     100% {
         transform: translateY(0px) rotate(0deg);
@@ -180,7 +178,7 @@
     align-items: center;
     gap: var(--spacing-sm);
     padding: 12px 16px;
-    background: #FFF5F5;
+    background: #fff5f5;
     border: 1px solid var(--danger-color);
     border-radius: var(--border-radius);
     color: var(--danger-color);
@@ -244,7 +242,7 @@
     cursor: pointer;
 }
 
-.role-option input[type="radio"] {
+.role-option input[type='radio'] {
     position: absolute;
     opacity: 0;
 }

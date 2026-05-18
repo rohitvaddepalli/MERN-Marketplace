@@ -5,24 +5,19 @@ import {
     removeFromWishlist,
     getWishlist,
     addToRecentlyViewed,
-    getRecentlyViewed
+    getRecentlyViewed,
 } from '../controllers/userController.js';
 
 const router = express.Router();
 
 router.use(protect);
 
-router.route('/wishlist')
-    .get(getWishlist);
+router.route('/wishlist').get(getWishlist);
 
-router.route('/wishlist/:productId')
-    .post(addToWishlist)
-    .delete(removeFromWishlist);
+router.route('/wishlist/:productId').post(addToWishlist).delete(removeFromWishlist);
 
-router.route('/recently-viewed')
-    .get(getRecentlyViewed);
+router.route('/recently-viewed').get(getRecentlyViewed);
 
-router.route('/recently-viewed/:productId')
-    .post(addToRecentlyViewed);
+router.route('/recently-viewed/:productId').post(addToRecentlyViewed);
 
 export default router;

@@ -7,12 +7,15 @@ import ImageWithFallback from '../../components/Common/ImageWithFallback';
 import { DEFAULT_PRODUCT_IMAGE } from '../../constants/images';
 import './Dashboard.css';
 import logger from '../../utils/logger';
+import ChatBox from '../../components/Chat/ChatBox';
 
 const CustomerOrders = () => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showCancelModal, setShowCancelModal] = useState(false);
     const [selectedOrderId, setSelectedOrderId] = useState(null);
+    const [chatState, setChatState] = useState({ isOpen: false, peerId: null, peerName: '' });
+
     useDocumentTitle('My Orders');
 
     useEffect(() => {
@@ -44,9 +47,11 @@ const CustomerOrders = () => {
             if (response.data.success) {
                 toast.success('Order cancelled successfully');
                 // Update local state
-                setOrders(orders.map(order =>
-                    order._id === selectedOrderId ? { ...order, status: 'cancelled' } : order
-                ));
+                setOrders(
+                    orders.map((order) =>
+                        order._id === selectedOrderId ? { ...order, status: 'cancelled' } : order
+                    )
+                );
             }
         } catch (error) {
             logger.error('Error cancelling order:', error);
@@ -59,11 +64,16 @@ const CustomerOrders = () => {
 
     const getStatusColor = (status) => {
         switch (status) {
-            case 'delivered': return 'success';
-            case 'shipped': return 'info';
-            case 'processing': return 'warning';
-            case 'cancelled': return 'danger';
-            default: return 'primary';
+            case 'delivered':
+                return 'success';
+            case 'shipped':
+                return 'info';
+            case 'processing':
+                return 'warning';
+            case 'cancelled':
+                return 'danger';
+            default:
+                return 'primary';
         }
     };
 
@@ -81,29 +91,72 @@ const CustomerOrders = () => {
                     <div className="empty-state">
                         <div className="empty-state-icon">
                             <svg width="60" height="60" viewBox="0 0 24 24" fill="none">
-                                <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17" stroke="currentColor" strokeWidth="2" />
+                                <path
+                                    d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                />
                             </svg>
                         </div>
                         <h3>No Orders Yet</h3>
                         <p>You haven't placed any orders</p>
-                        <Link to="/products" className="btn btn-primary" style={{ marginTop: '1rem' }}>Browse Products</Link>
+                        <Link
+                            to="/products"
+                            className="btn btn-primary"
+                            style={{ marginTop: '1rem' }}
+                        >
+                            Browse Products
+                        </Link>
                     </div>
                 ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
+                    <div
+                        style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 'var(--spacing-lg)',
+                        }}
+                    >
                         {orders.map((order) => (
                             <div key={order._id} className="card">
-                                <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                                <div
+                                    className="card-header"
+                                    style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        flexWrap: 'wrap',
+                                        gap: '1rem',
+                                    }}
+                                >
                                     <div>
-                                        <h3 style={{ margin: 0, marginBottom: '4px' }}>Order #{order.orderNumber || order._id.slice(-6).toUpperCase()}</h3>
-                                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                                            Placed on {new Date(order.createdAt).toLocaleDateString()}
+                                        <h3 style={{ margin: 0, marginBottom: '4px' }}>
+                                            Order #
+                                            {order.orderNumber || order._id.slice(-6).toUpperCase()}
+                                        </h3>
+                                        <span
+                                            style={{
+                                                color: 'var(--text-secondary)',
+                                                fontSize: '0.9rem',
+                                            }}
+                                        >
+                                            Placed on{' '}
+                                            {new Date(order.createdAt).toLocaleDateString()}
                                         </span>
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                        <span className={`badge badge-${getStatusColor(order.status)}`}>
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '1rem',
+                                        }}
+                                    >
+                                        <span
+                                            className={`badge badge-${getStatusColor(order.status)}`}
+                                        >
                                             {order.status}
                                         </span>
-                                        {(order.status === 'pending' || order.status === 'processing') && (
+                                        {(order.status === 'pending' ||
+                                            order.status === 'processing') && (
                                             <button
                                                 className="btn btn-outline-danger"
                                                 onClick={() => handleCancelOrder(order._id)}
@@ -114,7 +167,7 @@ const CustomerOrders = () => {
                                                     color: '#dc3545',
                                                     background: 'transparent',
                                                     borderRadius: '4px',
-                                                    transition: 'all 0.2s'
+                                                    transition: 'all 0.2s',
                                                 }}
                                                 onMouseOver={(e) => {
                                                     e.target.style.background = '#dc3545';
@@ -132,22 +185,79 @@ const CustomerOrders = () => {
                                 </div>
 
                                 <div className="card-body">
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: 'var(--spacing-md)',
+                                        }}
+                                    >
                                         {order.items?.map((item, index) => (
-                                            <div key={index} style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'center' }}>
+                                            <div
+                                                key={index}
+                                                style={{
+                                                    display: 'flex',
+                                                    gap: 'var(--spacing-md)',
+                                                    alignItems: 'center',
+                                                }}
+                                            >
                                                 <ImageWithFallback
                                                     src={item.product?.images?.[0] || item.image}
                                                     fallbackSrc={DEFAULT_PRODUCT_IMAGE}
                                                     alt={item.name}
-                                                    style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: 'var(--border-radius)' }}
+                                                    style={{
+                                                        width: '80px',
+                                                        height: '80px',
+                                                        objectFit: 'cover',
+                                                        borderRadius: 'var(--border-radius)',
+                                                    }}
                                                 />
                                                 <div style={{ flex: 1 }}>
-                                                    <h4 style={{ margin: 0, marginBottom: '4px' }}>{item.name}</h4>
-                                                    <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                                                    <h4 style={{ margin: 0, marginBottom: '4px' }}>
+                                                        {item.name}
+                                                    </h4>
+                                                    <p
+                                                        style={{
+                                                            margin: 0,
+                                                            color: 'var(--text-secondary)',
+                                                            fontSize: '0.9rem',
+                                                        }}
+                                                    >
                                                         Qty: {item.quantity} × ₹{item.price}
                                                     </p>
+                                                    {item.product?.seller && (
+                                                        <button
+                                                            className="btn btn-primary btn-sm"
+                                                            style={{
+                                                                marginTop: '8px',
+                                                                fontSize: '0.9rem',
+                                                                padding: '8px 16px',
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                gap: '6px',
+                                                            }}
+                                                            onClick={() =>
+                                                                setChatState({
+                                                                    isOpen: true,
+                                                                    peerId: item.product.seller._id,
+                                                                    peerName:
+                                                                        item.store?.name ||
+                                                                        item.product.seller.name ||
+                                                                        'Seller',
+                                                                })
+                                                            }
+                                                        >
+                                                            💬 Chat with Seller
+                                                        </button>
+                                                    )}
                                                 </div>
-                                                <div style={{ fontWeight: '700', fontSize: '1.125rem', color: 'var(--primary-color)' }}>
+                                                <div
+                                                    style={{
+                                                        fontWeight: '700',
+                                                        fontSize: '1.125rem',
+                                                        color: 'var(--primary-color)',
+                                                    }}
+                                                >
                                                     ₹{(item.price * item.quantity).toFixed(2)}
                                                 </div>
                                             </div>
@@ -155,12 +265,20 @@ const CustomerOrders = () => {
                                     </div>
                                 </div>
 
-                                <div className="card-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div
+                                    className="card-footer"
+                                    style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                    }}
+                                >
                                     <div>
                                         <strong>Total:</strong> ₹{order.totalPrice?.toFixed(2)}
                                     </div>
                                     <div>
-                                        <strong>Payment:</strong> {order.paymentMethod?.toUpperCase()}
+                                        <strong>Payment:</strong>{' '}
+                                        {order.paymentMethod?.toUpperCase()}
                                     </div>
                                 </div>
                             </div>
@@ -172,12 +290,15 @@ const CustomerOrders = () => {
             {/* Cancel Order Confirmation Modal */}
             {showCancelModal && (
                 <div className="modal-backdrop" onClick={() => setShowCancelModal(false)}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3>Cancel Order</h3>
                         </div>
                         <div className="modal-body">
-                            <p>Are you sure you want to cancel this order? This action cannot be undone.</p>
+                            <p>
+                                Are you sure you want to cancel this order? This action cannot be
+                                undone.
+                            </p>
                         </div>
                         <div className="modal-footer">
                             <button
@@ -195,6 +316,16 @@ const CustomerOrders = () => {
                             </button>
                         </div>
                     </div>
+                </div>
+            )}
+
+            {chatState.isOpen && (
+                <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 1000 }}>
+                    <ChatBox
+                        peerId={chatState.peerId}
+                        peerName={chatState.peerName}
+                        onClose={() => setChatState({ isOpen: false, peerId: null, peerName: '' })}
+                    />
                 </div>
             )}
         </div>

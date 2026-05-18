@@ -31,7 +31,7 @@ const Wishlist = () => {
     const handleRemoveFromWishlist = async (productId) => {
         try {
             await userAPI.removeFromWishlist(productId);
-            setWishlist(wishlist.filter(item => item._id !== productId));
+            setWishlist(wishlist.filter((item) => item._id !== productId));
             toast.success('Removed from wishlist');
         } catch (error) {
             logger.error('Error removing from wishlist:', error);
@@ -63,12 +63,21 @@ const Wishlist = () => {
                 {wishlist.length === 0 ? (
                     <div className="empty-state">
                         <div className="empty-state-icon">
-                            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <svg
+                                width="60"
+                                height="60"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                            >
                                 <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                             </svg>
                         </div>
                         <h3>Your wishlist is empty</h3>
-                        <Link to="/products" className="btn btn-primary">Browse Products</Link>
+                        <Link to="/products" className="btn btn-primary">
+                            Browse Products
+                        </Link>
                     </div>
                 ) : (
                     <div className="products-grid">
@@ -78,7 +87,7 @@ const Wishlist = () => {
                                     <img
                                         src={product.images?.[0] || DEFAULT_PRODUCT_IMAGE}
                                         alt={product.name}
-                                        onError={(e) => e.target.src = DEFAULT_PRODUCT_IMAGE}
+                                        onError={(e) => (e.target.src = DEFAULT_PRODUCT_IMAGE)}
                                     />
                                 </Link>
                                 <div className="product-info">
@@ -86,7 +95,14 @@ const Wishlist = () => {
                                         <Link to={`/products/${product._id}`}>{product.name}</Link>
                                     </h3>
                                     <div className="product-price">₹{product.price}</div>
-                                    <div className="product-actions" style={{ marginTop: 'var(--spacing-md)', display: 'flex', gap: 'var(--spacing-sm)' }}>
+                                    <div
+                                        className="product-actions"
+                                        style={{
+                                            marginTop: 'var(--spacing-md)',
+                                            display: 'flex',
+                                            gap: 'var(--spacing-sm)',
+                                        }}
+                                    >
                                         <button
                                             onClick={() => handleAddToCart(product)}
                                             className="btn btn-primary"
@@ -99,7 +115,12 @@ const Wishlist = () => {
                                             className="btn btn-outline btn-danger"
                                             title="Remove from Wishlist"
                                         >
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                            <svg
+                                                width="20"
+                                                height="20"
+                                                viewBox="0 0 24 24"
+                                                fill="currentColor"
+                                            >
                                                 <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
                                             </svg>
                                         </button>

@@ -1,6 +1,10 @@
 import Order from '../models/Order.js';
 import Product from '../models/Product.js';
-import mongoose from 'mongoose';
+import cache from '../utils/cache.js';
+
+const CACHE_TTL = 5 * 60; // 5 minutes
+
+// ── Seller analytics ──────────────────────────────────────────────────────────
 
 // @desc    Get sales analytics
 // @route   GET /api/analytics/sales
@@ -8,63 +12,78 @@ import mongoose from 'mongoose';
 export const getSalesAnalytics = async (req, res) => {
     try {
         const { period = '30' } = req.query;
-        const days = parseInt(period);
+        const days = Math.min(parseInt(period) || 30, 365); // cap at 1 year
+        const sellerId = req.user._id;
+        const cacheKey = `analytics:sales:${sellerId}:${days}`;
+
+        const cached = await cache.get(cacheKey);
+        if (cached) return res.status(200).json({ success: true, ...cached });
+
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - days);
 
-        // Get seller's products
-        const products = await Product.find({ seller: req.user._id }).select('_id');
-        const productIds = products.map(p => p._id);
+        // Step 1: resolve seller's product IDs
+        const productIds = (await Product.find({ seller: sellerId }).select('_id')).map(
+            (p) => p._id
+        );
 
-        // Get orders containing seller's products
-        const orders = await Order.find({
-            'items.product': { $in: productIds },
-            createdAt: { $gte: startDate }
-        }).populate('items.product');
+        // Step 2: aggregation pipeline — all math done in MongoDB
+        const [result] = await Order.aggregate([
+            {
+                $match: {
+                    'items.product': { $in: productIds },
+                    createdAt: { $gte: startDate },
+                },
+            },
+            // Unwind items so we can filter to this seller's products only
+            { $unwind: '$items' },
+            { $match: { 'items.product': { $in: productIds } } },
+            {
+                $group: {
+                    _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+                    revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
+                    orders: { $sum: 1 },
+                },
+            },
+            { $sort: { _id: 1 } },
+            {
+                $group: {
+                    _id: null,
+                    salesData: {
+                        $push: { date: '$_id', revenue: '$revenue', orders: '$orders' },
+                    },
+                    totalRevenue: { $sum: '$revenue' },
+                    totalOrders: { $sum: '$orders' },
+                },
+            },
+            {
+                $project: {
+                    _id: 0,
+                    salesData: 1,
+                    totalRevenue: 1,
+                    totalOrders: 1,
+                    averageOrderValue: {
+                        $cond: [
+                            { $gt: ['$totalOrders', 0] },
+                            { $divide: ['$totalRevenue', '$totalOrders'] },
+                            0,
+                        ],
+                    },
+                },
+            },
+        ]);
 
-        // Calculate total revenue
-        let totalRevenue = 0;
-        let totalOrders = 0;
-        const dailySales = {};
+        const analytics = result ?? {
+            totalRevenue: 0,
+            totalOrders: 0,
+            averageOrderValue: 0,
+            salesData: [],
+        };
+        await cache.set(cacheKey, { analytics }, CACHE_TTL);
 
-        orders.forEach(order => {
-            const orderDate = new Date(order.createdAt).toISOString().split('T')[0];
-
-            order.items.forEach(item => {
-                if (productIds.some(id => id.equals(item.product._id))) {
-                    const itemRevenue = item.price * item.quantity;
-                    totalRevenue += itemRevenue;
-
-                    if (!dailySales[orderDate]) {
-                        dailySales[orderDate] = { revenue: 0, orders: 0 };
-                    }
-                    dailySales[orderDate].revenue += itemRevenue;
-                }
-            });
-            totalOrders++;
-        });
-
-        // Format daily sales for chart
-        const salesData = Object.keys(dailySales).map(date => ({
-            date,
-            revenue: dailySales[date].revenue,
-            orders: dailySales[date].orders
-        })).sort((a, b) => new Date(a.date) - new Date(b.date));
-
-        res.status(200).json({
-            success: true,
-            analytics: {
-                totalRevenue,
-                totalOrders,
-                averageOrderValue: totalOrders > 0 ? totalRevenue / totalOrders : 0,
-                salesData
-            }
-        });
+        res.status(200).json({ success: true, analytics });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 
@@ -73,68 +92,63 @@ export const getSalesAnalytics = async (req, res) => {
 // @access  Private/Seller
 export const getCustomerAnalytics = async (req, res) => {
     try {
-        // Get seller's products
-        const products = await Product.find({ seller: req.user._id }).select('_id');
-        const productIds = products.map(p => p._id);
+        const sellerId = req.user._id;
+        const cacheKey = `analytics:customers:${sellerId}`;
 
-        // Get orders containing seller's products
-        const orders = await Order.find({
-            'items.product': { $in: productIds }
-        }).populate('customer', 'name email');
+        const cached = await cache.get(cacheKey);
+        if (cached) return res.status(200).json({ success: true, ...cached });
 
-        // Analyze customer behavior
-        const customerData = {};
+        const productIds = (await Product.find({ seller: sellerId }).select('_id')).map(
+            (p) => p._id
+        );
 
-        orders.forEach(order => {
-            if (!order.customer) return; // Skip if customer is null
+        const customers = await Order.aggregate([
+            { $match: { 'items.product': { $in: productIds } } },
+            { $unwind: '$items' },
+            { $match: { 'items.product': { $in: productIds } } },
+            {
+                $group: {
+                    _id: '$customer',
+                    totalOrders: { $addToSet: '$_id' },
+                    totalSpent: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
+                    lastOrderDate: { $max: '$createdAt' },
+                },
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: '_id',
+                    foreignField: '_id',
+                    as: 'customerInfo',
+                },
+            },
+            { $unwind: { path: '$customerInfo', preserveNullAndEmptyArrays: false } },
+            {
+                $project: {
+                    _id: 0,
+                    name: '$customerInfo.name',
+                    email: '$customerInfo.email',
+                    totalOrders: { $size: '$totalOrders' },
+                    totalSpent: 1,
+                    lastOrderDate: 1,
+                },
+            },
+            { $sort: { totalSpent: -1 } },
+        ]);
 
-            const customerId = order.customer._id.toString();
+        const totalCustomers = customers.length;
+        const topCustomers = customers.slice(0, 10);
+        const repeatCustomerRate =
+            totalCustomers > 0
+                ? (customers.filter((c) => c.totalOrders > 1).length / totalCustomers) * 100
+                : 0;
 
-            if (!customerData[customerId]) {
-                customerData[customerId] = {
-                    name: order.customer.name,
-                    email: order.customer.email,
-                    totalOrders: 0,
-                    totalSpent: 0,
-                    lastOrderDate: order.createdAt
-                };
-            }
+        const analytics = { totalCustomers, topCustomers, repeatCustomerRate };
+        await cache.set(cacheKey, { analytics }, CACHE_TTL);
 
-            customerData[customerId].totalOrders++;
-            order.items.forEach(item => {
-                if (productIds.some(id => id.equals(item.product))) {
-                    customerData[customerId].totalSpent += item.price * item.quantity;
-                }
-            });
-
-            if (new Date(order.createdAt) > new Date(customerData[customerId].lastOrderDate)) {
-                customerData[customerId].lastOrderDate = order.createdAt;
-            }
-        });
-
-        // Convert to array and sort by total spent
-        const topCustomers = Object.values(customerData)
-            .sort((a, b) => b.totalSpent - a.totalSpent)
-            .slice(0, 10);
-
-        const totalCustomers = Object.keys(customerData).length;
-        const repeatCustomerRate = totalCustomers > 0
-            ? (Object.values(customerData).filter(c => c.totalOrders > 1).length / totalCustomers * 100)
-            : 0;
-
-        res.status(200).json({
-            success: true,
-            analytics: {
-                totalCustomers,
-                topCustomers,
-                repeatCustomerRate
-            }
-        });
+        res.status(200).json({ success: true, analytics });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 
@@ -144,67 +158,67 @@ export const getCustomerAnalytics = async (req, res) => {
 export const getInventoryForecast = async (req, res) => {
     try {
         const { days = 30 } = req.query;
-        const forecastDays = parseInt(days);
+        const forecastDays = Math.min(parseInt(days) || 30, 365);
+        const sellerId = req.user._id;
+        const cacheKey = `analytics:forecast:${sellerId}:${forecastDays}`;
+
+        const cached = await cache.get(cacheKey);
+        if (cached) return res.status(200).json({ success: true, ...cached });
+
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - forecastDays);
 
-        // Get seller's products
-        const products = await Product.find({ seller: req.user._id });
-        const productIds = products.map(p => p._id);
+        // Sales velocity per product via aggregation
+        const salesVelocity = await Order.aggregate([
+            {
+                $match: {
+                    'items.product': {
+                        $in: (await Product.find({ seller: sellerId }).select('_id')).map(
+                            (p) => p._id
+                        ),
+                    },
+                    createdAt: { $gte: startDate },
+                },
+            },
+            { $unwind: '$items' },
+            {
+                $group: {
+                    _id: '$items.product',
+                    totalSold: { $sum: '$items.quantity' },
+                },
+            },
+        ]);
 
-        // Get recent orders
-        const orders = await Order.find({
-            'items.product': { $in: productIds },
-            createdAt: { $gte: startDate }
+        const velocityMap = {};
+        salesVelocity.forEach(({ _id, totalSold }) => {
+            velocityMap[_id.toString()] = totalSold;
         });
 
-        // Calculate sales velocity for each product
-        const productSales = {};
+        const products = await Product.find({ seller: sellerId }).select(
+            'name stock lowStockThreshold'
+        );
+        const forecast = products
+            .map((p) => {
+                const totalSold = velocityMap[p._id.toString()] || 0;
+                const averageDailySales = totalSold / forecastDays;
+                const daysUntilStockout =
+                    averageDailySales > 0 ? Math.floor(p.stock / averageDailySales) : Infinity;
+                return {
+                    name: p.name,
+                    currentStock: p.stock,
+                    lowStockThreshold: p.lowStockThreshold,
+                    totalSold,
+                    averageDailySales: +averageDailySales.toFixed(2),
+                    daysUntilStockout: isFinite(daysUntilStockout) ? daysUntilStockout : null,
+                    reorderRecommended: daysUntilStockout < 14 || p.stock <= p.lowStockThreshold,
+                };
+            })
+            .sort((a, b) => (a.daysUntilStockout ?? Infinity) - (b.daysUntilStockout ?? Infinity));
 
-        products.forEach(product => {
-            productSales[product._id] = {
-                name: product.name,
-                currentStock: product.stock,
-                lowStockThreshold: product.lowStockThreshold,
-                totalSold: 0,
-                averageDailySales: 0,
-                daysUntilStockout: 0,
-                reorderRecommended: false
-            };
-        });
-
-        orders.forEach(order => {
-            order.items.forEach(item => {
-                if (productSales[item.product]) {
-                    productSales[item.product].totalSold += item.quantity;
-                }
-            });
-        });
-
-        // Calculate forecasts
-        Object.keys(productSales).forEach(productId => {
-            const data = productSales[productId];
-            data.averageDailySales = data.totalSold / forecastDays;
-
-            if (data.averageDailySales > 0) {
-                data.daysUntilStockout = Math.floor(data.currentStock / data.averageDailySales);
-                data.reorderRecommended = data.daysUntilStockout < 14 || data.currentStock <= data.lowStockThreshold;
-            }
-        });
-
-        // Convert to array and sort by urgency
-        const forecast = Object.values(productSales)
-            .sort((a, b) => a.daysUntilStockout - b.daysUntilStockout);
-
-        res.status(200).json({
-            success: true,
-            forecast
-        });
+        await cache.set(cacheKey, { forecast }, CACHE_TTL);
+        res.status(200).json({ success: true, forecast });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 
@@ -213,69 +227,69 @@ export const getInventoryForecast = async (req, res) => {
 // @access  Private/Seller
 export const getProductAnalytics = async (req, res) => {
     try {
-        const products = await Product.find({ seller: req.user._id });
-        const productIds = products.map(p => p._id);
+        const sellerId = req.user._id;
+        const cacheKey = `analytics:products:${sellerId}`;
 
-        // Get all orders with seller's products
-        const orders = await Order.find({
-            'items.product': { $in: productIds }
-        });
+        const cached = await cache.get(cacheKey);
+        if (cached) return res.status(200).json({ success: true, ...cached });
 
-        // Calculate performance metrics
-        const productPerformance = {};
+        const productIds = (await Product.find({ seller: sellerId }).select('_id')).map(
+            (p) => p._id
+        );
 
-        products.forEach(product => {
-            productPerformance[product._id] = {
-                name: product.name,
-                category: product.category,
-                price: product.price,
-                stock: product.stock,
-                totalSold: 0,
-                revenue: 0,
-                views: 0
-            };
-        });
+        const productPerformance = await Order.aggregate([
+            { $match: { 'items.product': { $in: productIds } } },
+            { $unwind: '$items' },
+            { $match: { 'items.product': { $in: productIds } } },
+            {
+                $group: {
+                    _id: '$items.product',
+                    totalSold: { $sum: '$items.quantity' },
+                    revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
+                },
+            },
+            {
+                $lookup: {
+                    from: 'products',
+                    localField: '_id',
+                    foreignField: '_id',
+                    as: 'product',
+                },
+            },
+            { $unwind: '$product' },
+            {
+                $project: {
+                    _id: 0,
+                    name: '$product.name',
+                    category: '$product.category',
+                    price: '$product.price',
+                    stock: '$product.stock',
+                    totalSold: 1,
+                    revenue: 1,
+                },
+            },
+            { $sort: { revenue: -1 } },
+        ]);
 
-        orders.forEach(order => {
-            order.items.forEach(item => {
-                if (productPerformance[item.product]) {
-                    productPerformance[item.product].totalSold += item.quantity;
-                    productPerformance[item.product].revenue += item.price * item.quantity;
-                }
-            });
-        });
+        const topProducts = productPerformance.slice(0, 10);
 
-        // Convert to array and sort by revenue
-        const topProducts = Object.values(productPerformance)
-            .sort((a, b) => b.revenue - a.revenue)
-            .slice(0, 10);
+        const categoryPerformance = productPerformance.reduce((acc, p) => {
+            if (!acc[p.category]) acc[p.category] = { revenue: 0, unitsSold: 0 };
+            acc[p.category].revenue += p.revenue;
+            acc[p.category].unitsSold += p.totalSold;
+            return acc;
+        }, {});
 
-        const categoryPerformance = {};
-        Object.values(productPerformance).forEach(product => {
-            if (!categoryPerformance[product.category]) {
-                categoryPerformance[product.category] = {
-                    revenue: 0,
-                    unitsSold: 0
-                };
-            }
-            categoryPerformance[product.category].revenue += product.revenue;
-            categoryPerformance[product.category].unitsSold += product.totalSold;
-        });
+        const analytics = { topProducts, categoryPerformance };
+        await cache.set(cacheKey, { analytics }, CACHE_TTL);
 
-        res.status(200).json({
-            success: true,
-            analytics: {
-                topProducts,
-                categoryPerformance
-            }
-        });
+        res.status(200).json({ success: true, analytics });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        res.status(500).json({ success: false, message: error.message });
     }
 };
+
+// ── Admin analytics ───────────────────────────────────────────────────────────
 
 // @desc    Get system-wide sales analytics (Admin)
 // @route   GET /api/analytics/admin/sales
@@ -283,65 +297,79 @@ export const getProductAnalytics = async (req, res) => {
 export const getAdminSalesAnalytics = async (req, res) => {
     try {
         const { period = '30' } = req.query;
-        const days = parseInt(period);
+        const days = Math.min(parseInt(period) || 30, 365);
+        const cacheKey = `analytics:admin:sales:${days}`;
+
+        const cached = await cache.get(cacheKey);
+        if (cached) return res.status(200).json({ success: true, ...cached });
+
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - days);
 
-        // Get all orders (completed or delivered)
-        const orders = await Order.find({
-            $or: [
-                { paymentStatus: 'completed' },
-                { status: 'delivered' }
-            ],
-            createdAt: { $gte: startDate }
-        });
+        const [result] = await Order.aggregate([
+            {
+                $match: {
+                    $or: [{ paymentStatus: 'completed' }, { status: 'delivered' }],
+                    createdAt: { $gte: startDate },
+                },
+            },
+            {
+                $project: {
+                    orderDate: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+                    // Platform revenue = tax + shipping + $2 fixed fee
+                    platformRevenue: {
+                        $add: [
+                            { $ifNull: ['$taxPrice', 0] },
+                            { $ifNull: ['$shippingPrice', 0] },
+                            2,
+                        ],
+                    },
+                },
+            },
+            {
+                $group: {
+                    _id: '$orderDate',
+                    revenue: { $sum: '$platformRevenue' },
+                    orders: { $sum: 1 },
+                },
+            },
+            { $sort: { _id: 1 } },
+            {
+                $group: {
+                    _id: null,
+                    salesData: { $push: { date: '$_id', revenue: '$revenue', orders: '$orders' } },
+                    totalRevenue: { $sum: '$revenue' },
+                    totalOrders: { $sum: '$orders' },
+                },
+            },
+            {
+                $project: {
+                    _id: 0,
+                    salesData: 1,
+                    totalRevenue: 1,
+                    totalOrders: 1,
+                    averageOrderValue: {
+                        $cond: [
+                            { $gt: ['$totalOrders', 0] },
+                            { $divide: ['$totalRevenue', '$totalOrders'] },
+                            0,
+                        ],
+                    },
+                },
+            },
+        ]);
 
-        // Calculate total revenue
-        let totalRevenue = 0;
-        let totalOrders = 0;
-        const dailySales = {};
+        const analytics = result ?? {
+            totalRevenue: 0,
+            totalOrders: 0,
+            averageOrderValue: 0,
+            salesData: [],
+        };
+        await cache.set(cacheKey, { analytics }, CACHE_TTL);
 
-        orders.forEach(order => {
-            const orderDate = new Date(order.createdAt).toISOString().split('T')[0];
-
-            // Calculate revenue for this order (Tax + Shipping + Fixed Fee)
-            const tax = order.taxPrice || 0;
-            const shipping = order.shippingPrice || 0;
-            const fixedFee = 2;
-            const orderRevenue = tax + shipping + fixedFee;
-
-            totalRevenue += orderRevenue;
-
-            if (!dailySales[orderDate]) {
-                dailySales[orderDate] = { revenue: 0, orders: 0 };
-            }
-            dailySales[orderDate].revenue += orderRevenue;
-            dailySales[orderDate].orders += 1;
-
-            totalOrders++;
-        });
-
-        // Format daily sales for chart
-        const salesData = Object.keys(dailySales).map(date => ({
-            date,
-            revenue: dailySales[date].revenue,
-            orders: dailySales[date].orders
-        })).sort((a, b) => new Date(a.date) - new Date(b.date));
-
-        res.status(200).json({
-            success: true,
-            analytics: {
-                totalRevenue,
-                totalOrders,
-                averageOrderValue: totalOrders > 0 ? totalRevenue / totalOrders : 0,
-                salesData
-            }
-        });
+        res.status(200).json({ success: true, analytics });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 
@@ -350,55 +378,54 @@ export const getAdminSalesAnalytics = async (req, res) => {
 // @access  Private/Admin
 export const getAdminCustomerAnalytics = async (req, res) => {
     try {
-        const orders = await Order.find({}).populate('customer', 'name email');
+        const cacheKey = 'analytics:admin:customers';
+        const cached = await cache.get(cacheKey);
+        if (cached) return res.status(200).json({ success: true, ...cached });
 
-        const customerData = {};
+        const customers = await Order.aggregate([
+            {
+                $group: {
+                    _id: '$customer',
+                    orderIds: { $addToSet: '$_id' },
+                    totalSpent: { $sum: '$totalPrice' },
+                    lastOrderDate: { $max: '$createdAt' },
+                },
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: '_id',
+                    foreignField: '_id',
+                    as: 'customerInfo',
+                },
+            },
+            { $unwind: { path: '$customerInfo', preserveNullAndEmptyArrays: false } },
+            {
+                $project: {
+                    _id: 0,
+                    name: '$customerInfo.name',
+                    email: '$customerInfo.email',
+                    totalOrders: { $size: '$orderIds' },
+                    totalSpent: 1,
+                    lastOrderDate: 1,
+                },
+            },
+            { $sort: { totalSpent: -1 } },
+        ]);
 
-        orders.forEach(order => {
-            if (!order.customer) return;
+        const totalCustomers = customers.length;
+        const topCustomers = customers.slice(0, 10);
+        const repeatCustomerRate =
+            totalCustomers > 0
+                ? (customers.filter((c) => c.totalOrders > 1).length / totalCustomers) * 100
+                : 0;
 
-            const customerId = order.customer._id.toString();
+        const analytics = { totalCustomers, topCustomers, repeatCustomerRate };
+        await cache.set(cacheKey, { analytics }, CACHE_TTL);
 
-            if (!customerData[customerId]) {
-                customerData[customerId] = {
-                    name: order.customer.name,
-                    email: order.customer.email,
-                    totalOrders: 0,
-                    totalSpent: 0,
-                    lastOrderDate: order.createdAt
-                };
-            }
-
-            customerData[customerId].totalOrders++;
-            customerData[customerId].totalSpent += order.totalPrice; // Total spent by customer across platform
-
-            if (new Date(order.createdAt) > new Date(customerData[customerId].lastOrderDate)) {
-                customerData[customerId].lastOrderDate = order.createdAt;
-            }
-        });
-
-        const topCustomers = Object.values(customerData)
-            .sort((a, b) => b.totalSpent - a.totalSpent)
-            .slice(0, 10);
-
-        const totalCustomers = Object.keys(customerData).length;
-        const repeatCustomerRate = totalCustomers > 0
-            ? (Object.values(customerData).filter(c => c.totalOrders > 1).length / totalCustomers * 100)
-            : 0;
-
-        res.status(200).json({
-            success: true,
-            analytics: {
-                totalCustomers,
-                topCustomers,
-                repeatCustomerRate
-            }
-        });
+        res.status(200).json({ success: true, analytics });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 
@@ -407,60 +434,55 @@ export const getAdminCustomerAnalytics = async (req, res) => {
 // @access  Private/Admin
 export const getAdminProductAnalytics = async (req, res) => {
     try {
-        const products = await Product.find({});
-        const orders = await Order.find({});
+        const cacheKey = 'analytics:admin:products';
+        const cached = await cache.get(cacheKey);
+        if (cached) return res.status(200).json({ success: true, ...cached });
 
-        const productPerformance = {};
+        const productPerformance = await Order.aggregate([
+            { $unwind: '$items' },
+            {
+                $group: {
+                    _id: '$items.product',
+                    totalSold: { $sum: '$items.quantity' },
+                    revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
+                },
+            },
+            {
+                $lookup: {
+                    from: 'products',
+                    localField: '_id',
+                    foreignField: '_id',
+                    as: 'product',
+                },
+            },
+            { $unwind: { path: '$product', preserveNullAndEmptyArrays: false } },
+            {
+                $project: {
+                    _id: 0,
+                    name: '$product.name',
+                    category: '$product.category',
+                    price: '$product.price',
+                    stock: '$product.stock',
+                    totalSold: 1,
+                    revenue: 1,
+                },
+            },
+            { $sort: { revenue: -1 } },
+        ]);
 
-        // Initialize all products
-        products.forEach(product => {
-            productPerformance[product._id] = {
-                name: product.name,
-                category: product.category,
-                price: product.price,
-                stock: product.stock,
-                totalSold: 0,
-                revenue: 0,
-                views: 0 // Views would need specific tracking logic
-            };
-        });
+        const topProducts = productPerformance.slice(0, 10);
+        const categoryPerformance = productPerformance.reduce((acc, p) => {
+            if (!acc[p.category]) acc[p.category] = { revenue: 0, unitsSold: 0 };
+            acc[p.category].revenue += p.revenue;
+            acc[p.category].unitsSold += p.totalSold;
+            return acc;
+        }, {});
 
-        orders.forEach(order => {
-            order.items.forEach(item => {
-                if (productPerformance[item.product]) { // if product still exists
-                    productPerformance[item.product].totalSold += item.quantity;
-                    productPerformance[item.product].revenue += item.price * item.quantity;
-                }
-            });
-        });
+        const analytics = { topProducts, categoryPerformance };
+        await cache.set(cacheKey, { analytics }, CACHE_TTL);
 
-        const topProducts = Object.values(productPerformance)
-            .sort((a, b) => b.revenue - a.revenue)
-            .slice(0, 10);
-
-        const categoryPerformance = {};
-        Object.values(productPerformance).forEach(product => {
-            if (!categoryPerformance[product.category]) {
-                categoryPerformance[product.category] = {
-                    revenue: 0,
-                    unitsSold: 0
-                };
-            }
-            categoryPerformance[product.category].revenue += product.revenue;
-            categoryPerformance[product.category].unitsSold += product.totalSold;
-        });
-
-        res.status(200).json({
-            success: true,
-            analytics: {
-                topProducts,
-                categoryPerformance
-            }
-        });
+        res.status(200).json({ success: true, analytics });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        res.status(500).json({ success: false, message: error.message });
     }
 };

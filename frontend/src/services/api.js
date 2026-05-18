@@ -1,20 +1,24 @@
 import axios from 'axios';
 
-const isProduction = process.env.NODE_ENV === 'production' || !window.location.host.includes('localhost');
+const isProduction =
+    process.env.NODE_ENV === 'production' || !window.location.host.includes('localhost');
 
-const API_URL = (isProduction && !process.env.REACT_APP_API_URL)
-    ? '/api'
-    : (process.env.REACT_APP_API_URL ? `${process.env.REACT_APP_API_URL}/api` : 'http://localhost:5000/api');
+const API_URL =
+    isProduction && !process.env.REACT_APP_API_URL
+        ? '/api'
+        : process.env.REACT_APP_API_URL
+          ? `${process.env.REACT_APP_API_URL}/api`
+          : 'http://localhost:5000/api';
 
 // Create axios instance with credentials support for HTTP-only cookies
 const api = axios.create({
     baseURL: API_URL,
     headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
     },
     // SECURITY: Include credentials (cookies) with every request
     // This allows HTTP-only cookies to be sent automatically
-    withCredentials: true
+    withCredentials: true,
 });
 
 // SECURITY: Request interceptor removed - authentication via HTTP-only cookies only
@@ -58,7 +62,7 @@ export const storeAPI = {
     createStore: (data) => api.post('/stores', data),
     updateStore: (id, data) => api.put(`/stores/${id}`, data),
     deleteStore: (id) => api.delete(`/stores/${id}`),
-    getMyStore: () => api.get('/stores/my/store')
+    getMyStore: () => api.get('/stores/my/store'),
 };
 
 // Product API
@@ -76,7 +80,8 @@ export const productAPI = {
     // Reviews
     createReview: (id, data) => api.post(`/products/${id}/reviews`, data),
     getReviews: (id) => api.get(`/products/${id}/reviews`),
-    markReviewHelpful: (productId, reviewId) => api.put(`/products/${productId}/reviews/${reviewId}/helpful`)
+    markReviewHelpful: (productId, reviewId) =>
+        api.put(`/products/${productId}/reviews/${reviewId}/helpful`),
 };
 
 // User API
@@ -85,7 +90,7 @@ export const userAPI = {
     addToWishlist: (productId) => api.post(`/users/wishlist/${productId}`),
     removeFromWishlist: (productId) => api.delete(`/users/wishlist/${productId}`),
     getRecentlyViewed: () => api.get('/users/recently-viewed'),
-    addToRecentlyViewed: (productId) => api.post(`/users/recently-viewed/${productId}`)
+    addToRecentlyViewed: (productId) => api.post(`/users/recently-viewed/${productId}`),
 };
 
 // Analytics API
@@ -97,7 +102,7 @@ export const analyticsAPI = {
     // Admin Analytics
     getAdminSalesAnalytics: (params) => api.get('/analytics/admin/sales', { params }),
     getAdminCustomerAnalytics: () => api.get('/analytics/admin/customers'),
-    getAdminProductAnalytics: () => api.get('/analytics/admin/products')
+    getAdminProductAnalytics: () => api.get('/analytics/admin/products'),
 };
 
 // Order API
@@ -107,7 +112,7 @@ export const orderAPI = {
     getOrder: (id) => api.get(`/orders/${id}`),
     updateOrderStatus: (id, data) => api.put(`/orders/${id}/status`, data),
     getSellerOrders: () => api.get('/orders/seller/orders'),
-    cancelOrder: (id) => api.put(`/orders/${id}/cancel`)
+    cancelOrder: (id) => api.put(`/orders/${id}/cancel`),
 };
 
 // Admin API
@@ -134,26 +139,55 @@ export const adminAPI = {
 
     // Settings management
     getSettings: () => api.get('/admin/settings'),
-    updateSettings: (data) => api.put('/admin/settings', data)
+    updateSettings: (data) => api.put('/admin/settings', data),
 };
 
 // Public Settings API
 export const settingsAPI = {
-    getSettings: () => api.get('/settings')
+    getSettings: () => api.get('/settings'),
+};
+
+// Chat API
+export const chatAPI = {
+    getMessages: (roomId) => api.get(`/chat/${roomId}`),
 };
 
 // Upload API
 export const uploadAPI = {
-    uploadImages: (formData) => api.post('/upload', formData, {
-        headers: {
-            'Content-Type': 'multipart/form-data'
-        }
-    })
+    uploadImages: (formData) =>
+        api.post('/upload', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        }),
+    getUploadSignature: () => api.get('/upload/signature'),
+    uploadDirect: async (file) => {
+        const sigRes = await api.get('/upload/signature');
+        const { cloudName, apiKey, signature, timestamp, folder } = sigRes.data;
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('api_key', apiKey);
+        formData.append('timestamp', timestamp);
+        formData.append('signature', signature);
+        formData.append('folder', folder);
+
+        const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+            method: 'POST',
+            body: formData,
+        });
+        const data = await uploadRes.json();
+        return {
+            url: data.secure_url || data.url,
+            publicId: data.public_id,
+        };
+    },
 };
 
 export { API_URL };
-export const BASE_API_URL = (isProduction && !process.env.REACT_APP_API_URL)
-    ? window.location.origin
-    : (process.env.REACT_APP_API_URL || 'http://localhost:5000');
+export const BASE_API_URL =
+    isProduction && !process.env.REACT_APP_API_URL
+        ? window.location.origin
+        : process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 export default api;

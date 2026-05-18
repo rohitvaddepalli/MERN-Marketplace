@@ -9,7 +9,7 @@ import logger from '../../utils/logger';
 const AdminSettings = () => {
     const [settings, setSettings] = useState({
         taxRate: 8,
-        shippingFee: 10
+        shippingFee: 10,
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -34,7 +34,7 @@ const AdminSettings = () => {
         const { name, value } = e.target;
         setSettings({
             ...settings,
-            [name]: parseFloat(value) || 0
+            [name]: parseFloat(value) || 0,
         });
     };
 
@@ -83,7 +83,13 @@ const AdminSettings = () => {
                             <div className="form-group">
                                 <label className="form-label">
                                     Tax Rate (%)
-                                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginLeft: '8px' }}>
+                                    <span
+                                        style={{
+                                            color: 'var(--text-secondary)',
+                                            fontSize: '0.9rem',
+                                            marginLeft: '8px',
+                                        }}
+                                    >
                                         Applied to all orders
                                     </span>
                                 </label>
@@ -98,7 +104,13 @@ const AdminSettings = () => {
                                     step="0.01"
                                     required
                                 />
-                                <small style={{ color: 'var(--text-secondary)', display: 'block', marginTop: '4px' }}>
+                                <small
+                                    style={{
+                                        color: 'var(--text-secondary)',
+                                        display: 'block',
+                                        marginTop: '4px',
+                                    }}
+                                >
                                     Enter a value between 0 and 100
                                 </small>
                             </div>
@@ -106,7 +118,13 @@ const AdminSettings = () => {
                             <div className="form-group">
                                 <label className="form-label">
                                     Shipping Fee (₹)
-                                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginLeft: '8px' }}>
+                                    <span
+                                        style={{
+                                            color: 'var(--text-secondary)',
+                                            fontSize: '0.9rem',
+                                            marginLeft: '8px',
+                                        }}
+                                    >
                                         Flat rate for all orders
                                     </span>
                                 </label>
@@ -120,41 +138,76 @@ const AdminSettings = () => {
                                     step="0.01"
                                     required
                                 />
-                                <small style={{ color: 'var(--text-secondary)', display: 'block', marginTop: '4px' }}>
+                                <small
+                                    style={{
+                                        color: 'var(--text-secondary)',
+                                        display: 'block',
+                                        marginTop: '4px',
+                                    }}
+                                >
                                     Enter a value greater than or equal to 0
                                 </small>
                             </div>
 
-                            <div style={{
-                                background: 'var(--gray-lighter)',
-                                padding: 'var(--spacing-lg)',
-                                borderRadius: 'var(--border-radius)',
-                                marginBottom: 'var(--spacing-lg)'
-                            }}>
+                            <div
+                                style={{
+                                    background: 'var(--gray-lighter)',
+                                    padding: 'var(--spacing-lg)',
+                                    borderRadius: 'var(--border-radius)',
+                                    marginBottom: 'var(--spacing-lg)',
+                                }}
+                            >
                                 <h4 style={{ marginBottom: 'var(--spacing-sm)' }}>Preview</h4>
                                 <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            marginBottom: '8px',
+                                        }}
+                                    >
                                         <span>Subtotal:</span>
                                         <span>₹1000.00</span>
                                     </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            marginBottom: '8px',
+                                        }}
+                                    >
                                         <span>Shipping:</span>
                                         <span>₹{settings.shippingFee.toFixed(2)}</span>
                                     </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            marginBottom: '8px',
+                                        }}
+                                    >
                                         <span>Tax ({settings.taxRate}%):</span>
                                         <span>₹{(1000 * (settings.taxRate / 100)).toFixed(2)}</span>
                                     </div>
-                                    <div style={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        paddingTop: '8px',
-                                        borderTop: '1px solid var(--border-color)',
-                                        fontWeight: '700',
-                                        color: 'var(--text-primary)'
-                                    }}>
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            paddingTop: '8px',
+                                            borderTop: '1px solid var(--border-color)',
+                                            fontWeight: '700',
+                                            color: 'var(--text-primary)',
+                                        }}
+                                    >
                                         <span>Total:</span>
-                                        <span>₹{(1000 + settings.shippingFee + 1000 * (settings.taxRate / 100)).toFixed(2)}</span>
+                                        <span>
+                                            ₹
+                                            {(
+                                                1000 +
+                                                settings.shippingFee +
+                                                1000 * (settings.taxRate / 100)
+                                            ).toFixed(2)}
+                                        </span>
                                     </div>
                                 </div>
                             </div>

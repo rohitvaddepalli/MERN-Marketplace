@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import { HelmetProvider } from 'react-helmet-async';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
+import { SocketProvider } from './context/SocketContext';
 import './App.css';
 
 // Components
@@ -57,241 +58,257 @@ const AdminAnalytics = React.lazy(() => import('./pages/Admin/Analytics'));
 
 // Error Pages
 const NotFound = React.lazy(() => import('./pages/Error/NotFound'));
-const ServerError = React.lazy(() => import('./pages/Error/ServerError'));
-
-
 
 // Protected Route Component
 const ProtectedRoute = ({ children, requireRole }) => {
-  const { isAuthenticated, user, loading } = useAuth();
+    const { isAuthenticated, user, loading } = useAuth();
 
-  // Show loading while auth is initializing
-  if (loading) {
-    return (
-      <div className="loading-page">
-        <div className="spinner"></div>
-      </div>
-    );
-  }
-
-  // Redirect to login if not authenticated
-  if (!isAuthenticated) {
-    return <Navigate to="/login" />;
-  }
-
-  // If a specific role is required, wait for user data to be fully loaded
-  // This prevents redirecting sellers/admins before their role is fetched from Firestore
-  if (requireRole && !user?.role) {
-    return (
-      <div className="loading-page">
-        <div className="spinner"></div>
-      </div>
-    );
-  }
-
-  // Check if user has the required role
-  if (requireRole && user?.role !== requireRole) {
-    // Redirect based on actual role
-    if (user.role === 'admin') {
-      return <Navigate to="/admin/dashboard" replace />;
-    } else if (user.role === 'seller') {
-      return <Navigate to="/seller/dashboard" replace />;
-    } else {
-      return <Navigate to="/" replace />;
+    // Show loading while auth is initializing
+    if (loading) {
+        return (
+            <div className="loading-page">
+                <div className="spinner"></div>
+            </div>
+        );
     }
-  }
 
-  return children;
+    // Redirect to login if not authenticated
+    if (!isAuthenticated) {
+        return <Navigate to="/login" />;
+    }
+
+    // If a specific role is required, wait for user data to be fully loaded
+    // This prevents redirecting sellers/admins before their role is fetched from Firestore
+    if (requireRole && !user?.role) {
+        return (
+            <div className="loading-page">
+                <div className="spinner"></div>
+            </div>
+        );
+    }
+
+    // Check if user has the required role
+    if (requireRole && user?.role !== requireRole) {
+        // Redirect based on actual role
+        if (user.role === 'admin') {
+            return <Navigate to="/admin/dashboard" replace />;
+        } else if (user.role === 'seller') {
+            return <Navigate to="/seller/dashboard" replace />;
+        } else {
+            return <Navigate to="/" replace />;
+        }
+    }
+
+    return children;
 };
 
 function App() {
-  return (
-    <ErrorBoundary>
-      <HelmetProvider>
-        <Router>
-          <AuthProvider>
-            <CartProvider>
-              <div className="App">
-                <Navbar />
-                <Toaster position="top-right" />
-                <React.Suspense fallback={
-                  <div className="loading-page">
-                    <div className="spinner"></div>
-                  </div>
-                }>
-                  <Routes>
-                    {/* Public Routes */}
-                    <Route path="/" element={<Home />} />
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/login/success" element={<LoginSuccess />} />
-                    <Route path="/register" element={<Register />} />
-                    <Route path="/forgot-password" element={<ForgotPassword />} />
-                    <Route path="/reset-password/:token" element={<ResetPassword />} />
-                    <Route path="/products" element={<Products />} />
-                    <Route path="/products/:id" element={<ProductDetail />} />
-                    <Route path="/stores" element={<Stores />} />
-                    <Route path="/stores/:id" element={<StoreDetail />} />
-                    <Route path="/about" element={<About />} />
-                    <Route path="/contact" element={<Contact />} />
-                    <Route path="/help" element={<Help />} />
-                    <Route path="/terms" element={<Terms />} />
+    return (
+        <ErrorBoundary>
+            <HelmetProvider>
+                <Router>
+                    <AuthProvider>
+                        <SocketProvider>
+                            <CartProvider>
+                                <div className="App">
+                                    <Navbar />
+                                    <Toaster position="top-right" />
+                                    <React.Suspense
+                                        fallback={
+                                            <div className="loading-page">
+                                                <div className="spinner"></div>
+                                            </div>
+                                        }
+                                    >
+                                        <Routes>
+                                            {/* Public Routes */}
+                                            <Route path="/" element={<Home />} />
+                                            <Route path="/login" element={<Login />} />
+                                            <Route
+                                                path="/login/success"
+                                                element={<LoginSuccess />}
+                                            />
+                                            <Route path="/register" element={<Register />} />
+                                            <Route
+                                                path="/forgot-password"
+                                                element={<ForgotPassword />}
+                                            />
+                                            <Route
+                                                path="/reset-password/:token"
+                                                element={<ResetPassword />}
+                                            />
+                                            <Route path="/products" element={<Products />} />
+                                            <Route
+                                                path="/products/:id"
+                                                element={<ProductDetail />}
+                                            />
+                                            <Route path="/stores" element={<Stores />} />
+                                            <Route path="/stores/:id" element={<StoreDetail />} />
+                                            <Route path="/about" element={<About />} />
+                                            <Route path="/contact" element={<Contact />} />
+                                            <Route path="/help" element={<Help />} />
+                                            <Route path="/terms" element={<Terms />} />
 
-                    {/* Customer Routes */}
-                    <Route path="/cart" element={<Cart />} />
-                    <Route path="/checkout" element={<Checkout />} />
-                    <Route path="/order-success" element={<OrderSuccess />} />
-                    <Route
-                      path="/customer/dashboard"
-                      element={
-                        <ProtectedRoute requireRole="customer">
-                          <CustomerDashboard />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/customer/orders"
-                      element={
-                        <ProtectedRoute requireRole="customer">
-                          <CustomerOrders />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/customer/settings"
-                      element={
-                        <ProtectedRoute requireRole="customer">
-                          <CustomerSettings />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/wishlist"
-                      element={
-                        <ProtectedRoute requireRole="customer">
-                          <Wishlist />
-                        </ProtectedRoute>
-                      }
-                    />
+                                            {/* Customer Routes */}
+                                            <Route path="/cart" element={<Cart />} />
+                                            <Route path="/checkout" element={<Checkout />} />
+                                            <Route
+                                                path="/order-success"
+                                                element={<OrderSuccess />}
+                                            />
+                                            <Route
+                                                path="/customer/dashboard"
+                                                element={
+                                                    <ProtectedRoute requireRole="customer">
+                                                        <CustomerDashboard />
+                                                    </ProtectedRoute>
+                                                }
+                                            />
+                                            <Route
+                                                path="/customer/orders"
+                                                element={
+                                                    <ProtectedRoute requireRole="customer">
+                                                        <CustomerOrders />
+                                                    </ProtectedRoute>
+                                                }
+                                            />
+                                            <Route
+                                                path="/customer/settings"
+                                                element={
+                                                    <ProtectedRoute requireRole="customer">
+                                                        <CustomerSettings />
+                                                    </ProtectedRoute>
+                                                }
+                                            />
+                                            <Route
+                                                path="/wishlist"
+                                                element={
+                                                    <ProtectedRoute requireRole="customer">
+                                                        <Wishlist />
+                                                    </ProtectedRoute>
+                                                }
+                                            />
 
-                    {/* Seller Routes */}
-                    <Route
-                      path="/seller/dashboard"
-                      element={
-                        <ProtectedRoute requireRole="seller">
-                          <SellerDashboard />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/seller/store"
-                      element={
-                        <ProtectedRoute requireRole="seller">
-                          <StoreManagement />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/seller/products"
-                      element={
-                        <ProtectedRoute requireRole="seller">
-                          <ProductManagement />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/seller/orders"
-                      element={
-                        <ProtectedRoute requireRole="seller">
-                          <OrderManagement />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/seller/inventory"
-                      element={
-                        <ProtectedRoute requireRole="seller">
-                          <InventoryManagement />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/seller/analytics"
-                      element={
-                        <ProtectedRoute requireRole="seller">
-                          <Analytics />
-                        </ProtectedRoute>
-                      }
-                    />
+                                            {/* Seller Routes */}
+                                            <Route
+                                                path="/seller/dashboard"
+                                                element={
+                                                    <ProtectedRoute requireRole="seller">
+                                                        <SellerDashboard />
+                                                    </ProtectedRoute>
+                                                }
+                                            />
+                                            <Route
+                                                path="/seller/store"
+                                                element={
+                                                    <ProtectedRoute requireRole="seller">
+                                                        <StoreManagement />
+                                                    </ProtectedRoute>
+                                                }
+                                            />
+                                            <Route
+                                                path="/seller/products"
+                                                element={
+                                                    <ProtectedRoute requireRole="seller">
+                                                        <ProductManagement />
+                                                    </ProtectedRoute>
+                                                }
+                                            />
+                                            <Route
+                                                path="/seller/orders"
+                                                element={
+                                                    <ProtectedRoute requireRole="seller">
+                                                        <OrderManagement />
+                                                    </ProtectedRoute>
+                                                }
+                                            />
+                                            <Route
+                                                path="/seller/inventory"
+                                                element={
+                                                    <ProtectedRoute requireRole="seller">
+                                                        <InventoryManagement />
+                                                    </ProtectedRoute>
+                                                }
+                                            />
+                                            <Route
+                                                path="/seller/analytics"
+                                                element={
+                                                    <ProtectedRoute requireRole="seller">
+                                                        <Analytics />
+                                                    </ProtectedRoute>
+                                                }
+                                            />
 
-                    {/* Admin Routes */}
-                    <Route
-                      path="/admin/dashboard"
-                      element={
-                        <ProtectedRoute requireRole="admin">
-                          <AdminDashboard />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/admin/users"
-                      element={
-                        <ProtectedRoute requireRole="admin">
-                          <AdminUserManagement />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/admin/stores"
-                      element={
-                        <ProtectedRoute requireRole="admin">
-                          <AdminStoreManagement />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/admin/products"
-                      element={
-                        <ProtectedRoute requireRole="admin">
-                          <AdminProductManagement />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/admin/orders"
-                      element={
-                        <ProtectedRoute requireRole="admin">
-                          <AdminOrderManagement />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/admin/settings"
-                      element={
-                        <ProtectedRoute requireRole="admin">
-                          <AdminSettings />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/admin/analytics"
-                      element={
-                        <ProtectedRoute requireRole="admin">
-                          <AdminAnalytics />
-                        </ProtectedRoute>
-                      }
-                    />
+                                            {/* Admin Routes */}
+                                            <Route
+                                                path="/admin/dashboard"
+                                                element={
+                                                    <ProtectedRoute requireRole="admin">
+                                                        <AdminDashboard />
+                                                    </ProtectedRoute>
+                                                }
+                                            />
+                                            <Route
+                                                path="/admin/users"
+                                                element={
+                                                    <ProtectedRoute requireRole="admin">
+                                                        <AdminUserManagement />
+                                                    </ProtectedRoute>
+                                                }
+                                            />
+                                            <Route
+                                                path="/admin/stores"
+                                                element={
+                                                    <ProtectedRoute requireRole="admin">
+                                                        <AdminStoreManagement />
+                                                    </ProtectedRoute>
+                                                }
+                                            />
+                                            <Route
+                                                path="/admin/products"
+                                                element={
+                                                    <ProtectedRoute requireRole="admin">
+                                                        <AdminProductManagement />
+                                                    </ProtectedRoute>
+                                                }
+                                            />
+                                            <Route
+                                                path="/admin/orders"
+                                                element={
+                                                    <ProtectedRoute requireRole="admin">
+                                                        <AdminOrderManagement />
+                                                    </ProtectedRoute>
+                                                }
+                                            />
+                                            <Route
+                                                path="/admin/settings"
+                                                element={
+                                                    <ProtectedRoute requireRole="admin">
+                                                        <AdminSettings />
+                                                    </ProtectedRoute>
+                                                }
+                                            />
+                                            <Route
+                                                path="/admin/analytics"
+                                                element={
+                                                    <ProtectedRoute requireRole="admin">
+                                                        <AdminAnalytics />
+                                                    </ProtectedRoute>
+                                                }
+                                            />
 
-                    {/* Fallback - 404 Not Found */}
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </React.Suspense>
-              </div>
-            </CartProvider>
-          </AuthProvider>
-        </Router>
-      </HelmetProvider>
-    </ErrorBoundary>
-  );
+                                            {/* Fallback - 404 Not Found */}
+                                            <Route path="*" element={<NotFound />} />
+                                        </Routes>
+                                    </React.Suspense>
+                                </div>
+                            </CartProvider>
+                        </SocketProvider>
+                    </AuthProvider>
+                </Router>
+            </HelmetProvider>
+        </ErrorBoundary>
+    );
 }
 
 export default App;

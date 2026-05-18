@@ -95,5 +95,5 @@ export default {
     Text: SkeletonText,
     Avatar: SkeletonAvatar,
     Button: SkeletonButton,
-    Grid: SkeletonGrid
+    Grid: SkeletonGrid,
 };

@@ -1,19 +1,51 @@
 import Product from '../models/Product.js';
 import Store from '../models/Store.js';
+import cache from '../utils/cache.js';
+
+const PRODUCT_LIST_TTL = 60; // 60 seconds for filtered listings
+const FEATURED_TTL = 5 * 60; // 5 minutes for featured (rarely changes)
 
 // SECURITY: Whitelist of fields allowed for product updates
 // Prevents mass assignment attacks that could modify seller, store, rating, reviewCount, etc.
 const ALLOWED_PRODUCT_UPDATE_FIELDS = [
-    'name', 'description', 'price', 'compareAtPrice', 'stock', 'lowStockThreshold',
-    'category', 'subcategory', 'brand', 'images', 'specifications', 'variants',
-    'tags', 'isActive', 'sku', 'weight', 'dimensions'
+    'name',
+    'description',
+    'price',
+    'compareAtPrice',
+    'stock',
+    'lowStockThreshold',
+    'category',
+    'subcategory',
+    'brand',
+    'images',
+    'specifications',
+    'variants',
+    'tags',
+    'isActive',
+    'sku',
+    'weight',
+    'dimensions',
 ];
 
 // SECURITY: Whitelist of fields allowed for product creation
 const ALLOWED_PRODUCT_CREATE_FIELDS = [
-    'name', 'description', 'price', 'compareAtPrice', 'stock', 'lowStockThreshold',
-    'category', 'subcategory', 'brand', 'images', 'specifications', 'variants',
-    'tags', 'isActive', 'sku', 'weight', 'dimensions'
+    'name',
+    'description',
+    'price',
+    'compareAtPrice',
+    'stock',
+    'lowStockThreshold',
+    'category',
+    'subcategory',
+    'brand',
+    'images',
+    'specifications',
+    'variants',
+    'tags',
+    'isActive',
+    'sku',
+    'weight',
+    'dimensions',
 ];
 
 // Maximum length for search/filter inputs to prevent abuse
@@ -69,7 +101,7 @@ export const createProduct = async (req, res) => {
         if (!store) {
             return res.status(400).json({
                 success: false,
-                message: 'You need to create a store first'
+                message: 'You need to create a store first',
             });
         }
 
@@ -79,17 +111,21 @@ export const createProduct = async (req, res) => {
         const product = await Product.create({
             ...allowedData,
             store: store._id,
-            seller: req.user._id
+            seller: req.user._id,
         });
+
+        // Invalidate product listing caches
+        await cache.delPattern('products:list:*');
+        await cache.del('products:featured');
 
         res.status(201).json({
             success: true,
-            product
+            product,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -99,7 +135,18 @@ export const createProduct = async (req, res) => {
 // @access  Public
 export const getProducts = async (req, res) => {
     try {
-        const { category, subcategory, minPrice, maxPrice, search, store, sort, brand, color, size } = req.query;
+        const {
+            category,
+            subcategory,
+            minPrice,
+            maxPrice,
+            search,
+            store,
+            sort,
+            brand,
+            color,
+            size,
+        } = req.query;
         const query = { isActive: true };
 
         if (category) query.category = category;
@@ -117,8 +164,15 @@ export const getProducts = async (req, res) => {
         const safeColor = sanitizeSearchInput(color);
         if (safeColor) {
             query.$or = [
-                { 'variants': { $elemMatch: { name: 'Color', options: { $in: [new RegExp(safeColor, 'i')] } } } },
-                { 'specifications.Color': { $regex: safeColor, $options: 'i' } }
+                {
+                    variants: {
+                        $elemMatch: {
+                            name: 'Color',
+                            options: { $in: [new RegExp(safeColor, 'i')] },
+                        },
+                    },
+                },
+                { 'specifications.Color': { $regex: safeColor, $options: 'i' } },
             ];
         }
 
@@ -126,19 +180,19 @@ export const getProducts = async (req, res) => {
         const safeSize = sanitizeSearchInput(size);
         if (safeSize) {
             query.$or = [
-                { 'variants': { $elemMatch: { name: 'Size', options: { $in: [new RegExp(safeSize, 'i')] } } } },
-                { 'specifications.Size': { $regex: safeSize, $options: 'i' } }
+                {
+                    variants: {
+                        $elemMatch: { name: 'Size', options: { $in: [new RegExp(safeSize, 'i')] } },
+                    },
+                },
+                { 'specifications.Size': { $regex: safeSize, $options: 'i' } },
             ];
         }
 
         // SECURITY: Sanitize search input to prevent ReDoS
         const safeSearch = sanitizeSearchInput(search);
         if (safeSearch) {
-            query.$or = [
-                { name: { $regex: safeSearch, $options: 'i' } },
-                { description: { $regex: safeSearch, $options: 'i' } },
-                { brand: { $regex: safeSearch, $options: 'i' } }
-            ];
+            query.$text = { $search: safeSearch };
         }
 
         let sortOption = '-createdAt';
@@ -146,34 +200,74 @@ export const getProducts = async (req, res) => {
         if (sort === 'price-desc') sortOption = '-price';
         if (sort === 'rating') sortOption = '-rating';
 
-        // Pagination setup
-        const page = parseInt(req.query.page, 10) || 1;
-        // Default limit of 50 to bound the query while providing enough items for typical display
+        // Pagination setup - supports both cursor-based and page/limit
         const limit = parseInt(req.query.limit, 10) || 50;
-        const skip = (page - 1) * limit;
+        const cursor = req.query.cursor;
+        const page = parseInt(req.query.page, 10) || 1;
 
-        const [products, total] = await Promise.all([
-            Product.find(query)
-                .populate('store', 'name logo')
-                .populate('seller', 'name')
-                .sort(sortOption)
-                .skip(skip)
-                .limit(limit),
-            Product.countDocuments(query)
-        ]);
+        // Cache only simple, un-filtered, first-page requests
+        const isSimpleRequest = !search && !cursor && page === 1 && !color && !size;
+        const cacheKey = isSimpleRequest
+            ? `products:list:cat=${category || ''}&sub=${subcategory || ''}&brand=${brand || ''}&sort=${sort || ''}&limit=${limit}&minP=${minPrice || ''}&maxP=${maxPrice || ''}&store=${store || ''}`
+            : null;
 
-        res.status(200).json({
-            success: true,
+        if (cacheKey) {
+            const hit = await cache.get(cacheKey);
+            if (hit) return res.status(200).json({ success: true, ...hit });
+        }
+
+        let products, total;
+
+        if (cursor) {
+            const cursorDoc = await Product.findById(cursor).select('_id');
+            if (!cursorDoc) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid cursor',
+                });
+            }
+
+            [products, total] = await Promise.all([
+                Product.find({ ...query, _id: { $gt: cursorDoc._id } })
+                    .populate('store', 'name logo')
+                    .populate('seller', 'name')
+                    .sort(sortOption)
+                    .limit(limit),
+                Product.countDocuments(query),
+            ]);
+        } else {
+            const skip = (page - 1) * limit;
+
+            [products, total] = await Promise.all([
+                Product.find(query)
+                    .populate('store', 'name logo')
+                    .populate('seller', 'name')
+                    .sort(sortOption)
+                    .skip(skip)
+                    .limit(limit),
+                Product.countDocuments(query),
+            ]);
+        }
+
+        const nextCursor =
+            products.length === limit && cursor ? products[products.length - 1]._id : null;
+
+        const payload = {
             count: products.length,
             total,
-            page,
-            pages: Math.ceil(total / limit),
-            products
-        });
+            page: cursor ? null : page,
+            pages: cursor ? null : Math.ceil(total / limit),
+            nextCursor,
+            products,
+        };
+
+        if (cacheKey) await cache.set(cacheKey, payload, PRODUCT_LIST_TTL);
+
+        res.status(200).json({ success: true, ...payload });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -190,18 +284,18 @@ export const getProduct = async (req, res) => {
         if (!product) {
             return res.status(404).json({
                 success: false,
-                message: 'Product not found'
+                message: 'Product not found',
             });
         }
 
         res.status(200).json({
             success: true,
-            product
+            product,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -216,7 +310,7 @@ export const updateProduct = async (req, res) => {
         if (!product) {
             return res.status(404).json({
                 success: false,
-                message: 'Product not found'
+                message: 'Product not found',
             });
         }
 
@@ -224,7 +318,7 @@ export const updateProduct = async (req, res) => {
         if (product.seller.toString() !== req.user._id.toString()) {
             return res.status(403).json({
                 success: false,
-                message: 'Not authorized to update this product'
+                message: 'Not authorized to update this product',
             });
         }
 
@@ -233,17 +327,20 @@ export const updateProduct = async (req, res) => {
 
         product = await Product.findByIdAndUpdate(req.params.id, updates, {
             new: true,
-            runValidators: true
+            runValidators: true,
         });
+
+        // Invalidate listing caches
+        await cache.delPattern('products:list:*');
 
         res.status(200).json({
             success: true,
-            product
+            product,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -258,7 +355,7 @@ export const deleteProduct = async (req, res) => {
         if (!product) {
             return res.status(404).json({
                 success: false,
-                message: 'Product not found'
+                message: 'Product not found',
             });
         }
 
@@ -266,20 +363,24 @@ export const deleteProduct = async (req, res) => {
         if (product.seller.toString() !== req.user._id.toString()) {
             return res.status(403).json({
                 success: false,
-                message: 'Not authorized to delete this product'
+                message: 'Not authorized to delete this product',
             });
         }
 
         await product.deleteOne();
 
+        // Invalidate listing caches
+        await cache.delPattern('products:list:*');
+        await cache.del('products:featured');
+
         res.status(200).json({
             success: true,
-            message: 'Product deleted successfully'
+            message: 'Product deleted successfully',
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -296,12 +397,12 @@ export const getMyProducts = async (req, res) => {
         res.status(200).json({
             success: true,
             count: products.length,
-            products
+            products,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -311,19 +412,25 @@ export const getMyProducts = async (req, res) => {
 // @access  Public
 export const getFeaturedProducts = async (req, res) => {
     try {
+        const cacheKey = 'products:featured';
+        const hit = await cache.get(cacheKey);
+        if (hit) return res.status(200).json({ success: true, products: hit });
+
         const products = await Product.find({ isActive: true })
             .populate('store', 'name logo')
             .sort('-rating')
             .limit(8);
 
+        await cache.set(cacheKey, products, FEATURED_TTL);
+
         res.status(200).json({
             success: true,
-            products
+            products,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -335,7 +442,7 @@ export const getLowStockProducts = async (req, res) => {
     try {
         const products = await Product.find({
             seller: req.user._id,
-            $expr: { $lte: ['$stock', { $ifNull: ['$lowStockThreshold', 10] }] }
+            $expr: { $lte: ['$stock', { $ifNull: ['$lowStockThreshold', 10] }] },
         })
             .populate('store', 'name')
             .sort('stock');
@@ -343,12 +450,12 @@ export const getLowStockProducts = async (req, res) => {
         res.status(200).json({
             success: true,
             count: products.length,
-            products
+            products,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -366,15 +473,15 @@ export const bulkImportProducts = async (req, res) => {
         if (!store) {
             return res.status(400).json({
                 success: false,
-                message: 'You need to create a store first'
+                message: 'You need to create a store first',
             });
         }
 
         // Add store and seller to each product
-        const productsWithStore = products.map(product => ({
+        const productsWithStore = products.map((product) => ({
             ...product,
             store: store._id,
-            seller: req.user._id
+            seller: req.user._id,
         }));
 
         const createdProducts = await Product.insertMany(productsWithStore);
@@ -382,12 +489,12 @@ export const bulkImportProducts = async (req, res) => {
         res.status(201).json({
             success: true,
             count: createdProducts.length,
-            products: createdProducts
+            products: createdProducts,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -403,12 +510,12 @@ export const exportProducts = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            products
+            products,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };

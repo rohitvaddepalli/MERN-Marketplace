@@ -20,7 +20,7 @@ const Analytics = () => {
                 analyticsAPI.getSalesAnalytics({ period }),
                 analyticsAPI.getCustomerAnalytics(),
                 analyticsAPI.getProductAnalytics(),
-                analyticsAPI.getInventoryForecast({ days: period })
+                analyticsAPI.getInventoryForecast({ days: period }),
             ]);
 
             setSalesData(sales.data.analytics);
@@ -41,7 +41,7 @@ const Analytics = () => {
     const renderSalesChart = () => {
         if (!salesData?.salesData?.length) return null;
 
-        const maxRevenue = Math.max(...salesData.salesData.map(d => d.revenue));
+        const maxRevenue = Math.max(...salesData.salesData.map((d) => d.revenue));
 
         return (
             <div className="chart-container">
@@ -52,13 +52,18 @@ const Analytics = () => {
                                 className="chart-bar"
                                 style={{
                                     height: `${(data.revenue / maxRevenue) * 200}px`,
-                                    background: 'linear-gradient(135deg, #667eea, #764ba2)'
+                                    background: 'linear-gradient(135deg, #667eea, #764ba2)',
                                 }}
                                 title={`₹${data.revenue.toFixed(2)}`}
                             >
                                 <span className="chart-value">₹{data.revenue.toFixed(0)}</span>
                             </div>
-                            <div className="chart-label">{new Date(data.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                            <div className="chart-label">
+                                {new Date(data.date).toLocaleDateString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                })}
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -84,7 +89,14 @@ const Analytics = () => {
             <Sidebar />
             <div style={{ flex: 1, marginLeft: '260px', padding: 'var(--spacing-xl)' }}>
                 <div className="container" style={{ padding: 0 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-xl)' }}>
+                    <div
+                        style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: 'var(--spacing-xl)',
+                        }}
+                    >
                         <div>
                             <h1 className="page-title">Analytics Dashboard</h1>
                             <p>Track your sales, customers, and inventory</p>
@@ -134,9 +146,19 @@ const Analytics = () => {
                         <>
                             <div className="analytics-stats">
                                 <div className="stat-card">
-                                    <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #06D6A0, #1B9AAA)' }}>
+                                    <div
+                                        className="stat-icon"
+                                        style={{
+                                            background: 'linear-gradient(135deg, #06D6A0, #1B9AAA)',
+                                        }}
+                                    >
                                         <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                                            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                                            <path
+                                                d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"
+                                                stroke="white"
+                                                strokeWidth="2"
+                                                strokeLinecap="round"
+                                            />
                                         </svg>
                                     </div>
                                     <div>
@@ -146,9 +168,18 @@ const Analytics = () => {
                                 </div>
 
                                 <div className="stat-card">
-                                    <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #667eea, #764ba2)' }}>
+                                    <div
+                                        className="stat-icon"
+                                        style={{
+                                            background: 'linear-gradient(135deg, #667eea, #764ba2)',
+                                        }}
+                                    >
                                         <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                                            <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2" stroke="white" strokeWidth="2" />
+                                            <path
+                                                d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2"
+                                                stroke="white"
+                                                strokeWidth="2"
+                                            />
                                         </svg>
                                     </div>
                                     <div>
@@ -158,9 +189,20 @@ const Analytics = () => {
                                 </div>
 
                                 <div className="stat-card">
-                                    <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #FF6B35, #F77F00)' }}>
+                                    <div
+                                        className="stat-icon"
+                                        style={{
+                                            background: 'linear-gradient(135deg, #FF6B35, #F77F00)',
+                                        }}
+                                    >
                                         <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                                            <path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                            <path
+                                                d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                                                stroke="white"
+                                                strokeWidth="2"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                            />
                                         </svg>
                                     </div>
                                     <div>
@@ -182,9 +224,19 @@ const Analytics = () => {
                         <>
                             <div className="analytics-stats">
                                 <div className="stat-card">
-                                    <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #f093fb, #f5576c)' }}>
+                                    <div
+                                        className="stat-icon"
+                                        style={{
+                                            background: 'linear-gradient(135deg, #f093fb, #f5576c)',
+                                        }}
+                                    >
                                         <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                                            <path
+                                                d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"
+                                                stroke="white"
+                                                strokeWidth="2"
+                                                strokeLinecap="round"
+                                            />
                                         </svg>
                                     </div>
                                     <div>
@@ -194,9 +246,19 @@ const Analytics = () => {
                                 </div>
 
                                 <div className="stat-card">
-                                    <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #4facfe, #00f2fe)' }}>
+                                    <div
+                                        className="stat-icon"
+                                        style={{
+                                            background: 'linear-gradient(135deg, #4facfe, #00f2fe)',
+                                        }}
+                                    >
                                         <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                                            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M8.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM20 8v6M23 11h-6" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                                            <path
+                                                d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M8.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM20 8v6M23 11h-6"
+                                                stroke="white"
+                                                strokeWidth="2"
+                                                strokeLinecap="round"
+                                            />
                                         </svg>
                                     </div>
                                     <div>
@@ -223,17 +285,33 @@ const Analytics = () => {
                                                 <tr key={index}>
                                                     <td>
                                                         <div>
-                                                            <div style={{ fontWeight: '600' }}>{customer.name}</div>
-                                                            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                                            <div style={{ fontWeight: '600' }}>
+                                                                {customer.name}
+                                                            </div>
+                                                            <div
+                                                                style={{
+                                                                    fontSize: '0.85rem',
+                                                                    color: 'var(--text-secondary)',
+                                                                }}
+                                                            >
                                                                 {customer.email}
                                                             </div>
                                                         </div>
                                                     </td>
                                                     <td>{customer.totalOrders}</td>
-                                                    <td style={{ fontWeight: '600', color: 'var(--primary-color)' }}>
+                                                    <td
+                                                        style={{
+                                                            fontWeight: '600',
+                                                            color: 'var(--primary-color)',
+                                                        }}
+                                                    >
                                                         ₹{customer.totalSpent.toFixed(2)}
                                                     </td>
-                                                    <td>{new Date(customer.lastOrderDate).toLocaleDateString()}</td>
+                                                    <td>
+                                                        {new Date(
+                                                            customer.lastOrderDate
+                                                        ).toLocaleDateString()}
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -259,11 +337,15 @@ const Analytics = () => {
                                             <div className="performance-stats">
                                                 <div className="stat">
                                                     <span className="stat-label">Sold</span>
-                                                    <span className="stat-value">{product.totalSold}</span>
+                                                    <span className="stat-value">
+                                                        {product.totalSold}
+                                                    </span>
                                                 </div>
                                                 <div className="stat">
                                                     <span className="stat-label">Revenue</span>
-                                                    <span className="stat-value">₹{product.revenue.toFixed(0)}</span>
+                                                    <span className="stat-value">
+                                                        ₹{product.revenue.toFixed(0)}
+                                                    </span>
                                                 </div>
                                             </div>
                                         </div>
@@ -274,21 +356,27 @@ const Analytics = () => {
                             <div className="card">
                                 <h2>Category Performance</h2>
                                 <div className="category-grid">
-                                    {Object.entries(productData.categoryPerformance).map(([category, data]) => (
-                                        <div key={category} className="category-card">
-                                            <h3>{category}</h3>
-                                            <div className="category-stats">
-                                                <div>
-                                                    <span className="label">Revenue</span>
-                                                    <span className="value">₹{data.revenue.toFixed(2)}</span>
-                                                </div>
-                                                <div>
-                                                    <span className="label">Units Sold</span>
-                                                    <span className="value">{data.unitsSold}</span>
+                                    {Object.entries(productData.categoryPerformance).map(
+                                        ([category, data]) => (
+                                            <div key={category} className="category-card">
+                                                <h3>{category}</h3>
+                                                <div className="category-stats">
+                                                    <div>
+                                                        <span className="label">Revenue</span>
+                                                        <span className="value">
+                                                            ₹{data.revenue.toFixed(2)}
+                                                        </span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="label">Units Sold</span>
+                                                        <span className="value">
+                                                            {data.unitsSold}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        )
+                                    )}
                                 </div>
                             </div>
                         </>
@@ -298,7 +386,12 @@ const Analytics = () => {
                     {activeTab === 'forecast' && forecastData && (
                         <div className="card">
                             <h2>Inventory Forecast</h2>
-                            <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--spacing-lg)' }}>
+                            <p
+                                style={{
+                                    color: 'var(--text-secondary)',
+                                    marginBottom: 'var(--spacing-lg)',
+                                }}
+                            >
                                 Based on sales velocity over the last {period} days
                             </p>
                             <div className="forecast-table">
@@ -313,21 +406,35 @@ const Analytics = () => {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {forecastData.filter(p => p.reorderRecommended).map((product, index) => (
-                                            <tr key={index}>
-                                                <td style={{ fontWeight: '600' }}>{product.name}</td>
-                                                <td>{product.currentStock}</td>
-                                                <td>{product.averageDailySales.toFixed(2)}</td>
-                                                <td>
-                                                    <span className={product.daysUntilStockout < 7 ? 'urgent' : 'warning'}>
-                                                        {product.daysUntilStockout > 0 ? `${product.daysUntilStockout} days` : 'Out of stock'}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <span className="badge badge-warning">Reorder Recommended</span>
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        {forecastData
+                                            .filter((p) => p.reorderRecommended)
+                                            .map((product, index) => (
+                                                <tr key={index}>
+                                                    <td style={{ fontWeight: '600' }}>
+                                                        {product.name}
+                                                    </td>
+                                                    <td>{product.currentStock}</td>
+                                                    <td>{product.averageDailySales.toFixed(2)}</td>
+                                                    <td>
+                                                        <span
+                                                            className={
+                                                                product.daysUntilStockout < 7
+                                                                    ? 'urgent'
+                                                                    : 'warning'
+                                                            }
+                                                        >
+                                                            {product.daysUntilStockout > 0
+                                                                ? `${product.daysUntilStockout} days`
+                                                                : 'Out of stock'}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <span className="badge badge-warning">
+                                                            Reorder Recommended
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
                                     </tbody>
                                 </table>
                             </div>

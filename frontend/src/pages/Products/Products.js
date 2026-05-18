@@ -19,7 +19,7 @@ const Products = () => {
         sort: '-createdAt',
         brand: '',
         color: '',
-        size: ''
+        size: '',
     });
 
     const navigate = useNavigate();
@@ -170,7 +170,11 @@ const Products = () => {
                             <div className="empty-state">
                                 <div className="empty-state-icon">
                                     <svg width="60" height="60" viewBox="0 0 24 24" fill="none">
-                                        <path d="M20 7H4m16 0v10a2 2 0 01-2 2H6a2 2 0 01-2-2V7m16 0l-1-4H5L4 7" stroke="currentColor" strokeWidth="2" />
+                                        <path
+                                            d="M20 7H4m16 0v10a2 2 0 01-2 2H6a2 2 0 01-2-2V7m16 0l-1-4H5L4 7"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                        />
                                     </svg>
                                 </div>
                                 <h3>No Products Found</h3>
@@ -180,13 +184,20 @@ const Products = () => {
                             <div className="products-grid">
                                 {products.map((product) => (
                                     <div key={product._id} className="product-card">
-                                        <Link to={`/products/${product._id}`} className="product-link-wrapper">
+                                        <Link
+                                            to={`/products/${product._id}`}
+                                            className="product-link-wrapper"
+                                        >
                                             <div className="product-image">
                                                 <img
-                                                    src={product.images?.[0] || DEFAULT_PRODUCT_IMAGE}
+                                                    src={
+                                                        product.images?.[0] || DEFAULT_PRODUCT_IMAGE
+                                                    }
                                                     alt={product.name}
                                                     loading="lazy"
-                                                    onError={(e) => e.target.src = DEFAULT_PRODUCT_IMAGE}
+                                                    onError={(e) =>
+                                                        (e.target.src = DEFAULT_PRODUCT_IMAGE)
+                                                    }
                                                 />
                                                 {product.compareAtPrice && (
                                                     <div className="product-badge">Sale</div>
@@ -194,18 +205,31 @@ const Products = () => {
                                             </div>
                                             <div className="product-info">
                                                 <h3 className="product-name">{product.name}</h3>
-                                                <p className="product-store">{product.store?.name}</p>
+                                                <p className="product-store">
+                                                    {product.store?.name}
+                                                </p>
                                                 <div className="product-footer">
                                                     <div className="product-price">
-                                                        <span className="current-price">₹{product.price}</span>
+                                                        <span className="current-price">
+                                                            ₹{product.price}
+                                                        </span>
                                                         {product.compareAtPrice && (
-                                                            <span className="old-price">₹{product.compareAtPrice}</span>
+                                                            <span className="old-price">
+                                                                ₹{product.compareAtPrice}
+                                                            </span>
                                                         )}
                                                     </div>
                                                     <div className="product-rating">
-                                                        {product.rating != null && isFinite(product.rating) ? (
+                                                        {product.rating !== null &&
+                                                        isFinite(product.rating) ? (
                                                             <>
-                                                                <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                                <svg
+                                                                    width="16"
+                                                                    height="16"
+                                                                    viewBox="0 0 20 20"
+                                                                    fill="currentColor"
+                                                                    aria-hidden="true"
+                                                                >
                                                                     <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
                                                                 </svg>
                                                                 <span>{product.rating}</span>

@@ -29,7 +29,9 @@ const Stores = () => {
         <div className="page-container">
             <div className="container">
                 <h1 className="page-title">All Stores</h1>
-                <p style={{ marginBottom: 'var(--spacing-xl)' }}>Browse our verified seller stores</p>
+                <p style={{ marginBottom: 'var(--spacing-xl)' }}>
+                    Browse our verified seller stores
+                </p>
 
                 {loading ? (
                     <div className="loading-container">
@@ -38,22 +40,42 @@ const Stores = () => {
                 ) : (
                     <div className="stores-grid">
                         {stores.map((store) => (
-                            <Link to={`/stores/${store._id}`} key={store._id} className="store-card">
+                            <Link
+                                to={`/stores/${store._id}`}
+                                key={store._id}
+                                className="store-card"
+                            >
                                 <div className="store-banner">
-                                    <img src={store.banner || DEFAULT_STORE_BANNER} alt={store.name} onError={(e) => e.target.src = DEFAULT_STORE_BANNER} />
+                                    <img
+                                        src={store.banner || DEFAULT_STORE_BANNER}
+                                        alt={store.name}
+                                        onError={(e) => (e.target.src = DEFAULT_STORE_BANNER)}
+                                    />
                                 </div>
                                 <div className="store-content">
-                                    <img src={store.logo || DEFAULT_STORE_LOGO} alt={store.name} className="store-logo" onError={(e) => e.target.src = DEFAULT_STORE_LOGO} />
+                                    <img
+                                        src={store.logo || DEFAULT_STORE_LOGO}
+                                        alt={store.name}
+                                        className="store-logo"
+                                        onError={(e) => (e.target.src = DEFAULT_STORE_LOGO)}
+                                    />
                                     <h3>{store.name}</h3>
                                     <p className="store-category">{store.category}</p>
                                     <div className="store-stats">
                                         <span className="store-rating">
-                                            <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                                            <svg
+                                                width="16"
+                                                height="16"
+                                                viewBox="0 0 20 20"
+                                                fill="currentColor"
+                                            >
                                                 <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
                                             </svg>
                                             {store.rating || 4.5}
                                         </span>
-                                        <span className="store-reviews">({store.reviewCount || 0} reviews)</span>
+                                        <span className="store-reviews">
+                                            ({store.reviewCount || 0} reviews)
+                                        </span>
                                     </div>
                                 </div>
                             </Link>

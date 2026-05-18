@@ -1,5 +1,4 @@
 import User from '../models/User.js';
-import Product from '../models/Product.js';
 
 // @desc    Add product to wishlist
 // @route   POST /api/users/wishlist/:productId
@@ -12,7 +11,7 @@ export const addToWishlist = async (req, res) => {
         if (user.wishlist.includes(productId)) {
             return res.status(400).json({
                 success: false,
-                message: 'Product already in wishlist'
+                message: 'Product already in wishlist',
             });
         }
 
@@ -21,12 +20,12 @@ export const addToWishlist = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            wishlist: user.wishlist
+            wishlist: user.wishlist,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -39,19 +38,17 @@ export const removeFromWishlist = async (req, res) => {
         const user = await User.findById(req.user._id);
         const productId = req.params.productId;
 
-        user.wishlist = user.wishlist.filter(
-            (id) => id.toString() !== productId.toString()
-        );
+        user.wishlist = user.wishlist.filter((id) => id.toString() !== productId.toString());
         await user.save();
 
         res.status(200).json({
             success: true,
-            wishlist: user.wishlist
+            wishlist: user.wishlist,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -65,12 +62,12 @@ export const getWishlist = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            wishlist: user.wishlist
+            wishlist: user.wishlist,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -99,12 +96,12 @@ export const addToRecentlyViewed = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            recentlyViewed: user.recentlyViewed
+            recentlyViewed: user.recentlyViewed,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -116,17 +113,17 @@ export const getRecentlyViewed = async (req, res) => {
     try {
         const user = await User.findById(req.user._id).populate({
             path: 'recentlyViewed.product',
-            select: 'name price images rating reviewCount'
+            select: 'name price images rating reviewCount',
         });
 
         res.status(200).json({
             success: true,
-            recentlyViewed: user.recentlyViewed
+            recentlyViewed: user.recentlyViewed,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };

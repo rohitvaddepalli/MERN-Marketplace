@@ -3,7 +3,12 @@
 }
 
 .about-hero {
-    background: linear-gradient(135deg, var(--dark) 0%, var(--dark-secondary) 50%, var(--secondary-dark) 100%);
+    background: linear-gradient(
+        135deg,
+        var(--dark) 0%,
+        var(--dark-secondary) 50%,
+        var(--secondary-dark) 100%
+    );
     padding: var(--spacing-3xl) 0;
     text-align: center;
     color: white;
@@ -64,7 +69,9 @@
     border-radius: var(--border-radius-lg);
     box-shadow: var(--shadow);
     text-align: center;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    transition:
+        transform 0.3s ease,
+        box-shadow 0.3s ease;
 }
 
 .value-card:hover {

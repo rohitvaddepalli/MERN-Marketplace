@@ -12,16 +12,16 @@ export const createOrder = async (req, res) => {
             shippingAddress,
             paymentMethod,
             itemsPrice,
-            shippingPrice,
+            shippingPrice: _shippingPrice, // received but overridden server-side for security
             taxPrice,
             totalPrice,
-            guestInfo
+            guestInfo,
         } = req.body;
 
         if (!items || items.length === 0) {
             return res.status(400).json({
                 success: false,
-                message: 'No order items'
+                message: 'No order items',
             });
         }
 
@@ -39,21 +39,23 @@ export const createOrder = async (req, res) => {
             if (!product) {
                 return res.status(404).json({
                     success: false,
-                    message: `Product not found: ${item.product}`
+                    message: `Product not found: ${item.product}`,
                 });
             }
             if (product.stock < item.quantity) {
                 return res.status(400).json({
                     success: false,
-                    message: `Insufficient stock for ${product.name}`
+                    message: `Insufficient stock for ${product.name}`,
                 });
             }
 
             // SECURITY: Compute line price from server-side Product.price with bulk discounts
             let price = product.price;
             if (product.bulkDiscounts && product.bulkDiscounts.length > 0) {
-                const sortedDiscounts = [...product.bulkDiscounts].sort((a, b) => b.quantity - a.quantity);
-                const applicableDiscount = sortedDiscounts.find(d => item.quantity >= d.quantity);
+                const sortedDiscounts = [...product.bulkDiscounts].sort(
+                    (a, b) => b.quantity - a.quantity
+                );
+                const applicableDiscount = sortedDiscounts.find((d) => item.quantity >= d.quantity);
 
                 if (applicableDiscount) {
                     price = price * (1 - applicableDiscount.discountPercentage / 100);
@@ -67,14 +69,16 @@ export const createOrder = async (req, res) => {
                 product: item.product,
                 store: item.store,
                 quantity: item.quantity,
-                price: price // Use server-side calculated price
+                price: price, // Use server-side calculated price
             });
         }
 
         // SECURITY: Compute server-side totals
         const serverTaxPrice = parseFloat((serverItemsPrice * TAX_RATE).toFixed(2));
         const serverShippingPrice = settings.shippingFee || 0;
-        const serverTotalPrice = parseFloat((serverItemsPrice + serverTaxPrice + serverShippingPrice).toFixed(2));
+        const serverTotalPrice = parseFloat(
+            (serverItemsPrice + serverTaxPrice + serverShippingPrice).toFixed(2)
+        );
 
         // SECURITY: Validate client-submitted prices against server-computed prices
         // Allow small floating-point tolerance (0.01)
@@ -82,19 +86,19 @@ export const createOrder = async (req, res) => {
         if (Math.abs(serverItemsPrice - itemsPrice) > tolerance) {
             return res.status(400).json({
                 success: false,
-                message: `Price mismatch: Items price verification failed. Expected ₹${serverItemsPrice}, received ₹${itemsPrice}`
+                message: `Price mismatch: Items price verification failed. Expected ₹${serverItemsPrice}, received ₹${itemsPrice}`,
             });
         }
         if (Math.abs(serverTaxPrice - taxPrice) > tolerance) {
             return res.status(400).json({
                 success: false,
-                message: `Price mismatch: Tax price verification failed. Expected ₹${serverTaxPrice}, received ₹${taxPrice}`
+                message: `Price mismatch: Tax price verification failed. Expected ₹${serverTaxPrice}, received ₹${taxPrice}`,
             });
         }
         if (Math.abs(serverTotalPrice - totalPrice) > tolerance) {
             return res.status(400).json({
                 success: false,
-                message: `Price mismatch: Total price verification failed. Expected ₹${serverTotalPrice}, received ₹${totalPrice}`
+                message: `Price mismatch: Total price verification failed. Expected ₹${serverTotalPrice}, received ₹${totalPrice}`,
             });
         }
 
@@ -105,7 +109,7 @@ export const createOrder = async (req, res) => {
             itemsPrice: serverItemsPrice, // Use server-computed prices
             shippingPrice: serverShippingPrice,
             taxPrice: serverTaxPrice,
-            totalPrice: serverTotalPrice
+            totalPrice: serverTotalPrice,
         };
 
         if (req.user) {
@@ -115,7 +119,7 @@ export const createOrder = async (req, res) => {
             if (!guestInfo || !guestInfo.email) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Guest email is required'
+                    message: 'Guest email is required',
                 });
             }
 
@@ -124,14 +128,14 @@ export const createOrder = async (req, res) => {
             if (!validator.default.isEmail(guestInfo.email)) {
                 return res.status(400).json({
                     success: false,
-                    message: 'Invalid email format'
+                    message: 'Invalid email format',
                 });
             }
 
             // Normalize email
             orderData.guestInfo = {
                 ...guestInfo,
-                email: validator.default.normalizeEmail(guestInfo.email)
+                email: validator.default.normalizeEmail(guestInfo.email),
             };
         }
 
@@ -139,11 +143,11 @@ export const createOrder = async (req, res) => {
 
         // Update product stock
         if (verifiedItems.length > 0) {
-            const bulkOps = verifiedItems.map(item => ({
+            const bulkOps = verifiedItems.map((item) => ({
                 updateOne: {
                     filter: { _id: item.product },
-                    update: { $inc: { stock: -item.quantity } }
-                }
+                    update: { $inc: { stock: -item.quantity } },
+                },
             }));
             await Product.bulkWrite(bulkOps);
         }
@@ -151,25 +155,25 @@ export const createOrder = async (req, res) => {
         // Emit real-time notification to seller's store room
         const io = req.app.get('io');
         if (io && verifiedItems.length > 0) {
-            const storeIds = [...new Set(verifiedItems.map(i => i.store).filter(Boolean))];
-            storeIds.forEach(storeId => {
+            const storeIds = [...new Set(verifiedItems.map((i) => i.store).filter(Boolean))];
+            storeIds.forEach((storeId) => {
                 io.to(`store:${storeId}`).emit('order:new', {
                     orderId: order._id,
                     orderNumber: order.orderNumber,
                     totalPrice: order.totalPrice,
-                    itemCount: verifiedItems.length
+                    itemCount: verifiedItems.length,
                 });
             });
         }
 
         res.status(201).json({
             success: true,
-            order
+            order,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -179,19 +183,36 @@ export const createOrder = async (req, res) => {
 // @access  Private/Customer
 export const getMyOrders = async (req, res) => {
     try {
-        const orders = await Order.find({ customer: req.user._id })
-            .populate('items.product', 'name images')
-            .sort('-createdAt');
+        const limit = parseInt(req.query.limit, 10) || 20;
+        const cursor = req.query.cursor;
+        const query = { customer: req.user._id };
+
+        if (cursor) {
+            query._id = { $lt: cursor };
+        }
+
+        const orders = await Order.find(query)
+            .populate({
+                path: 'items.product',
+                select: 'name images seller',
+                populate: { path: 'seller', select: 'name store' },
+            })
+            .populate('items.store', 'name')
+            .sort('-createdAt')
+            .limit(limit);
+
+        const nextCursor = orders.length === limit ? orders[orders.length - 1]._id : null;
 
         res.status(200).json({
             success: true,
             count: orders.length,
-            orders
+            nextCursor,
+            orders,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -209,32 +230,34 @@ export const getOrder = async (req, res) => {
         if (!order) {
             return res.status(404).json({
                 success: false,
-                message: 'Order not found'
+                message: 'Order not found',
             });
         }
 
         // Make sure user is order owner or seller of products in order
         const isCustomer = order.customer._id.toString() === req.user._id.toString();
-        const isSeller = order.items.some(item =>
-            item.product && item.product.seller &&
-            item.product.seller.toString() === req.user._id.toString()
+        const isSeller = order.items.some(
+            (item) =>
+                item.product &&
+                item.product.seller &&
+                item.product.seller.toString() === req.user._id.toString()
         );
 
         if (!isCustomer && !isSeller) {
             return res.status(403).json({
                 success: false,
-                message: 'Not authorized to view this order'
+                message: 'Not authorized to view this order',
             });
         }
 
         res.status(200).json({
             success: true,
-            order
+            order,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -246,26 +269,27 @@ export const updateOrderStatus = async (req, res) => {
     try {
         const { status } = req.body;
 
-        const order = await Order.findById(req.params.id)
-            .populate('items.product');
+        const order = await Order.findById(req.params.id).populate('items.product');
 
         if (!order) {
             return res.status(404).json({
                 success: false,
-                message: 'Order not found'
+                message: 'Order not found',
             });
         }
 
         // Check if seller owns any products in the order
-        const hasSellersProduct = order.items.some(item =>
-            item.product && item.product.seller &&
-            item.product.seller.toString() === req.user._id.toString()
+        const hasSellersProduct = order.items.some(
+            (item) =>
+                item.product &&
+                item.product.seller &&
+                item.product.seller.toString() === req.user._id.toString()
         );
 
         if (!hasSellersProduct) {
             return res.status(403).json({
                 success: false,
-                message: 'Not authorized to update this order'
+                message: 'Not authorized to update this order',
             });
         }
 
@@ -283,7 +307,7 @@ export const updateOrderStatus = async (req, res) => {
                 orderId: order._id,
                 orderNumber: order.orderNumber,
                 status: order.status,
-                updatedAt: new Date().toISOString()
+                updatedAt: new Date().toISOString(),
             };
             // Buyer's personal room
             if (order.customer) {
@@ -295,12 +319,12 @@ export const updateOrderStatus = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            order
+            order,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -310,40 +334,44 @@ export const updateOrderStatus = async (req, res) => {
 // @access  Private/Seller
 export const getSellerOrders = async (req, res) => {
     try {
-        // Get all orders that contain seller's products
+        const limit = parseInt(req.query.limit, 10) || 20;
         const orders = await Order.find({})
             .populate('customer', 'name email')
             .populate({
                 path: 'items.product',
-                populate: { path: 'seller' }
+                populate: { path: 'seller' },
             })
             .sort('-createdAt');
 
-        // Filter orders to only include items from this seller
-        const sellerOrders = orders.map(order => {
-            const sellerItems = order.items.filter(item =>
-                item.product && item.product.seller &&
-                item.product.seller._id.toString() === req.user._id.toString()
-            );
+        const sellerOrders = orders
+            .map((order) => {
+                const sellerItems = order.items.filter(
+                    (item) =>
+                        item.product &&
+                        item.product.seller &&
+                        item.product.seller._id.toString() === req.user._id.toString()
+                );
 
-            if (sellerItems.length > 0) {
-                return {
-                    ...order.toObject(),
-                    items: sellerItems
-                };
-            }
-            return null;
-        }).filter(order => order !== null);
+                if (sellerItems.length > 0) {
+                    return {
+                        ...order.toObject(),
+                        items: sellerItems,
+                    };
+                }
+                return null;
+            })
+            .filter((order) => order !== null)
+            .slice(0, limit);
 
         res.status(200).json({
             success: true,
             count: sellerOrders.length,
-            orders: sellerOrders
+            orders: sellerOrders,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -353,20 +381,32 @@ export const getSellerOrders = async (req, res) => {
 // @access  Private/Admin
 export const getAllOrders = async (req, res) => {
     try {
-        const orders = await Order.find({})
+        const limit = parseInt(req.query.limit, 10) || 20;
+        const cursor = req.query.cursor;
+        const query = {};
+
+        if (cursor) {
+            query._id = { $lt: cursor };
+        }
+
+        const orders = await Order.find(query)
             .populate('customer', 'name email')
             .populate('items.product', 'name')
-            .sort('-createdAt');
+            .sort('-createdAt')
+            .limit(limit);
+
+        const nextCursor = orders.length === limit ? orders[orders.length - 1]._id : null;
 
         res.status(200).json({
             success: true,
             count: orders.length,
-            orders
+            nextCursor,
+            orders,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -381,7 +421,7 @@ export const cancelOrder = async (req, res) => {
         if (!order) {
             return res.status(404).json({
                 success: false,
-                message: 'Order not found'
+                message: 'Order not found',
             });
         }
 
@@ -389,7 +429,7 @@ export const cancelOrder = async (req, res) => {
         if (order.customer.toString() !== req.user._id.toString()) {
             return res.status(403).json({
                 success: false,
-                message: 'Not authorized to cancel this order'
+                message: 'Not authorized to cancel this order',
             });
         }
 
@@ -397,7 +437,7 @@ export const cancelOrder = async (req, res) => {
         if (order.status !== 'pending' && order.status !== 'processing') {
             return res.status(400).json({
                 success: false,
-                message: `Cannot cancel order in ${order.status} status`
+                message: `Cannot cancel order in ${order.status} status`,
             });
         }
 
@@ -405,25 +445,25 @@ export const cancelOrder = async (req, res) => {
         await order.save();
 
         // Restore stock
-        const itemsWithProduct = order.items.filter(item => item.product);
+        const itemsWithProduct = order.items.filter((item) => item.product);
         if (itemsWithProduct.length > 0) {
-            const bulkOps = itemsWithProduct.map(item => ({
+            const bulkOps = itemsWithProduct.map((item) => ({
                 updateOne: {
                     filter: { _id: item.product },
-                    update: { $inc: { stock: item.quantity } }
-                }
+                    update: { $inc: { stock: item.quantity } },
+                },
             }));
             await Product.bulkWrite(bulkOps);
         }
 
         res.status(200).json({
             success: true,
-            order
+            order,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };

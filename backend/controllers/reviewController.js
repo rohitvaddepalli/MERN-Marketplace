@@ -17,7 +17,7 @@ export const createReview = async (req, res) => {
 
         const alreadyReviewed = await Review.findOne({
             user: req.user._id,
-            product: productId
+            product: productId,
         });
         if (alreadyReviewed) {
             return res.status(400).json({ success: false, message: 'Product already reviewed' });
@@ -25,12 +25,19 @@ export const createReview = async (req, res) => {
 
         // Validate media entries
         if (!Array.isArray(media) || media.length > 5) {
-            return res.status(400).json({ success: false, message: 'Media must be an array of at most 5 items' });
+            return res
+                .status(400)
+                .json({ success: false, message: 'Media must be an array of at most 5 items' });
         }
         const allowedTypes = ['image', 'video'];
         for (const item of media) {
             if (!item.url || !item.type || !allowedTypes.includes(item.type)) {
-                return res.status(400).json({ success: false, message: 'Each media item must have a valid url and type (image or video)' });
+                return res
+                    .status(400)
+                    .json({
+                        success: false,
+                        message: 'Each media item must have a valid url and type (image or video)',
+                    });
             }
         }
 
@@ -38,7 +45,7 @@ export const createReview = async (req, res) => {
         const verifiedOrder = await Order.findOne({
             customer: req.user._id,
             'items.product': productId,
-            status: { $in: ['delivered', 'completed'] }
+            status: { $in: ['delivered', 'completed'] },
         });
 
         const review = await Review.create({
@@ -47,7 +54,7 @@ export const createReview = async (req, res) => {
             rating: Number(rating),
             comment,
             media,
-            isVerifiedPurchase: !!verifiedOrder
+            isVerifiedPurchase: !!verifiedOrder,
         });
 
         res.status(201).json({ success: true, review });
@@ -68,7 +75,7 @@ export const getProductReviews = async (req, res) => {
         res.status(200).json({
             success: true,
             count: reviews.length,
-            reviews
+            reviews,
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });

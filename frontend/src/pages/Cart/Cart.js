@@ -9,7 +9,14 @@ import logger from '../../utils/logger';
 import { DEFAULT_PRODUCT_IMAGE } from '../../constants/images';
 
 const Cart = () => {
-    const { cartItems, updateQuantity, removeFromCart, getCartTotal, getCartCount, calculateItemPrice } = useCart();
+    const {
+        cartItems,
+        updateQuantity,
+        removeFromCart,
+        getCartTotal,
+        getCartCount,
+        calculateItemPrice,
+    } = useCart();
     const navigate = useNavigate();
     useDocumentTitle('Shopping Cart');
     const [settings, setSettings] = useState({ taxRate: 8, shippingFee: 10 });
@@ -35,7 +42,11 @@ const Cart = () => {
                     <div className="empty-state">
                         <div className="empty-state-icon">
                             <svg width="60" height="60" viewBox="0 0 24 24" fill="none">
-                                <path d="M9 2L7.17 4M15 2l1.83 2M9 22v-6M15 22v-6M3 8h18M3 8v10a2 2 0 002 2h14a2 2 0 002-2V8M3 8l1.5-2m16.5 2l-1.5-2" stroke="currentColor" strokeWidth="2" />
+                                <path
+                                    d="M9 2L7.17 4M15 2l1.83 2M9 22v-6M15 22v-6M3 8h18M3 8v10a2 2 0 002 2h14a2 2 0 002-2V8M3 8l1.5-2m16.5 2l-1.5-2"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                />
                             </svg>
                         </div>
                         <h3>Your Cart is Empty</h3>
@@ -53,7 +64,9 @@ const Cart = () => {
         <div className="page-container">
             <div className="container">
                 <h1 className="page-title">Shopping Cart</h1>
-                <p style={{ marginBottom: 'var(--spacing-xl)' }}>{getCartCount()} items in your cart</p>
+                <p style={{ marginBottom: 'var(--spacing-xl)' }}>
+                    {getCartCount()} items in your cart
+                </p>
 
                 <div className="cart-layout">
                     <div className="cart-items">
@@ -63,7 +76,7 @@ const Cart = () => {
                                     src={item.images?.[0] || DEFAULT_PRODUCT_IMAGE}
                                     alt={item.name}
                                     className="cart-item-image"
-                                    onError={(e) => e.target.src = DEFAULT_PRODUCT_IMAGE}
+                                    onError={(e) => (e.target.src = DEFAULT_PRODUCT_IMAGE)}
                                 />
                                 <div className="cart-item-details">
                                     <h3>{item.name}</h3>
@@ -71,13 +84,30 @@ const Cart = () => {
                                     <div className="cart-item-price-container">
                                         {calculateItemPrice(item) < item.price ? (
                                             <>
-                                                <span className="cart-item-price original" style={{ textDecoration: 'line-through', color: '#9ca3af', fontSize: '0.9rem', marginRight: '8px' }}>
+                                                <span
+                                                    className="cart-item-price original"
+                                                    style={{
+                                                        textDecoration: 'line-through',
+                                                        color: '#9ca3af',
+                                                        fontSize: '0.9rem',
+                                                        marginRight: '8px',
+                                                    }}
+                                                >
                                                     ₹{item.price}
                                                 </span>
-                                                <span className="cart-item-price discounted" style={{ color: '#dc2626', fontWeight: 'bold' }}>
+                                                <span
+                                                    className="cart-item-price discounted"
+                                                    style={{ color: '#dc2626', fontWeight: 'bold' }}
+                                                >
                                                     ₹{calculateItemPrice(item).toFixed(2)}
                                                 </span>
-                                                <div style={{ fontSize: '0.8rem', color: '#059669', marginTop: '4px' }}>
+                                                <div
+                                                    style={{
+                                                        fontSize: '0.8rem',
+                                                        color: '#059669',
+                                                        marginTop: '4px',
+                                                    }}
+                                                >
                                                     Bulk Discount Applied!
                                                 </div>
                                             </>
@@ -113,7 +143,11 @@ const Cart = () => {
                                     className="cart-item-remove"
                                 >
                                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                                        <path d="M6 4V2a1 1 0 011-1h6a1 1 0 011 1v2m3 0H3m2 0v12a2 2 0 002 2h6a2 2 0 002-2V4m-10 4v8m4-8v8" stroke="currentColor" strokeWidth="2" />
+                                        <path
+                                            d="M6 4V2a1 1 0 011-1h6a1 1 0 011 1v2m3 0H3m2 0v12a2 2 0 002 2h6a2 2 0 002-2V4m-10 4v8m4-8v8"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                        />
                                     </svg>
                                 </button>
                             </div>
@@ -137,7 +171,14 @@ const Cart = () => {
                         <div className="summary-divider"></div>
                         <div className="summary-row summary-total">
                             <span>Total</span>
-                            <span>₹{(getCartTotal() + settings.shippingFee + getCartTotal() * (settings.taxRate / 100)).toFixed(2)}</span>
+                            <span>
+                                ₹
+                                {(
+                                    getCartTotal() +
+                                    settings.shippingFee +
+                                    getCartTotal() * (settings.taxRate / 100)
+                                ).toFixed(2)}
+                            </span>
                         </div>
                         <button
                             onClick={() => navigate('/checkout')}
@@ -149,7 +190,11 @@ const Cart = () => {
                         <Link
                             to="/products"
                             className="btn btn-ghost"
-                            style={{ width: '100%', marginTop: 'var(--spacing-md)', textAlign: 'center' }}
+                            style={{
+                                width: '100%',
+                                marginTop: 'var(--spacing-md)',
+                                textAlign: 'center',
+                            }}
                         >
                             Continue Shopping
                         </Link>

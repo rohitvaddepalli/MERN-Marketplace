@@ -1,3 +1,16 @@
+// Sentry must be initialized before all other imports so it can instrument the app
+import * as Sentry from '@sentry/node';
+import { nodeProfilingIntegration } from '@sentry/profiling-node';
+
+Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'development',
+    integrations: [nodeProfilingIntegration()],
+    // Capture 10% of transactions for performance monitoring in production
+    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+    profilesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+});
+
 import express from 'express';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
@@ -19,6 +32,7 @@ import fs from 'fs';
 import MongoStore from 'connect-mongo';
 import User from './models/User.js';
 import './config/passport.js';
+import logger from './utils/logger.js';
 
 // Load env vars
 dotenv.config();
@@ -26,9 +40,9 @@ dotenv.config();
 // SECURITY: Enforce required environment variables at startup
 // Fail fast if critical secrets are missing to prevent insecure deployments
 const requiredEnvVars = {
-    'JWT_SECRET': 'Required for signing authentication tokens',
-    'SESSION_SECRET': 'Required for session encryption',
-    'MONGODB_URI': 'Required for database connection'
+    JWT_SECRET: 'Required for signing authentication tokens',
+    SESSION_SECRET: 'Required for session encryption',
+    MONGODB_URI: 'Required for database connection',
 };
 
 const missingVars = [];
@@ -37,7 +51,10 @@ const insecureVars = [];
 for (const [varName, description] of Object.entries(requiredEnvVars)) {
     if (!process.env[varName]) {
         missingVars.push(`${varName} (${description})`);
-    } else if (varName === 'SESSION_SECRET' && process.env[varName] === 'development-secret-change-in-production') {
+    } else if (
+        varName === 'SESSION_SECRET' &&
+        process.env[varName] === 'development-secret-change-in-production'
+    ) {
         insecureVars.push(`${varName} is using the default development value`);
     } else if (varName === 'JWT_SECRET' && process.env[varName].length < 32) {
         insecureVars.push(`${varName} is too short (minimum 32 characters recommended)`);
@@ -50,32 +67,59 @@ if (process.env.NODE_ENV === 'production') {
         console.error('\n❌ FATAL: Cannot start server in production mode\n');
         if (missingVars.length > 0) {
             console.error('Missing required environment variables:');
-            missingVars.forEach(v => console.error(`  - ${v}`));
+            missingVars.forEach((v) => console.error(`  - ${v}`));
         }
         if (insecureVars.length > 0) {
             console.error('\nInsecure environment variables:');
-            insecureVars.forEach(v => console.error(`  - ${v}`));
+            insecureVars.forEach((v) => console.error(`  - ${v}`));
         }
-        console.error('\nPlease set all required environment variables in your .env file or environment.\n');
+        console.error(
+            '\nPlease set all required environment variables in your .env file or environment.\n'
+        );
         process.exit(1);
     }
 } else {
     // In development, show warnings but allow startup
     if (missingVars.length > 0) {
         console.warn('\n⚠️  WARNING: Missing environment variables (development mode):');
-        missingVars.forEach(v => console.warn(`  - ${v}`));
+        missingVars.forEach((v) => console.warn(`  - ${v}`));
         console.warn('');
     }
     if (insecureVars.length > 0) {
         console.warn('⚠️  WARNING: Insecure environment variables (development mode):');
-        insecureVars.forEach(v => console.warn(`  - ${v}`));
+        insecureVars.forEach((v) => console.warn(`  - ${v}`));
         console.warn('');
     }
 }
 
 // Warn about optional OAuth credentials
 if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-    console.warn('⚠️  WARNING: Google OAuth credentials not configured. Social login will not work.');
+    console.warn(
+        '⚠️  WARNING: Google OAuth credentials not configured. Social login will not work.'
+    );
+}
+
+// SECURITY: Validate additional optional vars in production
+if (process.env.NODE_ENV === 'production') {
+    const optionalVars = [
+        { name: 'CLOUDINARY_CLOUD_NAME', desc: 'Required for image uploads' },
+        { name: 'CLOUDINARY_API_KEY', desc: 'Required for image uploads' },
+        { name: 'CLOUDINARY_API_SECRET', desc: 'Required for image uploads' },
+        { name: 'SMTP_EMAIL', desc: 'Required for email sending (password reset)' },
+        { name: 'SMTP_PASSWORD', desc: 'Required for email sending' },
+    ];
+
+    for (const v of optionalVars) {
+        if (!process.env[v.name]) {
+            console.warn(`⚠️  WARNING: ${v.name} not configured (${v.desc})`);
+        }
+    }
+
+    if (process.env.JWT_SECRET && process.env.JWT_SECRET.length < 48) {
+        console.warn(
+            '⚠️  WARNING: JWT_SECRET is shorter than 48 characters. Consider using a longer secret.'
+        );
+    }
 }
 
 // Import routes
@@ -87,9 +131,12 @@ import adminRoutes from './routes/admin.js';
 import analyticsRoutes from './routes/analytics.js';
 import userRoutes from './routes/users.js';
 import uploadRoutes from './routes/upload.js';
+import chatRoutes from './routes/chat.js';
+import Message from './models/Message.js';
 
 // Import middleware
 import { errorHandler } from './middleware/error.js';
+import { requestLogger } from './middleware/requestLogger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -103,15 +150,15 @@ const allowedOrigins = [
     'http://localhost:3001',
     process.env.FRONTEND_URL,
     process.env.RENDER_EXTERNAL_URL,
-    'https://' + process.env.RENDER_EXTERNAL_URL
+    'https://' + process.env.RENDER_EXTERNAL_URL,
 ].filter(Boolean);
 
 // ─── Socket.io Setup ─────────────────────────────────────────────────────────
 const io = new SocketIOServer(httpServer, {
     cors: {
         origin: allowedOrigins,
-        credentials: true
-    }
+        credentials: true,
+    },
 });
 
 // Authenticate socket connections via JWT cookie or Authorization header
@@ -119,9 +166,7 @@ io.use(async (socket, next) => {
     try {
         const cookieHeader = socket.handshake.headers.cookie || '';
         const tokenMatch = cookieHeader.match(/access_token=([^;]+)/);
-        const token = tokenMatch
-            ? decodeURIComponent(tokenMatch[1])
-            : socket.handshake.auth?.token;
+        const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : socket.handshake.auth?.token;
 
         if (!token) return next(new Error('Authentication required'));
 
@@ -161,13 +206,26 @@ io.on('connection', (socket) => {
         socket.join(`chat:${roomId}`);
     });
 
-    socket.on('chat:message', (payload) => {
-        // Relay message to everyone in the chat room
-        io.to(`chat:${payload.roomId}`).emit('chat:message', {
-            ...payload,
-            sender: { _id: user._id, name: user.name },
-            createdAt: new Date().toISOString()
-        });
+    socket.on('chat:message', async (payload) => {
+        try {
+            // Persist to MongoDB
+            const saved = await Message.create({
+                roomId: payload.roomId,
+                sender: user._id,
+                text: payload.text,
+            });
+            const msgOut = {
+                _id: saved._id,
+                roomId: saved.roomId,
+                text: saved.text,
+                sender: { _id: user._id, name: user.name },
+                createdAt: saved.createdAt.toISOString(),
+            };
+            // Broadcast to everyone in the room (including sender)
+            io.to(`chat:${payload.roomId}`).emit('chat:message', msgOut);
+        } catch (_err) {
+            socket.emit('chat:error', { message: 'Failed to send message' });
+        }
     });
 
     socket.on('disconnect', () => {});
@@ -176,29 +234,45 @@ io.on('connection', (socket) => {
 // Attach io to app so controllers can emit events via req.app.get('io')
 app.set('io', io);
 
-
 // Required for express-rate-limit to work correctly behind proxies
 app.set('trust proxy', 1);
+
+// CORS must be before all other middleware to ensure headers are present on errors
+app.use(
+    cors({
+        origin: function (origin, callback) {
+            if (!origin) return callback(null, true);
+            if (allowedOrigins.indexOf(origin) === -1) {
+                return callback(new Error('CORS policy: origin not allowed'), false);
+            }
+            return callback(null, true);
+        },
+        credentials: true,
+    })
+);
 
 // Enable compression for all responses
 app.use(compression());
 
 // Security middleware - Helmet sets various HTTP headers for security
-app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            // Re-enabling 'unsafe-inline' for styleSrc because many React libraries 
-            // (like react-hot-toast and Google Fonts) inject styles dynamically.
-            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-            fontSrc: ["'self'", "https://fonts.gstatic.com"],
-            imgSrc: ["'self'", "data:", "https:", "blob:", "res.cloudinary.com"],
-            scriptSrc: ["'self'", "'unsafe-inline'"],
-            connectSrc: ["'self'", "https://api.cloudinary.com", "https://res.cloudinary.com"], // Hardened to specific domains
+app.use(
+    helmet({
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+                fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+                imgSrc: ["'self'", 'data:', 'https:', 'blob:', 'res.cloudinary.com'],
+                scriptSrc: ["'self'", "'unsafe-inline'"],
+                connectSrc: ["'self'", 'https://api.cloudinary.com', 'https://res.cloudinary.com'],
+            },
         },
-    },
-    crossOriginEmbedderPolicy: false,
-}));
+        crossOriginEmbedderPolicy: false,
+    })
+);
+
+// Request logging - logs method, path, status, duration on every response
+app.use(requestLogger);
 
 // XSS protection - sanitizes user input
 app.use(xss());
@@ -208,26 +282,26 @@ app.use(mongoSanitize());
 
 // Rate limiting - general API rate limiter
 const generalLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    limit: 1000, // Limit each IP to 1000 requests per windowMs
+    windowMs: 15 * 60 * 1000,
+    limit: 1000,
     standardHeaders: true,
     legacyHeaders: false,
     message: {
         success: false,
-        message: 'Too many requests, please try again later.'
-    }
+        message: 'Too many requests, please try again later.',
+    },
 });
 
 // Rate limiting - stricter limiter for auth routes
 const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    limit: process.env.NODE_ENV === 'production' ? 100 : 1000, // Limit each IP to 100 requests per windowMs in production, 1000 in dev
+    windowMs: 15 * 60 * 1000,
+    limit: process.env.NODE_ENV === 'production' ? 100 : 1000,
     standardHeaders: true,
     legacyHeaders: false,
     message: {
         success: false,
-        message: 'Too many authentication attempts, please try again later.'
-    }
+        message: 'Too many authentication attempts, please try again later.',
+    },
 });
 
 // Apply general rate limiter to all API routes
@@ -237,20 +311,8 @@ app.use('/api', generalLimiter);
 app.use(cookieParser());
 
 // Body parser middleware
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: true, limit: '1mb' }));
-
-app.use(cors({
-    origin: function (origin, callback) {
-        if (!origin) return callback(null, true);
-        if (allowedOrigins.indexOf(origin) === -1) {
-            return callback(new Error('CORS policy: origin not allowed'), false);
-        }
-        return callback(null, true);
-    },
-    credentials: true
-}));
-
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
@@ -264,8 +326,6 @@ app.use('/uploads', express.static(uploadsDir));
 // Session middleware - hardened configuration with MongoDB store
 // The SESSION_SECRET validation is now handled by the env var enforcement above
 
-
-
 // Configure session with MongoDB store for production persistence
 const sessionConfig = {
     secret: process.env.SESSION_SECRET || 'development-secret-change-in-production',
@@ -275,8 +335,8 @@ const sessionConfig = {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    }
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    },
 };
 
 // Use MongoDB store in production for session persistence
@@ -288,12 +348,14 @@ if (process.env.MONGODB_URI) {
         autoRemove: 'native', // Use MongoDB's TTL index for cleanup
         touchAfter: 24 * 3600, // Only update session once per 24 hours unless data changes
         crypto: {
-            secret: process.env.SESSION_SECRET || 'development-secret-change-in-production'
-        }
+            secret: process.env.SESSION_SECRET || 'development-secret-change-in-production',
+        },
     });
     console.log('📦 Using MongoDB session store');
 } else {
-    console.warn('⚠️  WARNING: No MONGODB_URI, using in-memory session store (not for production!)');
+    console.warn(
+        '⚠️  WARNING: No MONGODB_URI, using in-memory session store (not for production!)'
+    );
 }
 
 app.use(session(sessionConfig));
@@ -302,23 +364,52 @@ app.use(session(sessionConfig));
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI)
-    .then(() => console.log('✅ MongoDB Connected'))
-    .catch(err => {
-        console.error('❌ MongoDB Connection Error:', err.message);
-        process.exit(1);
-    });
+// Connect to MongoDB (only when running directly, not when imported for tests)
+if (process.env.NODE_ENV !== 'test') {
+    mongoose
+        .connect(process.env.MONGODB_URI, {
+            maxPoolSize: parseInt(process.env.MONGO_POOL_SIZE || '10', 10),
+        })
+        .then(() => console.log('✅ MongoDB Connected'))
+        .catch((err) => {
+            console.error('❌ MongoDB Connection Error:', err.message);
+            process.exit(1);
+        });
+}
 
-// Mount routes
-app.use('/api/auth', authLimiter, authRoutes); // Stricter rate limiting for auth routes
-app.use('/api/stores', storeRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/upload', uploadRoutes);
+// ── API Router ─────────────────────────────────────────────────────────────
+// All routes are mounted under both:
+//   /api/v1/  — versioned (canonical, new clients should use this)
+//   /api/     — legacy alias kept for backward compatibility
+const apiV1 = express.Router();
+
+apiV1.use('/auth', authLimiter, authRoutes);
+apiV1.use('/stores', storeRoutes);
+apiV1.use('/products', productRoutes);
+apiV1.use('/orders', orderRoutes);
+apiV1.use('/admin', adminRoutes);
+apiV1.use('/analytics', analyticsRoutes);
+apiV1.use('/users', userRoutes);
+apiV1.use('/upload', uploadRoutes);
+apiV1.use('/chat', chatRoutes);
+
+// Versioned prefix (canonical)
+app.use('/api/v1', apiV1);
+
+// Legacy prefix — same handlers, zero breaking changes for existing clients
+app.use('/api', apiV1);
+
+// Swagger API docs (dev only)
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './config/swagger.js';
+
+app.use(
+    '/api/docs',
+    swaggerUi.serve,
+    swaggerUi.setup(swaggerSpec, {
+        customSiteTitle: 'Marketplace API Docs',
+    })
+);
 
 // Public settings endpoint
 app.get('/api/settings', async (req, res) => {
@@ -329,14 +420,14 @@ app.get('/api/settings', async (req, res) => {
             success: true,
             settings: {
                 taxRate: settings.taxRate,
-                shippingFee: settings.shippingFee
-            }
+                shippingFee: settings.shippingFee,
+            },
         });
     } catch (error) {
         res.status(500).json({
             success: false,
             message: 'Error fetching settings',
-            error: error.message
+            error: error.message,
         });
     }
 });
@@ -346,7 +437,37 @@ app.get('/api/health', (req, res) => {
     res.status(200).json({
         success: true,
         message: 'Server is running',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+    });
+});
+
+// Cloudinary direct upload signature (avoids proxying file through server)
+import crypto from 'crypto';
+
+app.get('/api/upload/signature', (req, res) => {
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+    const apiKey = process.env.CLOUDINARY_API_KEY;
+    const apiSecret = process.env.CLOUDINARY_API_SECRET;
+
+    if (!cloudName || !apiKey || !apiSecret) {
+        return res.status(400).json({
+            success: false,
+            message: 'Cloudinary not configured',
+        });
+    }
+
+    const timestamp = Math.round(Date.now() / 1000);
+    const folder = 'marketplace_products';
+    const params = `folder=${folder}&timestamp=${timestamp}${apiSecret}`;
+    const signature = crypto.createHash('sha1').update(params).digest('hex');
+
+    res.status(200).json({
+        success: true,
+        cloudName,
+        apiKey,
+        signature,
+        timestamp,
+        folder,
     });
 });
 
@@ -360,6 +481,9 @@ if (process.env.NODE_ENV === 'production') {
     });
 }
 
+// Sentry error handler must come before our own error handler
+Sentry.setupExpressErrorHandler(app);
+
 // Error handler middleware (must be last)
 app.use(errorHandler);
 
@@ -372,6 +496,46 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     httpServer.listen(PORT, () => {
         console.log(`🚀 Server running on port ${PORT}`);
         console.log(`📍 Environment: ${process.env.NODE_ENV}`);
-        console.log(`🔌 Socket.io ready`);
+        console.log('🔌 Socket.io ready');
+    });
+
+    // ── Graceful shutdown ──────────────────────────────────────────────────────
+    // Handles SIGTERM (Render, Docker, Kubernetes) and SIGINT (Ctrl-C)
+    const shutdown = async (signal) => {
+        logger.info(`${signal} received — starting graceful shutdown`);
+
+        // 1. Stop accepting new connections
+        httpServer.close(async () => {
+            logger.info('HTTP server closed');
+
+            try {
+                // 2. Close MongoDB connection
+                await mongoose.connection.close();
+                logger.info('MongoDB connection closed');
+
+                // 3. Flush Sentry events
+                await Sentry.close(2000);
+
+                logger.info('Graceful shutdown complete');
+                process.exit(0);
+            } catch (err) {
+                logger.error({ err }, 'Error during shutdown');
+                process.exit(1);
+            }
+        });
+
+        // Force-exit after 15 seconds if shutdown hangs
+        setTimeout(() => {
+            logger.error('Graceful shutdown timed out — forcing exit');
+            process.exit(1);
+        }, 15_000).unref();
+    };
+
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
+
+    // Log unhandled promise rejections instead of crashing silently
+    process.on('unhandledRejection', (reason) => {
+        logger.error({ reason }, 'Unhandled promise rejection');
     });
 }

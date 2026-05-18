@@ -34,19 +34,26 @@ const InventoryManagement = () => {
             const products = response.data.products;
 
             // Convert to CSV
-            const headers = ['Name', 'Description', 'Price', 'Category', 'Stock', 'Low Stock Threshold'];
-            const csvData = products.map(p => [
+            const headers = [
+                'Name',
+                'Description',
+                'Price',
+                'Category',
+                'Stock',
+                'Low Stock Threshold',
+            ];
+            const csvData = products.map((p) => [
                 p.name,
                 p.description,
                 p.price,
                 p.category,
                 p.stock,
-                p.lowStockThreshold || 10
+                p.lowStockThreshold || 10,
             ]);
 
             const csv = [
                 headers.join(','),
-                ...csvData.map(row => row.map(cell => `"${cell}"`).join(','))
+                ...csvData.map((row) => row.map((cell) => `"${cell}"`).join(',')),
             ].join('\n');
 
             // Download CSV
@@ -68,10 +75,12 @@ const InventoryManagement = () => {
     const handleImport = async () => {
         try {
             const lines = importData.trim().split('\n');
-            const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+            const headers = lines[0].split(',').map((h) => h.trim().replace(/"/g, ''));
 
-            const products = lines.slice(1).map(line => {
-                const values = line.match(/(".*?"|[^,]+)(?=\s*,|\s*$)/g).map(v => v.trim().replace(/"/g, ''));
+            const products = lines.slice(1).map((line) => {
+                const values = line
+                    .match(/(".*?"|[^,]+)(?=\s*,|\s*$)/g)
+                    .map((v) => v.trim().replace(/"/g, ''));
                 const product = {};
 
                 headers.forEach((header, index) => {
@@ -81,7 +90,8 @@ const InventoryManagement = () => {
                     else if (key === 'price') product.price = parseFloat(values[index]);
                     else if (key === 'category') product.category = values[index];
                     else if (key === 'stock') product.stock = parseInt(values[index]);
-                    else if (key === 'lowstockthreshold') product.lowStockThreshold = parseInt(values[index]);
+                    else if (key === 'lowstockthreshold')
+                        product.lowStockThreshold = parseInt(values[index]);
                 });
 
                 return product;
@@ -103,13 +113,23 @@ const InventoryManagement = () => {
             <Sidebar />
             <div style={{ flex: 1, marginLeft: '260px', padding: 'var(--spacing-xl)' }}>
                 <div className="container" style={{ padding: 0 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-xl)' }}>
+                    <div
+                        style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: 'var(--spacing-xl)',
+                        }}
+                    >
                         <div>
                             <h1 className="page-title">Inventory Management</h1>
                             <p>Manage your inventory and stock levels</p>
                         </div>
                         <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
-                            <button onClick={() => setShowImport(!showImport)} className="btn btn-secondary">
+                            <button
+                                onClick={() => setShowImport(!showImport)}
+                                className="btn btn-secondary"
+                            >
                                 {showImport ? 'Cancel Import' : '📥 Import CSV'}
                             </button>
                             <button onClick={handleExport} className="btn btn-primary">
@@ -119,27 +139,47 @@ const InventoryManagement = () => {
                     </div>
 
                     {showImport && (
-                        <div className="card import-section" style={{ marginBottom: 'var(--spacing-xl)' }}>
+                        <div
+                            className="card import-section"
+                            style={{ marginBottom: 'var(--spacing-xl)' }}
+                        >
                             <h2>Import Products from CSV</h2>
-                            <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--spacing-md)' }}>
-                                Paste your CSV data below. Format: Name, Description, Price, Category, Stock, Low Stock Threshold
+                            <p
+                                style={{
+                                    color: 'var(--text-secondary)',
+                                    marginBottom: 'var(--spacing-md)',
+                                }}
+                            >
+                                Paste your CSV data below. Format: Name, Description, Price,
+                                Category, Stock, Low Stock Threshold
                             </p>
                             <textarea
                                 className="form-textarea"
                                 rows="10"
                                 value={importData}
                                 onChange={(e) => setImportData(e.target.value)}
-                                placeholder="Name,Description,Price,Category,Stock,Low Stock Threshold&#10;&quot;Product 1&quot;,&quot;Description&quot;,99.99,Electronics,50,10"
+                                placeholder='Name,Description,Price,Category,Stock,Low Stock Threshold&#10;"Product 1","Description",99.99,Electronics,50,10'
                                 style={{ fontFamily: 'monospace', fontSize: '0.9rem' }}
                             />
-                            <button onClick={handleImport} className="btn btn-primary" style={{ marginTop: 'var(--spacing-md)' }}>
+                            <button
+                                onClick={handleImport}
+                                className="btn btn-primary"
+                                style={{ marginTop: 'var(--spacing-md)' }}
+                            >
                                 Import Products
                             </button>
                         </div>
                     )}
 
                     <div className="card">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-lg)' }}>
+                        <div
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 'var(--spacing-md)',
+                                marginBottom: 'var(--spacing-lg)',
+                            }}
+                        >
                             <div className="alert-icon">⚠️</div>
                             <div>
                                 <h2 style={{ margin: 0 }}>Low Stock Alerts</h2>
@@ -175,16 +215,41 @@ const InventoryManagement = () => {
                                         {lowStockProducts.map((product) => (
                                             <tr key={product._id}>
                                                 <td>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
+                                                    <div
+                                                        style={{
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: 'var(--spacing-md)',
+                                                        }}
+                                                    >
                                                         <img
-                                                            src={product.images?.[0] || 'https://via.placeholder.com/50'}
+                                                            src={
+                                                                product.images?.[0] ||
+                                                                'https://via.placeholder.com/50'
+                                                            }
                                                             alt={product.name}
-                                                            style={{ width: '50px', height: '50px', borderRadius: 'var(--border-radius)', objectFit: 'cover' }}
-                                                            onError={(e) => e.target.src = 'https://via.placeholder.com/50'}
+                                                            style={{
+                                                                width: '50px',
+                                                                height: '50px',
+                                                                borderRadius:
+                                                                    'var(--border-radius)',
+                                                                objectFit: 'cover',
+                                                            }}
+                                                            onError={(e) =>
+                                                                (e.target.src =
+                                                                    'https://via.placeholder.com/50')
+                                                            }
                                                         />
                                                         <div>
-                                                            <div style={{ fontWeight: '600' }}>{product.name}</div>
-                                                            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                                            <div style={{ fontWeight: '600' }}>
+                                                                {product.name}
+                                                            </div>
+                                                            <div
+                                                                style={{
+                                                                    fontSize: '0.85rem',
+                                                                    color: 'var(--text-secondary)',
+                                                                }}
+                                                            >
                                                                 ₹{product.price}
                                                             </div>
                                                         </div>
@@ -192,22 +257,31 @@ const InventoryManagement = () => {
                                                 </td>
                                                 <td>{product.category}</td>
                                                 <td>
-                                                    <span className={`stock-badge ${product.stock === 0 ? 'out-of-stock' : 'low-stock'}`}>
+                                                    <span
+                                                        className={`stock-badge ${product.stock === 0 ? 'out-of-stock' : 'low-stock'}`}
+                                                    >
                                                         {product.stock} units
                                                     </span>
                                                 </td>
                                                 <td>{product.lowStockThreshold || 10} units</td>
                                                 <td>
                                                     {product.stock === 0 ? (
-                                                        <span className="badge badge-danger">Out of Stock</span>
+                                                        <span className="badge badge-danger">
+                                                            Out of Stock
+                                                        </span>
                                                     ) : (
-                                                        <span className="badge badge-warning">Low Stock</span>
+                                                        <span className="badge badge-warning">
+                                                            Low Stock
+                                                        </span>
                                                     )}
                                                 </td>
                                                 <td>
                                                     <button
                                                         className="btn btn-sm btn-primary"
-                                                        onClick={() => window.location.href = '/seller/products'}
+                                                        onClick={() =>
+                                                            (window.location.href =
+                                                                '/seller/products')
+                                                        }
                                                     >
                                                         Restock
                                                     </button>

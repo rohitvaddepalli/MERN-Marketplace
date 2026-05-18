@@ -44,13 +44,16 @@ const LoginSuccess = () => {
 
     if (error) {
         return (
-            <div className="loading-page" style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: '100vh'
-            }}>
+            <div
+                className="loading-page"
+                style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: '100vh',
+                }}
+            >
                 <p style={{ color: '#ef4444', marginBottom: '1rem' }}>{error}</p>
                 <p>Redirecting to login...</p>
             </div>
@@ -58,13 +61,16 @@ const LoginSuccess = () => {
     }
 
     return (
-        <div className="loading-page" style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '100vh'
-        }}>
+        <div
+            className="loading-page"
+            style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '100vh',
+            }}
+        >
             <div className="spinner"></div>
             <p style={{ marginTop: '1rem' }}>Completing login...</p>
         </div>

@@ -18,7 +18,7 @@ const Analytics = () => {
             const [salesRes, customerRes, productRes] = await Promise.all([
                 analyticsAPI.getAdminSalesAnalytics({ period }),
                 analyticsAPI.getAdminCustomerAnalytics(),
-                analyticsAPI.getAdminProductAnalytics()
+                analyticsAPI.getAdminProductAnalytics(),
             ]);
 
             setSalesData(salesRes.data.analytics);
@@ -38,7 +38,7 @@ const Analytics = () => {
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('en-IN', {
             style: 'currency',
-            currency: 'INR'
+            currency: 'INR',
         }).format(amount);
     };
 
@@ -105,7 +105,9 @@ const Analytics = () => {
                             <div className="stats-grid">
                                 <div className="stat-card">
                                     <h3>Total Revenue</h3>
-                                    <div className="stat-value">{formatCurrency(salesData.totalRevenue)}</div>
+                                    <div className="stat-value">
+                                        {formatCurrency(salesData.totalRevenue)}
+                                    </div>
                                     <div className="stat-label">In selected period</div>
                                     <div className="stat-trend positive">
                                         <span className="trend-icon">↑</span> Tax & Shipping Inc.
@@ -118,7 +120,9 @@ const Analytics = () => {
                                 </div>
                                 <div className="stat-card">
                                     <h3>Avg. Order Value</h3>
-                                    <div className="stat-value">{formatCurrency(salesData.averageOrderValue)}</div>
+                                    <div className="stat-value">
+                                        {formatCurrency(salesData.averageOrderValue)}
+                                    </div>
                                 </div>
                             </div>
 
@@ -132,25 +136,50 @@ const Analytics = () => {
                                             const width = 800; // viewBox width
                                             const padding = 20;
 
-                                            const maxRevenue = Math.max(...data.map(d => d.revenue)) || 100;
+                                            const maxRevenue =
+                                                Math.max(...data.map((d) => d.revenue)) || 100;
 
                                             // Calculate points
                                             const points = data.map((d, i) => {
-                                                const x = (i / (data.length - 1 || 1)) * (width - 2 * padding) + padding;
-                                                const y = height - padding - (d.revenue / maxRevenue) * (height - 2 * padding);
+                                                const x =
+                                                    (i / (data.length - 1 || 1)) *
+                                                        (width - 2 * padding) +
+                                                    padding;
+                                                const y =
+                                                    height -
+                                                    padding -
+                                                    (d.revenue / maxRevenue) *
+                                                        (height - 2 * padding);
                                                 return { x, y, ...d };
                                             });
 
                                             // Create path command
-                                            const pathD = `M ${points.map(p => `${p.x},${p.y}`).join(' L ')}`;
+                                            const pathD = `M ${points.map((p) => `${p.x},${p.y}`).join(' L ')}`;
                                             const areaD = `${pathD} L ${points[points.length - 1].x},${height} L ${points[0].x},${height} Z`;
 
                                             return (
-                                                <svg viewBox={`0 0 ${width} ${height}`} className="chart-svg" preserveAspectRatio="none">
+                                                <svg
+                                                    viewBox={`0 0 ${width} ${height}`}
+                                                    className="chart-svg"
+                                                    preserveAspectRatio="none"
+                                                >
                                                     <defs>
-                                                        <linearGradient id="gradientArea" x1="0" x2="0" y1="0" y2="1">
-                                                            <stop offset="0%" stopColor="var(--primary-color)" />
-                                                            <stop offset="100%" stopColor="var(--primary-color)" stopOpacity="0" />
+                                                        <linearGradient
+                                                            id="gradientArea"
+                                                            x1="0"
+                                                            x2="0"
+                                                            y1="0"
+                                                            y2="1"
+                                                        >
+                                                            <stop
+                                                                offset="0%"
+                                                                stopColor="var(--primary-color)"
+                                                            />
+                                                            <stop
+                                                                offset="100%"
+                                                                stopColor="var(--primary-color)"
+                                                                stopOpacity="0"
+                                                            />
                                                         </linearGradient>
                                                     </defs>
 
@@ -176,7 +205,15 @@ const Analytics = () => {
                                             );
                                         })()
                                     ) : (
-                                        <div style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
+                                        <div
+                                            style={{
+                                                height: '300px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                color: 'var(--text-secondary)',
+                                            }}
+                                        >
                                             No data available for selected period
                                         </div>
                                     )}
@@ -194,7 +231,9 @@ const Analytics = () => {
                                 </div>
                                 <div className="stat-card">
                                     <h3>Repeat Rate</h3>
-                                    <div className="stat-value">{customerData.repeatCustomerRate.toFixed(1)}%</div>
+                                    <div className="stat-value">
+                                        {customerData.repeatCustomerRate.toFixed(1)}%
+                                    </div>
                                     <div className="stat-label">Customers with {'>'}1 order</div>
                                 </div>
                             </div>
@@ -217,14 +256,20 @@ const Analytics = () => {
                                                 <tr key={index}>
                                                     <td>
                                                         <div className="customer-cell">
-                                                            <div className="avatar-circle">{customer.name.charAt(0)}</div>
+                                                            <div className="avatar-circle">
+                                                                {customer.name.charAt(0)}
+                                                            </div>
                                                             {customer.name}
                                                         </div>
                                                     </td>
                                                     <td>{customer.email}</td>
                                                     <td>{customer.totalOrders}</td>
                                                     <td>{formatCurrency(customer.totalSpent)}</td>
-                                                    <td>{new Date(customer.lastOrderDate).toLocaleDateString()}</td>
+                                                    <td>
+                                                        {new Date(
+                                                            customer.lastOrderDate
+                                                        ).toLocaleDateString()}
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -254,12 +299,18 @@ const Analytics = () => {
                                             {productData.topProducts.map((product, index) => (
                                                 <tr key={index}>
                                                     <td>{product.name}</td>
-                                                    <td><span className="badge badge-info">{product.category}</span></td>
+                                                    <td>
+                                                        <span className="badge badge-info">
+                                                            {product.category}
+                                                        </span>
+                                                    </td>
                                                     <td>{formatCurrency(product.price)}</td>
                                                     <td>{product.totalSold}</td>
                                                     <td>{formatCurrency(product.revenue)}</td>
                                                     <td>
-                                                        <span className={`badge badge-${product.stock < 10 ? 'danger' : 'success'}`}>
+                                                        <span
+                                                            className={`badge badge-${product.stock < 10 ? 'danger' : 'success'}`}
+                                                        >
                                                             {product.stock}
                                                         </span>
                                                     </td>
@@ -273,21 +324,25 @@ const Analytics = () => {
                             <div className="card full-width" style={{ marginTop: '2rem' }}>
                                 <h3>Category Performance</h3>
                                 <div className="category-grid">
-                                    {Object.entries(productData.categoryPerformance).map(([category, data], index) => (
-                                        <div key={index} className="category-item">
-                                            <h4>{category}</h4>
-                                            <div className="category-stats">
-                                                <div className="cat-stat">
-                                                    <span>Revenue</span>
-                                                    <strong>{formatCurrency(data.revenue)}</strong>
-                                                </div>
-                                                <div className="cat-stat">
-                                                    <span>Units</span>
-                                                    <strong>{data.unitsSold}</strong>
+                                    {Object.entries(productData.categoryPerformance).map(
+                                        ([category, data], index) => (
+                                            <div key={index} className="category-item">
+                                                <h4>{category}</h4>
+                                                <div className="category-stats">
+                                                    <div className="cat-stat">
+                                                        <span>Revenue</span>
+                                                        <strong>
+                                                            {formatCurrency(data.revenue)}
+                                                        </strong>
+                                                    </div>
+                                                    <div className="cat-stat">
+                                                        <span>Units</span>
+                                                        <strong>{data.unitsSold}</strong>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        )
+                                    )}
                                 </div>
                             </div>
                         </div>

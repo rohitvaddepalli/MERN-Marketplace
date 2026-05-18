@@ -13,7 +13,9 @@
     cursor: pointer;
     font-weight: 600;
     color: var(--text-secondary);
-    transition: color var(--transition), border-color var(--transition);
+    transition:
+        color var(--transition),
+        border-color var(--transition);
 }
 
 .tab-button:hover {
@@ -60,7 +62,9 @@
     min-height: 20px;
     border-radius: var(--border-radius) var(--border-radius) 0 0;
     position: relative;
-    transition: opacity var(--transition), transform var(--transition);
+    transition:
+        opacity var(--transition),
+        transform var(--transition);
     cursor: pointer;
     display: flex;
     align-items: flex-start;
@@ -134,7 +138,9 @@
     padding: var(--spacing-lg);
     background: var(--bg-secondary);
     border-radius: var(--border-radius);
-    transition: transform var(--transition), box-shadow var(--transition);
+    transition:
+        transform var(--transition),
+        box-shadow var(--transition);
 }
 
 .performance-item:hover {
@@ -202,7 +208,9 @@
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
     border-radius: var(--border-radius-lg);
     color: white;
-    transition: transform var(--transition), box-shadow var(--transition);
+    transition:
+        transform var(--transition),
+        box-shadow var(--transition);
 }
 
 .category-card:hover {
@@ -221,7 +229,7 @@
     gap: var(--spacing-sm);
 }
 
-.category-stats>div {
+.category-stats > div {
     display: flex;
     justify-content: space-between;
     align-items: center;

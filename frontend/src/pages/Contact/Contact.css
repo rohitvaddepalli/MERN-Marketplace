@@ -3,7 +3,12 @@
 }
 
 .contact-hero {
-    background: linear-gradient(135deg, var(--dark) 0%, var(--dark-secondary) 50%, var(--secondary-dark) 100%);
+    background: linear-gradient(
+        135deg,
+        var(--dark) 0%,
+        var(--dark-secondary) 50%,
+        var(--secondary-dark) 100%
+    );
     padding: var(--spacing-3xl) 0;
     text-align: center;
     color: white;
@@ -36,7 +41,7 @@
     color: var(--text-primary);
 }
 
-.contact-info>p {
+.contact-info > p {
     font-size: 1.125rem;
     color: var(--text-secondary);
     margin-bottom: var(--spacing-xl);

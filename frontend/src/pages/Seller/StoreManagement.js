@@ -19,7 +19,7 @@ const StoreManagement = () => {
         email: '',
         phone: '',
         logo: '',
-        banner: ''
+        banner: '',
     });
 
     useEffect(() => {
@@ -44,7 +44,7 @@ const StoreManagement = () => {
                     email: storeData.contact?.email || '',
                     phone: storeData.contact?.phone || '',
                     logo: storeData.logo || '',
-                    banner: storeData.banner || ''
+                    banner: storeData.banner || '',
                 });
             }
         } catch (error) {
@@ -58,17 +58,13 @@ const StoreManagement = () => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-
     const handleImageUpload = async (e, field) => {
         const file = e.target.files[0];
         if (file) {
-            const data = new FormData();
-            data.append('images', file);
-
             const uploadToast = toast.loading(`Uploading ${field}...`);
             try {
-                const response = await uploadAPI.uploadImages(data);
-                setFormData({ ...formData, [field]: response.data.urls[0] });
+                const result = await uploadAPI.uploadDirect(file);
+                setFormData({ ...formData, [field]: result.url });
                 toast.success(`${field} uploaded successfully`, { id: uploadToast });
             } catch (error) {
                 logger.error(`Error uploading ${field}`, error);
@@ -91,12 +87,12 @@ const StoreManagement = () => {
                     city: formData.city,
                     state: formData.state,
                     zipCode: formData.zipCode,
-                    country: formData.country
+                    country: formData.country,
                 },
                 contact: {
                     email: formData.email,
-                    phone: formData.phone
-                }
+                    phone: formData.phone,
+                },
             };
 
             if (store) {
@@ -117,7 +113,16 @@ const StoreManagement = () => {
         return (
             <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-secondary)' }}>
                 <Sidebar />
-                <div style={{ flex: 1, marginLeft: '260px', padding: 'var(--spacing-xl)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <div
+                    style={{
+                        flex: 1,
+                        marginLeft: '260px',
+                        padding: 'var(--spacing-xl)',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                    }}
+                >
                     <div className="spinner"></div>
                 </div>
             </div>
@@ -131,7 +136,9 @@ const StoreManagement = () => {
                 <div className="container" style={{ padding: 0 }}>
                     <h1 className="page-title">{store ? 'Manage Store' : 'Create Store'}</h1>
                     <p style={{ marginBottom: 'var(--spacing-xl)' }}>
-                        {store ? 'Update your store information' : 'Create your store to start selling'}
+                        {store
+                            ? 'Update your store information'
+                            : 'Create your store to start selling'}
                     </p>
 
                     <div className="card" style={{ maxWidth: '800px', margin: '0 auto' }}>
@@ -143,7 +150,12 @@ const StoreManagement = () => {
                                         <img
                                             src={formData.banner}
                                             alt="Store Banner"
-                                            style={{ width: '100%', height: '150px', objectFit: 'cover', borderRadius: 'var(--border-radius)' }}
+                                            style={{
+                                                width: '100%',
+                                                height: '150px',
+                                                objectFit: 'cover',
+                                                borderRadius: 'var(--border-radius)',
+                                            }}
                                         />
                                     </div>
                                 )}
@@ -157,12 +169,24 @@ const StoreManagement = () => {
 
                             <div className="form-group">
                                 <label className="form-label">Store Logo</label>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
+                                <div
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 'var(--spacing-md)',
+                                    }}
+                                >
                                     {formData.logo && (
                                         <img
                                             src={formData.logo}
                                             alt="Store Logo"
-                                            style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '50%', border: '1px solid var(--border-color)' }}
+                                            style={{
+                                                width: '80px',
+                                                height: '80px',
+                                                objectFit: 'cover',
+                                                borderRadius: '50%',
+                                                border: '1px solid var(--border-color)',
+                                            }}
                                         />
                                     )}
                                     <input
@@ -218,7 +242,14 @@ const StoreManagement = () => {
                                 </select>
                             </div>
 
-                            <h3 style={{ marginTop: 'var(--spacing-xl)', marginBottom: 'var(--spacing-md)' }}>Address</h3>
+                            <h3
+                                style={{
+                                    marginTop: 'var(--spacing-xl)',
+                                    marginBottom: 'var(--spacing-md)',
+                                }}
+                            >
+                                Address
+                            </h3>
 
                             <div className="form-group">
                                 <label className="form-label">Street</label>
@@ -231,7 +262,13 @@ const StoreManagement = () => {
                                 />
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)' }}>
+                            <div
+                                style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: '1fr 1fr',
+                                    gap: 'var(--spacing-md)',
+                                }}
+                            >
                                 <div className="form-group">
                                     <label className="form-label">City</label>
                                     <input
@@ -255,7 +292,13 @@ const StoreManagement = () => {
                                 </div>
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)' }}>
+                            <div
+                                style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: '1fr 1fr',
+                                    gap: 'var(--spacing-md)',
+                                }}
+                            >
                                 <div className="form-group">
                                     <label className="form-label">ZIP Code</label>
                                     <input
@@ -279,9 +322,22 @@ const StoreManagement = () => {
                                 </div>
                             </div>
 
-                            <h3 style={{ marginTop: 'var(--spacing-xl)', marginBottom: 'var(--spacing-md)' }}>Contact Information</h3>
+                            <h3
+                                style={{
+                                    marginTop: 'var(--spacing-xl)',
+                                    marginBottom: 'var(--spacing-md)',
+                                }}
+                            >
+                                Contact Information
+                            </h3>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)' }}>
+                            <div
+                                style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: '1fr 1fr',
+                                    gap: 'var(--spacing-md)',
+                                }}
+                            >
                                 <div className="form-group">
                                     <label className="form-label">Email</label>
                                     <input
@@ -305,7 +361,11 @@ const StoreManagement = () => {
                                 </div>
                             </div>
 
-                            <button type="submit" className="btn btn-primary btn-lg" style={{ width: '100%', marginTop: 'var(--spacing-xl)' }}>
+                            <button
+                                type="submit"
+                                className="btn btn-primary btn-lg"
+                                style={{ width: '100%', marginTop: 'var(--spacing-xl)' }}
+                            >
                                 {store ? 'Update Store' : 'Create Store'}
                             </button>
                         </form>

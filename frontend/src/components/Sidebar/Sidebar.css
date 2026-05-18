@@ -1,7 +1,7 @@
 .sidebar {
     width: 260px;
     height: 100vh;
-    background: var(--white);
+    background: var(--bg-card);
     border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;

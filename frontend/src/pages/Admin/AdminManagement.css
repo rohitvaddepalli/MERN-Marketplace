@@ -194,32 +194,32 @@
 }
 
 .admin-btn-delete {
-    background: linear-gradient(135deg, #FFE0E6, #FFB3C1);
+    background: linear-gradient(135deg, #ffe0e6, #ffb3c1);
     color: var(--danger-color);
 }
 
 .admin-btn-delete:hover {
-    background: linear-gradient(135deg, var(--danger-color), #D6335B);
+    background: linear-gradient(135deg, var(--danger-color), #d6335b);
     color: white;
 }
 
 .admin-btn-warning {
-    background: linear-gradient(135deg, #FFE8CC, #FFD9A8);
+    background: linear-gradient(135deg, #ffe8cc, #ffd9a8);
     color: var(--warning-color);
 }
 
 .admin-btn-warning:hover {
-    background: linear-gradient(135deg, var(--warning-color), #C56200);
+    background: linear-gradient(135deg, var(--warning-color), #c56200);
     color: white;
 }
 
 .admin-btn-success {
-    background: linear-gradient(135deg, #D1F4E7, #A8E6CF);
+    background: linear-gradient(135deg, #d1f4e7, #a8e6cf);
     color: var(--success-color);
 }
 
 .admin-btn-success:hover {
-    background: linear-gradient(135deg, var(--success-color), #00A676);
+    background: linear-gradient(135deg, var(--success-color), #00a676);
     color: white;
 }
 

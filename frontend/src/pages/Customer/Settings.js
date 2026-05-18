@@ -18,7 +18,7 @@ const Settings = () => {
         city: '',
         state: '',
         zipCode: '',
-        country: ''
+        country: '',
     });
 
     useEffect(() => {
@@ -31,7 +31,7 @@ const Settings = () => {
                 city: user.address?.city || '',
                 state: user.address?.state || '',
                 zipCode: user.address?.zipCode || '',
-                country: user.address?.country || ''
+                country: user.address?.country || '',
             });
         }
     }, [user]);
@@ -39,7 +39,7 @@ const Settings = () => {
     const handleChange = (e) => {
         setFormData({
             ...formData,
-            [e.target.name]: e.target.value
+            [e.target.name]: e.target.value,
         });
     };
 
@@ -57,8 +57,8 @@ const Settings = () => {
                     city: formData.city,
                     state: formData.state,
                     zipCode: formData.zipCode,
-                    country: formData.country
-                }
+                    country: formData.country,
+                },
             };
 
             const response = await authAPI.updateProfile(updateData);
@@ -108,7 +108,9 @@ const Settings = () => {
                                     required
                                     disabled // Usually email update requires verification
                                 />
-                                <small className="form-text">Email cannot be changed directly.</small>
+                                <small className="form-text">
+                                    Email cannot be changed directly.
+                                </small>
                             </div>
 
                             <div className="form-group">
@@ -122,7 +124,14 @@ const Settings = () => {
                                 />
                             </div>
 
-                            <h3 style={{ marginTop: 'var(--spacing-xl)', marginBottom: 'var(--spacing-md)' }}>Shipping Address</h3>
+                            <h3
+                                style={{
+                                    marginTop: 'var(--spacing-xl)',
+                                    marginBottom: 'var(--spacing-md)',
+                                }}
+                            >
+                                Shipping Address
+                            </h3>
 
                             <div className="form-group">
                                 <label className="form-label">Street Address</label>

@@ -6,65 +6,69 @@ const userSchema = new mongoose.Schema({
     name: {
         type: String,
         required: [true, 'Please provide your name'],
-        trim: true
+        trim: true,
     },
     googleId: {
         type: String,
         unique: true,
-        sparse: true
+        sparse: true,
     },
     email: {
         type: String,
         required: [true, 'Please provide your email'],
         unique: true,
         lowercase: true,
-        trim: true
+        trim: true,
     },
     password: {
         type: String,
         required: [true, 'Please provide a password'],
         minlength: 6,
-        select: false
+        select: false,
     },
     role: {
         type: String,
         enum: ['customer', 'seller', 'admin'],
-        default: 'customer'
+        default: 'customer',
     },
     avatar: {
         type: String,
-        default: 'https://api.dicebear.com/7.x/avataaars/svg?seed=default'
+        default: 'https://api.dicebear.com/7.x/avataaars/svg?seed=default',
     },
     phone: {
-        type: String
+        type: String,
     },
     address: {
         street: String,
         city: String,
         state: String,
         zipCode: String,
-        country: String
+        country: String,
     },
     resetPasswordToken: String,
     resetPasswordExpire: Date,
     createdAt: {
         type: Date,
-        default: Date.now
+        default: Date.now,
     },
-    wishlist: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Product'
-    }],
-    recentlyViewed: [{
-        product: {
+    wishlist: [
+        {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'Product'
+            ref: 'Product',
         },
-        viewedAt: {
-            type: Date,
-            default: Date.now
-        }
-    }]
+    ],
+    recentlyViewed: [
+        {
+            product: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'Product',
+            },
+            viewedAt: {
+                type: Date,
+                default: Date.now,
+            },
+        },
+    ],
 });
 
 // Hash password before saving
@@ -88,10 +92,7 @@ userSchema.methods.getResetPasswordToken = function () {
     const resetToken = crypto.randomBytes(20).toString('hex');
 
     // Hash token and set to resetPasswordToken field
-    this.resetPasswordToken = crypto
-        .createHash('sha256')
-        .update(resetToken)
-        .digest('hex');
+    this.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
 
     // Set expire time (10 minutes)
     this.resetPasswordExpire = Date.now() + 10 * 60 * 1000;

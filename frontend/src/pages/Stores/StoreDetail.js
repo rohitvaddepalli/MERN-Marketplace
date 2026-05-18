@@ -3,7 +3,11 @@ import { useParams, Link } from 'react-router-dom';
 import { storeAPI, productAPI } from '../../services/api';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import logger from '../../utils/logger';
-import { DEFAULT_STORE_BANNER, DEFAULT_STORE_LOGO, DEFAULT_PRODUCT_IMAGE } from '../../constants/images';
+import {
+    DEFAULT_STORE_BANNER,
+    DEFAULT_STORE_LOGO,
+    DEFAULT_PRODUCT_IMAGE,
+} from '../../constants/images';
 
 const StoreDetail = () => {
     const { id } = useParams();
@@ -17,7 +21,7 @@ const StoreDetail = () => {
         try {
             const [storeRes, productsRes] = await Promise.all([
                 storeAPI.getStore(id),
-                productAPI.getProducts({ store: id })
+                productAPI.getProducts({ store: id }),
             ]);
             setStore(storeRes.data.store);
             setProducts(productsRes.data.products || []);
@@ -46,7 +50,9 @@ const StoreDetail = () => {
                 <div className="container">
                     <div className="empty-state">
                         <h3>Store Not Found</h3>
-                        <Link to="/stores" className="btn btn-primary">Browse Stores</Link>
+                        <Link to="/stores" className="btn btn-primary">
+                            Browse Stores
+                        </Link>
                     </div>
                 </div>
             </div>
@@ -55,11 +61,33 @@ const StoreDetail = () => {
 
     return (
         <div className="page-container" style={{ paddingTop: 0 }}>
-            <div className="store-banner" style={{ height: '300px', marginBottom: '0', borderRadius: '0', position: 'relative', zIndex: 1 }}>
-                <img src={store.banner || DEFAULT_STORE_BANNER} alt={store.name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '0' }} onError={(e) => e.target.src = DEFAULT_STORE_BANNER} />
+            <div
+                className="store-banner"
+                style={{
+                    height: '300px',
+                    marginBottom: '0',
+                    borderRadius: '0',
+                    position: 'relative',
+                    zIndex: 1,
+                }}
+            >
+                <img
+                    src={store.banner || DEFAULT_STORE_BANNER}
+                    alt={store.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '0' }}
+                    onError={(e) => (e.target.src = DEFAULT_STORE_BANNER)}
+                />
             </div>
             <div className="container" style={{ position: 'relative', zIndex: 10 }}>
-                <div style={{ textAlign: 'center', marginBottom: 'var(--spacing-2xl)', marginTop: '-120px', position: 'relative', zIndex: 10 }}>
+                <div
+                    style={{
+                        textAlign: 'center',
+                        marginBottom: 'var(--spacing-2xl)',
+                        marginTop: '-120px',
+                        position: 'relative',
+                        zIndex: 10,
+                    }}
+                >
                     <img
                         src={store.logo || DEFAULT_STORE_LOGO}
                         alt={store.name}
@@ -74,28 +102,48 @@ const StoreDetail = () => {
                             display: 'block',
                             margin: '0 auto var(--spacing-md) auto',
                             position: 'relative',
-                            zIndex: 10
+                            zIndex: 10,
                         }}
-                        onError={(e) => e.target.src = DEFAULT_STORE_LOGO}
+                        onError={(e) => (e.target.src = DEFAULT_STORE_LOGO)}
                     />
                     <h1>{store.name}</h1>
-                    <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--spacing-md)' }}>{store.description}</p>
+                    <p
+                        style={{
+                            color: 'var(--text-secondary)',
+                            marginBottom: 'var(--spacing-md)',
+                        }}
+                    >
+                        {store.description}
+                    </p>
                     <span className="badge badge-info">{store.category}</span>
                 </div>
 
                 <h2 style={{ marginBottom: 'var(--spacing-lg)' }}>Products from this store</h2>
                 <div className="products-grid">
                     {products.map((product) => (
-                        <Link to={`/products/${product._id}`} key={product._id} className="product-card">
+                        <Link
+                            to={`/products/${product._id}`}
+                            key={product._id}
+                            className="product-card"
+                        >
                             <div className="product-image">
-                                <img src={product.images?.[0] || DEFAULT_PRODUCT_IMAGE} alt={product.name} onError={(e) => e.target.src = DEFAULT_PRODUCT_IMAGE} />
+                                <img
+                                    src={product.images?.[0] || DEFAULT_PRODUCT_IMAGE}
+                                    alt={product.name}
+                                    onError={(e) => (e.target.src = DEFAULT_PRODUCT_IMAGE)}
+                                />
                             </div>
                             <div className="product-info">
                                 <h3 className="product-name">{product.name}</h3>
                                 <div className="product-footer">
                                     <span className="current-price">₹{product.price}</span>
                                     <div className="product-rating">
-                                        <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                                        <svg
+                                            width="16"
+                                            height="16"
+                                            viewBox="0 0 20 20"
+                                            fill="currentColor"
+                                        >
                                             <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
                                         </svg>
                                         <span>{product.rating || 4.5}</span>

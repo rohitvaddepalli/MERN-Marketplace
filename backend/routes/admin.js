@@ -12,7 +12,7 @@ import {
     deleteProduct,
     deleteOrder,
     getSettings,
-    updateSettings
+    updateSettings,
 } from '../controllers/admin.js';
 
 const router = express.Router();
@@ -46,4 +46,3 @@ router.get('/settings', getSettings);
 router.put('/settings', updateSettings);
 
 export default router;
-

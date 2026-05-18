@@ -1,257 +1,155 @@
-# MERN Marketplace - Quick Setup Guide
+# Setup Guide
 
-## 🚀 Quick Start
+## Prerequisites
 
-Follow these steps to get your marketplace up and running:
+- **Node.js** 18 or later
+- **MongoDB** 6 or later (local or [MongoDB Atlas](https://www.mongodb.com/atlas))
+- **Git**
 
-### 1. Install Dependencies
+## Clone & Install
 
 ```bash
-# Install all dependencies (root + backend + frontend)
-npm run install-all
-```
-
-Or install manually:
-```bash
-# Root dependencies
-npm install
-
-# Backend dependencies
-cd backend
-npm install
-
-# Frontend dependencies
-cd ../frontend
+git clone <repo-url>
+cd Marketplace
 npm install
 ```
 
-### 2. Setup MongoDB
+## Environment Variables
 
-Make sure MongoDB is running on your local machine:
-```bash
-mongod
-```
+Create a `.env` file in the `backend/` directory:
 
-Or use MongoDB Atlas (cloud):
-- Create a free account at https://www.mongodb.com/cloud/atlas
-- Create a cluster and get your connection string
-- Update the connection string in `backend/.env`
-
-### 3. Configure Environment Variables
-
-Create a `.env` file in the `backend` directory:
-
-```bash
-cd backend
-copy .env.example .env
-```
-
-Edit the `.env` file with your settings:
 ```env
-PORT=5000
 MONGODB_URI=mongodb://localhost:27017/marketplace
-JWT_SECRET=your_very_secure_random_string_here
-JWT_EXPIRE=7d
+JWT_SECRET=<random-string>
+SESSION_SECRET=<random-string>
+NEXTAUTH_SECRET=<random-string>
+NEXTAUTH_URL=http://localhost:3000
+
+CLOUDINARY_CLOUD_NAME=<your-cloud-name>
+CLOUDINARY_API_KEY=<your-api-key>
+CLOUDINARY_API_SECRET=<your-api-secret>
+
+STRIPE_SECRET_KEY=sk_test_<your-stripe-secret>
+STRIPE_PUBLISHABLE_KEY=pk_test_<your-stripe-publishable>
+
 NODE_ENV=development
+PORT=5000
 ```
 
-**Important:** Change `JWT_SECRET` to a secure random string!
+### Variable Reference
 
-### 4. Start the Application
+| Variable | Description |
+|----------|-------------|
+| `MONGODB_URI` | MongoDB connection string |
+| `JWT_SECRET` | Secret key for signing JWT tokens |
+| `SESSION_SECRET` | Secret key for Express sessions (Passport) |
+| `NEXTAUTH_SECRET` | Secret key for NextAuth.js sessions |
+| `NEXTAUTH_URL` | Frontend base URL |
+| `CLOUDINARY_*` | Cloudinary credentials for image uploads |
+| `STRIPE_*` | Stripe API keys (test mode) |
+| `NODE_ENV` | Environment mode |
+| `PORT` | Backend server port |
 
-#### Option A: Run Both Together (Recommended)
-From the root directory:
+## Database Setup
+
+### Migrate
+
+```bash
+npm run db:migrate
+```
+
+### Seed (optional)
+
+Populates the database with sample data:
+
+```bash
+npm run db:seed
+```
+
+## Development Mode
+
+Run both frontend and backend concurrently:
+
 ```bash
 npm run dev
 ```
 
-#### Option B: Run Separately
+- **Frontend:** `http://localhost:3000`
+- **Backend API:** `http://localhost:5000`
 
-**Terminal 1 - Backend:**
-```bash
-cd backend
-npm run dev
-```
+## Production Build
 
-**Terminal 2 - Frontend:**
 ```bash
-cd frontend
+npm run build
 npm start
 ```
 
-### 5. Access the Application
+## Test Flow
 
-- **Frontend:** http://localhost:3000
-- **Backend API:** http://localhost:5000/api
+Follow these steps to verify the platform end-to-end.
 
-## 📝 Test the Application
+### 1. Register a Seller
 
-### Create a Customer Account:
-1. Go to http://localhost:3000/register
-2. Fill in the form and select "Customer" role
-3. Login and browse products
+1. Go to `http://localhost:3000/register`
+2. **Email:** `seller@example.com` / **Password:** `password123`
+3. Select **Seller** as the role
 
-### Create a Seller Account:
-1. Go to http://localhost:3000/register  
-2. Fill in the form and select "Seller" role
-3. Login and create your store
-4. Add products to your store
+### 2. Create a Store
 
-### Test the Full Flow:
-1. **As Seller:**
-   - Create a store
-   - Add some products with images (use placeholder URLs like `https://via.placeholder.com/300`)
-   
-2. **As Customer:**
-   - Browse products
-   - Add products to cart
-   - Checkout and place an order
-   - View order history
+1. Log in as seller and go to **My Store**
+2. **Store Name:** `Tech Store`
+3. Submit
 
-3. **As Seller:**
-   - View orders
-   - Update order status
+### 3. Add a Product
 
-## 🎨 Sample Product Image URLs
+1. Go to **Products** → **Add Product**
+2. **Name:** `Laptop`
+3. **Price:** `999`
+4. **Image URL:** `https://via.placeholder.com/150`
+5. **Stock Quantity:** `10`
+6. Submit
 
-You can use these URLs for testing:
-```
-https://via.placeholder.com/400x400/FF6B35/FFFFFF?text=Product+1
-https://via.placeholder.com/400x400/06D6A0/FFFFFF?text=Product+2
-https://via.placeholder.com/400x400/667eea/FFFFFF?text=Product+3
-```
+### 4. Register a Customer
 
-## 🛠️ Troubleshooting
+1. Open an incognito window and go to `http://localhost:3000/register`
+2. **Email:** `customer@example.com` / **Password:** `password123`
+3. Select **Customer** as the role
 
-### MongoDB Connection Error
-```
-Error: connect ECONNREFUSED 127.0.0.1:27017
-```
-**Solution:** Make sure MongoDB is running (`mongod` command)
+### 5. Purchase the Product
 
-### Port Already in Use
-```
-Error: listen EADDRINUSE: address already in use :::5000
-```
-**Solution:** Change PORT in `backend/.env` or kill the process using port 5000
+1. Browse to the Laptop and add it to the cart
+2. Go to checkout
+3. Use the Stripe test card:
 
-### CORS Errors in Browser
-**Solution:** Make sure backend is running on port 5000 and frontend on port 3000
+   **Card number:** `4242 4242 4242 4242`  
+   **Expiry:** any future date  
+   **CVC:** any 3 digits
 
-### Module Not Found Errors
-**Solution:** Run `npm install` in both backend and frontend directories
+4. Complete the purchase
 
-## 📱 Features Implemented
+### 6. Manage the Order
 
-✅ **Authentication**
-- User registration (Customer/Seller)
-- Login/Logout
-- Protected routes
-- JWT authentication
+- **Customer** — view order status in **Order History**
+- **Seller** — view and update order status in **Store Dashboard** → **Orders**
+- **Admin** — view and manage all orders in the **Admin Dashboard**
 
-✅ **Customer Features**
-- Browse products and stores
-- Product filtering and search
-- Shopping cart
-- Checkout process
-- Order history
-- Customer dashboard
+## Troubleshooting
 
-✅ **Seller Features**
-- Store creation and management
-- Product CRUD operations
-- Order management
-- Order status updates
-- Seller dashboard with analytics
+| Problem | Solution |
+|---------|----------|
+| Database connection fails | Ensure MongoDB is running and `MONGODB_URI` is correct |
+| Port already in use | Change `PORT` in `.env` or kill the process on that port |
+| Image uploads fail | Verify Cloudinary credentials and that the cloud name exists |
+| Stripe payment fails | Use test card `4242 4242 4242 4242` — live cards won't work in test mode |
 
-✅ **UI/UX**
-- Modern, responsive design
-- Premium styling with gradients
-- Smooth animations
-- Mobile-friendly
+## Deployment
 
-## 🔄 Next Steps
+Recommended stack:
 
-To enhance your marketplace:
-
-1. **Add Image Upload:**
-   - Integrate Multer for image uploads
-   - Use Cloudinary or AWS S3 for storage
-
-2. **Payment Integration:**
-   - Add Stripe or PayPal
-   - Process real payments
-
-3. **Email Notifications:**
-   - Use Nodemailer
-   - Send order confirmations
-
-4. **Search Enhancement:**
-   - Add Elasticsearch
-   - Advanced filtering
-
-5. **Real-time Features:**
-   - Socket.io for notifications
-- Chat between buyers and sellers
-
-## 📚 Project Structure
-
-```
-marketplace/
-├── backend/              # Node.js + Express backend
-│   ├── controllers/     # Business logic
-│   ├── models/         # MongoDB schemas
-│   ├── routes/         # API endpoints
-│   ├── middleware/     # Auth & error handling
-│   └── server.js       # Entry point
-├── frontend/            # React frontend  
-│   ├── src/
-│   │   ├── components/ # Reusable UI components
-│   │   ├── context/    # State management
-│   │   ├── pages/      # Page components
-│   │   ├── services/   # API calls
-│   │   └── App.js      # Main app
-│   └── public/
-└── README.md
-```
-
-## 🎯 API Endpoints
-
-### Authentication
-- `POST /api/auth/register` - Register user
-- `POST /api/auth/login` - Login user
-- `GET /api/auth/me` - Get current user
-
-### Stores
-- `GET /api/stores` - Get all stores
-- `POST /api/stores` - Create store (Seller)
-- `PUT /api/stores/:id` - Update store (Seller)
-
-### Products
-- `GET /api/products` - Get products (with filters)
-- `POST /api/products` - Create product (Seller)
-- `PUT /api/products/:id` - Update product (Seller)
-- `DELETE /api/products/:id` - Delete product (Seller)
-
-### Orders
-- `POST /api/orders` - Create order (Customer)
-- `GET /api/orders/myorders` - Get customer orders
-- `GET /api/orders/seller/orders` - Get seller orders
-- `PUT /api/orders/:id/status` - Update status (Seller)
-
-## 💡 Tips
-
-- Use the Chrome DevTools for debugging
-- Check Network tab for API call errors
-- Monitor MongoDB with MongoDB Compass
-- Use Postman to test API endpoints
-
-## 🤝 Support
-
-If you encounter issues:
-1. Check the browser console for errors
-2. Check the terminal for backend errors
-3. Verify MongoDB is running
-4. Ensure all environment variables are set
-
-Happy coding! 🚀
+- **Hosting:** [Render.com](https://render.com) — Node web service
+  - Build command: `npm run build`
+  - Start command: `npm start`
+- **Database:** [MongoDB Atlas](https://www.mongodb.com/atlas)
+  - Whitelist `0.0.0.0/0` for public access
+- **Media:** [Cloudinary](https://cloudinary.com)
+- **Custom Domain:** Configure via Render dashboard

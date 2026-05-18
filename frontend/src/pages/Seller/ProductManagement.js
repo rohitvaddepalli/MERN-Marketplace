@@ -18,7 +18,7 @@ const ProductManagement = () => {
         category: '',
         stock: '',
         lowStockThreshold: '10',
-        images: ['']
+        images: [''],
     });
 
     useEffect(() => {
@@ -29,7 +29,7 @@ const ProductManagement = () => {
         try {
             const [productsRes, storeRes] = await Promise.all([
                 productAPI.getMyProducts(),
-                storeAPI.getMyStore().catch(() => ({ data: { store: null } }))
+                storeAPI.getMyStore().catch(() => ({ data: { store: null } })),
             ]);
             setProducts(productsRes.data.products || []);
             setStore(storeRes.data.store);
@@ -44,23 +44,18 @@ const ProductManagement = () => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-
-
     const handleImageUpload = async (index, e) => {
         const file = e.target.files[0];
         if (file) {
-            const data = new FormData();
-            data.append('images', file);
-
             const uploadToast = toast.loading('Uploading image...');
             try {
-                const response = await uploadAPI.uploadImages(data);
+                const result = await uploadAPI.uploadDirect(file);
                 const newImages = [...formData.images];
-                newImages[index] = response.data.urls[0];
+                newImages[index] = result.url;
                 setFormData({ ...formData, images: newImages });
                 toast.success('Image uploaded successfully', { id: uploadToast });
             } catch (error) {
-                logger.error("Error uploading image", error);
+                logger.error('Error uploading image', error);
                 toast.error('Failed to upload image', { id: uploadToast });
             }
         }
@@ -72,9 +67,11 @@ const ProductManagement = () => {
             const productData = {
                 ...formData,
                 price: parseFloat(formData.price),
-                compareAtPrice: formData.compareAtPrice ? parseFloat(formData.compareAtPrice) : undefined,
+                compareAtPrice: formData.compareAtPrice
+                    ? parseFloat(formData.compareAtPrice)
+                    : undefined,
                 stock: parseInt(formData.stock),
-                images: formData.images.filter(img => img)
+                images: formData.images.filter((img) => img),
             };
 
             if (editingProduct) {
@@ -103,7 +100,7 @@ const ProductManagement = () => {
             category: product.category,
             stock: product.stock,
             lowStockThreshold: product.lowStockThreshold || '10',
-            images: product.images.length > 0 ? product.images : ['']
+            images: product.images.length > 0 ? product.images : [''],
         });
         setShowForm(true);
     };
@@ -130,7 +127,7 @@ const ProductManagement = () => {
             category: '',
             stock: '',
             lowStockThreshold: '10',
-            images: ['']
+            images: [''],
         });
         setEditingProduct(null);
         setShowForm(false);
@@ -157,7 +154,14 @@ const ProductManagement = () => {
             <Sidebar />
             <div style={{ flex: 1, marginLeft: '260px', padding: 'var(--spacing-xl)' }}>
                 <div className="container" style={{ padding: 0 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-xl)' }}>
+                    <div
+                        style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: 'var(--spacing-xl)',
+                        }}
+                    >
                         <div>
                             <h1 className="page-title">Product Management</h1>
                             <p>Manage your store products</p>
@@ -173,30 +177,76 @@ const ProductManagement = () => {
                             <form onSubmit={handleSubmit}>
                                 <div className="form-group">
                                     <label className="form-label">Product Name *</label>
-                                    <input type="text" name="name" className="form-input" value={formData.name} onChange={handleChange} required />
+                                    <input
+                                        type="text"
+                                        name="name"
+                                        className="form-input"
+                                        value={formData.name}
+                                        onChange={handleChange}
+                                        required
+                                    />
                                 </div>
 
                                 <div className="form-group">
                                     <label className="form-label">Description *</label>
-                                    <textarea name="description" className="form-textarea" value={formData.description} onChange={handleChange} required />
+                                    <textarea
+                                        name="description"
+                                        className="form-textarea"
+                                        value={formData.description}
+                                        onChange={handleChange}
+                                        required
+                                    />
                                 </div>
 
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)' }}>
+                                <div
+                                    style={{
+                                        display: 'grid',
+                                        gridTemplateColumns: '1fr 1fr',
+                                        gap: 'var(--spacing-md)',
+                                    }}
+                                >
                                     <div className="form-group">
                                         <label className="form-label">Price *</label>
-                                        <input type="number" step="0.01" name="price" className="form-input" value={formData.price} onChange={handleChange} required />
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            name="price"
+                                            className="form-input"
+                                            value={formData.price}
+                                            onChange={handleChange}
+                                            required
+                                        />
                                     </div>
 
                                     <div className="form-group">
                                         <label className="form-label">Compare Price</label>
-                                        <input type="number" step="0.01" name="compareAtPrice" className="form-input" value={formData.compareAtPrice} onChange={handleChange} />
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            name="compareAtPrice"
+                                            className="form-input"
+                                            value={formData.compareAtPrice}
+                                            onChange={handleChange}
+                                        />
                                     </div>
                                 </div>
 
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)' }}>
+                                <div
+                                    style={{
+                                        display: 'grid',
+                                        gridTemplateColumns: '1fr 1fr',
+                                        gap: 'var(--spacing-md)',
+                                    }}
+                                >
                                     <div className="form-group">
                                         <label className="form-label">Category *</label>
-                                        <select name="category" className="form-select" value={formData.category} onChange={handleChange} required>
+                                        <select
+                                            name="category"
+                                            className="form-select"
+                                            value={formData.category}
+                                            onChange={handleChange}
+                                            required
+                                        >
                                             <option value="">Select category</option>
                                             <option value="Electronics">Electronics</option>
                                             <option value="Fashion">Fashion</option>
@@ -209,15 +259,40 @@ const ProductManagement = () => {
 
                                     <div className="form-group">
                                         <label className="form-label">Stock *</label>
-                                        <input type="number" name="stock" className="form-input" value={formData.stock} onChange={handleChange} required />
+                                        <input
+                                            type="number"
+                                            name="stock"
+                                            className="form-input"
+                                            value={formData.stock}
+                                            onChange={handleChange}
+                                            required
+                                        />
                                     </div>
                                 </div>
 
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)' }}>
+                                <div
+                                    style={{
+                                        display: 'grid',
+                                        gridTemplateColumns: '1fr 1fr',
+                                        gap: 'var(--spacing-md)',
+                                    }}
+                                >
                                     <div className="form-group">
                                         <label className="form-label">Low Stock Threshold</label>
-                                        <input type="number" name="lowStockThreshold" className="form-input" value={formData.lowStockThreshold} onChange={handleChange} placeholder="10" />
-                                        <small style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                                        <input
+                                            type="number"
+                                            name="lowStockThreshold"
+                                            className="form-input"
+                                            value={formData.lowStockThreshold}
+                                            onChange={handleChange}
+                                            placeholder="10"
+                                        />
+                                        <small
+                                            style={{
+                                                color: 'var(--text-secondary)',
+                                                fontSize: '0.85rem',
+                                            }}
+                                        >
                                             You'll be alerted when stock falls below this level
                                         </small>
                                     </div>
@@ -226,17 +301,31 @@ const ProductManagement = () => {
                                 <div className="form-group">
                                     <label className="form-label">Product Images</label>
                                     {formData.images.map((img, index) => (
-                                        <div key={index} style={{ marginBottom: 'var(--spacing-md)' }}>
+                                        <div
+                                            key={index}
+                                            style={{ marginBottom: 'var(--spacing-md)' }}
+                                        >
                                             {img && (
                                                 <div style={{ marginBottom: 'var(--spacing-xs)' }}>
                                                     <img
                                                         src={img}
                                                         alt={`Preview ${index + 1}`}
-                                                        style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: 'var(--border-radius-sm)', border: '1px solid var(--border-color)' }}
+                                                        style={{
+                                                            width: '100px',
+                                                            height: '100px',
+                                                            objectFit: 'cover',
+                                                            borderRadius: 'var(--border-radius-sm)',
+                                                            border: '1px solid var(--border-color)',
+                                                        }}
                                                     />
                                                 </div>
                                             )}
-                                            <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
+                                            <div
+                                                style={{
+                                                    display: 'flex',
+                                                    gap: 'var(--spacing-sm)',
+                                                }}
+                                            >
                                                 <input
                                                     type="file"
                                                     accept="image/*"
@@ -247,11 +336,20 @@ const ProductManagement = () => {
                                                     <button
                                                         type="button"
                                                         onClick={() => {
-                                                            const newImages = formData.images.filter((_, i) => i !== index);
-                                                            setFormData({ ...formData, images: newImages });
+                                                            const newImages =
+                                                                formData.images.filter(
+                                                                    (_, i) => i !== index
+                                                                );
+                                                            setFormData({
+                                                                ...formData,
+                                                                images: newImages,
+                                                            });
                                                         }}
                                                         className="btn btn-outline btn-sm"
-                                                        style={{ borderColor: 'var(--danger-color)', color: 'var(--danger-color)' }}
+                                                        style={{
+                                                            borderColor: 'var(--danger-color)',
+                                                            color: 'var(--danger-color)',
+                                                        }}
                                                     >
                                                         Remove
                                                     </button>
@@ -259,7 +357,16 @@ const ProductManagement = () => {
                                             </div>
                                         </div>
                                     ))}
-                                    <button type="button" onClick={() => setFormData({ ...formData, images: [...formData.images, ''] })} className="btn btn-ghost btn-sm">
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setFormData({
+                                                ...formData,
+                                                images: [...formData.images, ''],
+                                            })
+                                        }
+                                        className="btn btn-ghost btn-sm"
+                                    >
                                         + Add Another Image
                                     </button>
                                 </div>
@@ -268,7 +375,11 @@ const ProductManagement = () => {
                                     <button type="submit" className="btn btn-primary">
                                         {editingProduct ? 'Update Product' : 'Create Product'}
                                     </button>
-                                    <button type="button" onClick={resetForm} className="btn btn-ghost">
+                                    <button
+                                        type="button"
+                                        onClick={resetForm}
+                                        className="btn btn-ghost"
+                                    >
                                         Cancel
                                     </button>
                                 </div>
@@ -286,28 +397,91 @@ const ProductManagement = () => {
                             <p>Add your first product to start selling</p>
                         </div>
                     ) : (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 'var(--spacing-lg)' }}>
+                        <div
+                            style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                                gap: 'var(--spacing-lg)',
+                            }}
+                        >
                             {products.map((product) => (
                                 <div key={product._id} className="card">
                                     <img
-                                        src={product.images?.[0] || 'https://via.placeholder.com/300'}
+                                        src={
+                                            product.images?.[0] || 'https://via.placeholder.com/300'
+                                        }
                                         alt={product.name}
-                                        style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: 'var(--border-radius)', marginBottom: 'var(--spacing-md)' }}
-                                        onError={(e) => e.target.src = 'https://via.placeholder.com/300'}
+                                        style={{
+                                            width: '100%',
+                                            height: '200px',
+                                            objectFit: 'cover',
+                                            borderRadius: 'var(--border-radius)',
+                                            marginBottom: 'var(--spacing-md)',
+                                        }}
+                                        onError={(e) =>
+                                            (e.target.src = 'https://via.placeholder.com/300')
+                                        }
                                     />
-                                    <h3 style={{ fontSize: '1.125rem', marginBottom: 'var(--spacing-sm)' }}>{product.name}</h3>
-                                    <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: 'var(--spacing-md)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                                    <h3
+                                        style={{
+                                            fontSize: '1.125rem',
+                                            marginBottom: 'var(--spacing-sm)',
+                                        }}
+                                    >
+                                        {product.name}
+                                    </h3>
+                                    <p
+                                        style={{
+                                            fontSize: '0.9rem',
+                                            color: 'var(--text-secondary)',
+                                            marginBottom: 'var(--spacing-md)',
+                                            display: '-webkit-box',
+                                            WebkitLineClamp: 2,
+                                            WebkitBoxOrient: 'vertical',
+                                            overflow: 'hidden',
+                                        }}
+                                    >
                                         {product.description}
                                     </p>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--spacing-md)' }}>
-                                        <span style={{ fontWeight: '700', fontSize: '1.25rem', color: 'var(--primary-color)' }}>₹{product.price}</span>
-                                        <span className={`badge badge-${product.stock === 0 ? 'danger' : product.stock <= (product.lowStockThreshold || 10) ? 'warning' : 'info'}`}>Stock: {product.stock}</span>
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            marginBottom: 'var(--spacing-md)',
+                                        }}
+                                    >
+                                        <span
+                                            style={{
+                                                fontWeight: '700',
+                                                fontSize: '1.25rem',
+                                                color: 'var(--primary-color)',
+                                            }}
+                                        >
+                                            ₹{product.price}
+                                        </span>
+                                        <span
+                                            className={`badge badge-${product.stock === 0 ? 'danger' : product.stock <= (product.lowStockThreshold || 10) ? 'warning' : 'info'}`}
+                                        >
+                                            Stock: {product.stock}
+                                        </span>
                                     </div>
                                     <div style={{ display: 'flex', gap: 'var(--spacing-sm)' }}>
-                                        <button onClick={() => handleEdit(product)} className="btn btn-secondary btn-sm" style={{ flex: 1 }}>
+                                        <button
+                                            onClick={() => handleEdit(product)}
+                                            className="btn btn-secondary btn-sm"
+                                            style={{ flex: 1 }}
+                                        >
                                             Edit
                                         </button>
-                                        <button onClick={() => handleDelete(product._id)} className="btn btn-outline btn-sm" style={{ flex: 1, borderColor: 'var(--danger-color)', color: 'var(--danger-color)' }}>
+                                        <button
+                                            onClick={() => handleDelete(product._id)}
+                                            className="btn btn-outline btn-sm"
+                                            style={{
+                                                flex: 1,
+                                                borderColor: 'var(--danger-color)',
+                                                color: 'var(--danger-color)',
+                                            }}
+                                        >
                                             Delete
                                         </button>
                                     </div>

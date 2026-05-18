@@ -13,7 +13,7 @@ export const createStore = async (req, res) => {
         if (existingStore) {
             return res.status(400).json({
                 success: false,
-                message: 'You already have a store. Each seller can only have one store.'
+                message: 'You already have a store. Each seller can only have one store.',
             });
         }
 
@@ -25,17 +25,17 @@ export const createStore = async (req, res) => {
             contact,
             logo,
             banner,
-            owner: req.user._id
+            owner: req.user._id,
         });
 
         res.status(201).json({
             success: true,
-            store
+            store,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -53,22 +53,21 @@ export const getStores = async (req, res) => {
         }
 
         if (search) {
-            query.name = { $regex: search, $options: 'i' };
+            const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
+            query.name = { $regex: escapeRegex(search), $options: 'i' };
         }
 
-        const stores = await Store.find(query)
-            .populate('owner', 'name email')
-            .sort('-createdAt');
+        const stores = await Store.find(query).populate('owner', 'name email').sort('-createdAt');
 
         res.status(200).json({
             success: true,
             count: stores.length,
-            stores
+            stores,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -83,7 +82,7 @@ export const getStore = async (req, res) => {
         if (!store) {
             return res.status(404).json({
                 success: false,
-                message: 'Store not found'
+                message: 'Store not found',
             });
         }
 
@@ -93,19 +92,27 @@ export const getStore = async (req, res) => {
         res.status(200).json({
             success: true,
             store,
-            products
+            products,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
 
 // SECURITY: Whitelist of fields allowed for store update
 // Prevents mass assignment attacks that could modify owner, isActive, etc.
-const ALLOWED_STORE_UPDATE_FIELDS = ['name', 'description', 'category', 'address', 'contact', 'logo', 'banner'];
+const ALLOWED_STORE_UPDATE_FIELDS = [
+    'name',
+    'description',
+    'category',
+    'address',
+    'contact',
+    'logo',
+    'banner',
+];
 
 /**
  * Helper to pick only allowed fields from an object
@@ -133,7 +140,7 @@ export const updateStore = async (req, res) => {
         if (!store) {
             return res.status(404).json({
                 success: false,
-                message: 'Store not found'
+                message: 'Store not found',
             });
         }
 
@@ -141,7 +148,7 @@ export const updateStore = async (req, res) => {
         if (store.owner.toString() !== req.user._id.toString()) {
             return res.status(403).json({
                 success: false,
-                message: 'Not authorized to update this store'
+                message: 'Not authorized to update this store',
             });
         }
 
@@ -150,17 +157,17 @@ export const updateStore = async (req, res) => {
 
         store = await Store.findByIdAndUpdate(req.params.id, updates, {
             new: true,
-            runValidators: true
+            runValidators: true,
         });
 
         res.status(200).json({
             success: true,
-            store
+            store,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -175,7 +182,7 @@ export const deleteStore = async (req, res) => {
         if (!store) {
             return res.status(404).json({
                 success: false,
-                message: 'Store not found'
+                message: 'Store not found',
             });
         }
 
@@ -183,7 +190,7 @@ export const deleteStore = async (req, res) => {
         if (store.owner.toString() !== req.user._id.toString()) {
             return res.status(403).json({
                 success: false,
-                message: 'Not authorized to delete this store'
+                message: 'Not authorized to delete this store',
             });
         }
 
@@ -191,12 +198,12 @@ export const deleteStore = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            message: 'Store deleted successfully'
+            message: 'Store deleted successfully',
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };
@@ -211,7 +218,7 @@ export const getMyStore = async (req, res) => {
         if (!store) {
             return res.status(404).json({
                 success: false,
-                message: 'You do not have a store yet'
+                message: 'You do not have a store yet',
             });
         }
 
@@ -221,12 +228,12 @@ export const getMyStore = async (req, res) => {
         res.status(200).json({
             success: true,
             store,
-            productsCount
+            productsCount,
         });
     } catch (error) {
         res.status(500).json({
             success: false,
-            message: error.message
+            message: error.message,
         });
     }
 };

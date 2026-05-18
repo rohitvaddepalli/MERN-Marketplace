@@ -20,7 +20,7 @@ import {
     PLACEHOLDER_SPORTS,
     DEFAULT_PRODUCT_IMAGE,
     DEFAULT_STORE_BANNER,
-    DEFAULT_STORE_LOGO
+    DEFAULT_STORE_LOGO,
 } from '../../constants/images';
 
 const Home = () => {
@@ -36,7 +36,7 @@ const Home = () => {
         if (typeof window !== 'undefined') {
             const mql = window.matchMedia('(prefers-reduced-motion: reduce)');
             setPrefersReducedMotion(mql.matches);
-            
+
             const handler = (e) => setPrefersReducedMotion(e.matches);
             mql.addEventListener('change', handler);
             return () => mql.removeEventListener('change', handler);
@@ -64,7 +64,7 @@ const Home = () => {
         try {
             const [productsRes, storesRes] = await Promise.all([
                 productAPI.getFeaturedProducts(),
-                storeAPI.getStores()
+                storeAPI.getStores(),
             ]);
 
             setFeaturedProducts(productsRes.data.products || []);
@@ -80,9 +80,15 @@ const Home = () => {
         <div className="home-page">
             <Helmet>
                 <title>Marketplace | Discover Amazing Products from Local Sellers</title>
-                <meta name="description" content="Browse thousands of unique products from verified sellers. Support local businesses and find exactly what you're looking for on Marketplace." />
+                <meta
+                    name="description"
+                    content="Browse thousands of unique products from verified sellers. Support local businesses and find exactly what you're looking for on Marketplace."
+                />
                 <meta property="og:title" content="Marketplace | Discover Amazing Products" />
-                <meta property="og:description" content="Browse thousands of unique products from verified sellers. Support local businesses and find exactly what you're looking for." />
+                <meta
+                    property="og:description"
+                    content="Browse thousands of unique products from verified sellers. Support local businesses and find exactly what you're looking for."
+                />
                 <meta property="og:type" content="website" />
             </Helmet>
 
@@ -100,12 +106,18 @@ const Home = () => {
                                 </h1>
                                 <p className="hero-description">
                                     Browse thousands of unique products from verified sellers.
-                                    Support local businesses and find exactly what you're looking for.
+                                    Support local businesses and find exactly what you're looking
+                                    for.
                                 </p>
                                 <div className="hero-actions">
                                     <Link to="/products" className="btn btn-primary btn-lg">
                                         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                                            <path d="M9 17A8 8 0 1 0 9 1a8 8 0 0 0 0 16zM18 18l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                            <path
+                                                d="M9 17A8 8 0 1 0 9 1a8 8 0 0 0 0 16zM18 18l-4.35-4.35"
+                                                stroke="currentColor"
+                                                strokeWidth="2"
+                                                strokeLinecap="round"
+                                            />
                                         </svg>
                                         Explore Products
                                     </Link>
@@ -119,10 +131,14 @@ const Home = () => {
                                     effect={'cards'}
                                     grabCursor={true}
                                     modules={[Autoplay, EffectCards]}
-                                    autoplay={prefersReducedMotion ? false : {
-                                        delay: 2500,
-                                        disableOnInteraction: false,
-                                    }}
+                                    autoplay={
+                                        prefersReducedMotion
+                                            ? false
+                                            : {
+                                                  delay: 2500,
+                                                  disableOnInteraction: false,
+                                              }
+                                    }
                                     className="hero-swiper"
                                 >
                                     <SwiperSlide>
@@ -193,10 +209,14 @@ const Home = () => {
                                 <h1 className="hero-title">
                                     Welcome Back,
                                     <br />
-                                    <span className="gradient-text"> {user?.name || 'Shopper'}</span>
+                                    <span className="gradient-text">
+                                        {' '}
+                                        {user?.name || 'Shopper'}
+                                    </span>
                                 </h1>
                                 <p className="hero-description">
-                                    Check out the latest arrivals and trending products selected just for you.
+                                    Check out the latest arrivals and trending products selected
+                                    just for you.
                                 </p>
                                 <div className="hero-actions">
                                     <Link to="/products" className="btn btn-primary btn-lg">
@@ -214,16 +234,27 @@ const Home = () => {
                                         effect={'cards'}
                                         grabCursor={true}
                                         modules={[Autoplay, EffectCards]}
-                                        autoplay={prefersReducedMotion ? false : {
-                                            delay: 3000,
-                                            disableOnInteraction: false,
-                                        }}
+                                        autoplay={
+                                            prefersReducedMotion
+                                                ? false
+                                                : {
+                                                      delay: 3000,
+                                                      disableOnInteraction: false,
+                                                  }
+                                        }
                                         className="hero-swiper"
                                     >
                                         {featuredProducts.length > 0 ? (
                                             featuredProducts.slice(0, 5).map((product) => (
                                                 <SwiperSlide key={product._id}>
-                                                    <Link to={`/products/${product._id}`} style={{ display: 'block', height: '100%', textDecoration: 'none' }}>
+                                                    <Link
+                                                        to={`/products/${product._id}`}
+                                                        style={{
+                                                            display: 'block',
+                                                            height: '100%',
+                                                            textDecoration: 'none',
+                                                        }}
+                                                    >
                                                         <div className="hero-slide-card">
                                                             <ImageWithFallback
                                                                 src={product.images?.[0]}
@@ -232,8 +263,12 @@ const Home = () => {
                                                                 className="hero-slide-img"
                                                             />
                                                             <div className="hero-slide-content">
-                                                                <h3 className="hero-slide-name">{product.name}</h3>
-                                                                <p className="hero-slide-price">₹{product.price}</p>
+                                                                <h3 className="hero-slide-name">
+                                                                    {product.name}
+                                                                </h3>
+                                                                <p className="hero-slide-price">
+                                                                    ₹{product.price}
+                                                                </p>
                                                             </div>
                                                         </div>
                                                     </Link>
@@ -279,10 +314,19 @@ const Home = () => {
 
             {/* Seed & Clear Database Buttons - DEVELOPMENT ONLY & ADMIN ONLY */}
             {process.env.NODE_ENV === 'development' && user?.role === 'admin' && (
-                <div className="container" style={{ marginTop: '20px', textAlign: 'center', display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                <div
+                    className="container"
+                    style={{
+                        marginTop: '20px',
+                        textAlign: 'center',
+                        display: 'flex',
+                        gap: '10px',
+                        justifyContent: 'center',
+                    }}
+                >
                     <button
                         onClick={async () => {
-                            if (window.confirm("Are you sure you want to seed the database?")) {
+                            if (window.confirm('Are you sure you want to seed the database?')) {
                                 const res = await seedDatabase();
                                 alert(res.message);
                                 fetchData();
@@ -294,7 +338,11 @@ const Home = () => {
                     </button>
                     <button
                         onClick={async () => {
-                            if (window.confirm("Are you sure you want to DELETE ALL PRODUCTS? This cannot be undone.")) {
+                            if (
+                                window.confirm(
+                                    'Are you sure you want to DELETE ALL PRODUCTS? This cannot be undone.'
+                                )
+                            ) {
                                 const res = await clearDatabase();
                                 alert(res.message);
                                 fetchData();
@@ -306,8 +354,7 @@ const Home = () => {
                         🗑️ Clear Database
                     </button>
                 </div>
-            )
-            }
+            )}
 
             {/* Featured Products */}
             <section className="featured-section">
@@ -317,7 +364,12 @@ const Home = () => {
                         <Link to="/products" className="view-all-link">
                             View All
                             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                                <path d="M7 4l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                <path
+                                    d="M7 4l6 6-6 6"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                />
                             </svg>
                         </Link>
                     </div>
@@ -327,7 +379,11 @@ const Home = () => {
                     ) : (
                         <div className="products-grid">
                             {featuredProducts.map((product) => (
-                                <Link to={`/products/${product._id}`} key={product._id} className="product-card">
+                                <Link
+                                    to={`/products/${product._id}`}
+                                    key={product._id}
+                                    className="product-card"
+                                >
                                     <div className="product-image">
                                         <ImageWithFallback
                                             src={product.images?.[0]}
@@ -336,9 +392,7 @@ const Home = () => {
                                             loading="lazy"
                                         />
                                         {product.compareAtPrice && (
-                                            <div className="product-badge">
-                                                Sale
-                                            </div>
+                                            <div className="product-badge">Sale</div>
                                         )}
                                     </div>
                                     <div className="product-info">
@@ -346,13 +400,22 @@ const Home = () => {
                                         <p className="product-store">{product.store?.name}</p>
                                         <div className="product-footer">
                                             <div className="product-price">
-                                                <span className="current-price">₹{product.price}</span>
+                                                <span className="current-price">
+                                                    ₹{product.price}
+                                                </span>
                                                 {product.compareAtPrice && (
-                                                    <span className="old-price">₹{product.compareAtPrice}</span>
+                                                    <span className="old-price">
+                                                        ₹{product.compareAtPrice}
+                                                    </span>
                                                 )}
                                             </div>
                                             <div className="product-rating">
-                                                <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                                                <svg
+                                                    width="16"
+                                                    height="16"
+                                                    viewBox="0 0 20 20"
+                                                    fill="currentColor"
+                                                >
                                                     <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
                                                 </svg>
                                                 <span>{product.rating || 4.5}</span>
@@ -374,29 +437,56 @@ const Home = () => {
                         <Link to="/stores" className="view-all-link">
                             View All
                             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                                <path d="M7 4l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                <path
+                                    d="M7 4l6 6-6 6"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                />
                             </svg>
                         </Link>
                     </div>
 
                     <div className="stores-grid">
                         {featuredStores.map((store) => (
-                            <Link to={`/stores/${store._id}`} key={store._id} className="store-card">
+                            <Link
+                                to={`/stores/${store._id}`}
+                                key={store._id}
+                                className="store-card"
+                            >
                                 <div className="store-banner">
-                                    <ImageWithFallback src={store.banner} fallbackSrc={DEFAULT_STORE_BANNER} alt={store.name} loading="lazy" />
+                                    <ImageWithFallback
+                                        src={store.banner}
+                                        fallbackSrc={DEFAULT_STORE_BANNER}
+                                        alt={store.name}
+                                        loading="lazy"
+                                    />
                                 </div>
                                 <div className="store-content">
-                                    <ImageWithFallback src={store.logo} fallbackSrc={DEFAULT_STORE_LOGO} alt={store.name} className="store-logo" loading="lazy" />
+                                    <ImageWithFallback
+                                        src={store.logo}
+                                        fallbackSrc={DEFAULT_STORE_LOGO}
+                                        alt={store.name}
+                                        className="store-logo"
+                                        loading="lazy"
+                                    />
                                     <h3>{store.name}</h3>
                                     <p className="store-category">{store.category}</p>
                                     <div className="store-stats">
                                         <span className="store-rating">
-                                            <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+                                            <svg
+                                                width="16"
+                                                height="16"
+                                                viewBox="0 0 20 20"
+                                                fill="currentColor"
+                                            >
                                                 <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
                                             </svg>
                                             {store.rating || 4.5}
                                         </span>
-                                        <span className="store-reviews">({store.reviewCount || 0} reviews)</span>
+                                        <span className="store-reviews">
+                                            ({store.reviewCount || 0} reviews)
+                                        </span>
                                     </div>
                                 </div>
                             </Link>
@@ -429,26 +519,45 @@ const Home = () => {
                     <div className="footer-content">
                         <div className="footer-column">
                             <h3>Marketplace</h3>
-                            <p>Your one-stop destination for discovering amazing products from local sellers.</p>
+                            <p>
+                                Your one-stop destination for discovering amazing products from
+                                local sellers.
+                            </p>
                         </div>
 
                         <div className="footer-column">
                             <h4>Quick Links</h4>
                             <ul className="footer-links">
-                                <li><Link to="/products">Products</Link></li>
-                                <li><Link to="/stores">Stores</Link></li>
-                                <li><Link to="/about">About Us</Link></li>
-                                <li><Link to="/contact">Contact</Link></li>
+                                <li>
+                                    <Link to="/products">Products</Link>
+                                </li>
+                                <li>
+                                    <Link to="/stores">Stores</Link>
+                                </li>
+                                <li>
+                                    <Link to="/about">About Us</Link>
+                                </li>
+                                <li>
+                                    <Link to="/contact">Contact</Link>
+                                </li>
                             </ul>
                         </div>
 
                         <div className="footer-column">
                             <h4>For Sellers</h4>
                             <ul className="footer-links">
-                                <li><Link to="/register">Become a Seller</Link></li>
-                                <li><Link to="/seller/dashboard">Seller Dashboard</Link></li>
-                                <li><Link to="/help">Help Center</Link></li>
-                                <li><Link to="/terms">Terms & Conditions</Link></li>
+                                <li>
+                                    <Link to="/register">Become a Seller</Link>
+                                </li>
+                                <li>
+                                    <Link to="/seller/dashboard">Seller Dashboard</Link>
+                                </li>
+                                <li>
+                                    <Link to="/help">Help Center</Link>
+                                </li>
+                                <li>
+                                    <Link to="/terms">Terms & Conditions</Link>
+                                </li>
                             </ul>
                         </div>
 
@@ -476,7 +585,7 @@ const Home = () => {
                     </div>
                 </div>
             </footer>
-        </div >
+        </div>
     );
 };
 

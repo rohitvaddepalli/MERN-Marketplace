@@ -1,9 +1,11 @@
 /* Base Skeleton Styles */
 .skeleton {
-    background: linear-gradient(90deg,
-            var(--skeleton-base, #e0e0e0) 0%,
-            var(--skeleton-highlight, #f0f0f0) 50%,
-            var(--skeleton-base, #e0e0e0) 100%);
+    background: linear-gradient(
+        90deg,
+        var(--skeleton-base, #e0e0e0) 0%,
+        var(--skeleton-highlight, #f0f0f0) 50%,
+        var(--skeleton-base, #e0e0e0) 100%
+    );
     background-size: 200% 100%;
     animation: shimmer 1.5s ease-in-out infinite;
     border-radius: var(--border-radius);
@@ -234,7 +236,6 @@
 
 /* Responsive */
 @media (max-width: 768px) {
-
     .skeleton-grid-product,
     .skeleton-grid-store {
         grid-template-columns: 1fr;

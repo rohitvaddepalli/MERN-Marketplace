@@ -11,7 +11,7 @@ const Register = () => {
         password: '',
         confirmPassword: '',
         role: 'customer',
-        phone: ''
+        phone: '',
     });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -21,7 +21,7 @@ const Register = () => {
     const handleChange = (e) => {
         setFormData({
             ...formData,
-            [e.target.name]: e.target.value
+            [e.target.name]: e.target.value,
         });
     };
 
@@ -41,7 +41,7 @@ const Register = () => {
 
         setLoading(true);
 
-        const { confirmPassword, ...registerData } = formData;
+        const { confirmPassword: _confirmPassword, ...registerData } = formData;
         const result = await register(registerData);
 
         setLoading(false);
@@ -83,7 +83,12 @@ const Register = () => {
                         {error && (
                             <div className="auth-error">
                                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                                    <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM10 6v4m0 4h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                    <path
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM10 6v4m0 4h.01"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                    />
                                 </svg>
                                 {error}
                             </div>
@@ -94,7 +99,12 @@ const Register = () => {
                                 <label className="form-label">Full Name</label>
                                 <div className="input-with-icon">
                                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                                        <path d="M10 10a4 4 0 100-8 4 4 0 000 8zM3 18a7 7 0 0114 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                        <path
+                                            d="M10 10a4 4 0 100-8 4 4 0 000 8zM3 18a7 7 0 0114 0"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                            strokeLinecap="round"
+                                        />
                                     </svg>
                                     <input
                                         type="text"
@@ -112,8 +122,17 @@ const Register = () => {
                                 <label className="form-label">Email Address</label>
                                 <div className="input-with-icon">
                                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                                        <path d="M3 4h14a2 2 0 012 2v8a2 2 0 01-2 2H3a2 2 0 01-2-2V6a2 2 0 012-2z" stroke="currentColor" strokeWidth="2" />
-                                        <path d="M1 6l9 6 9-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                        <path
+                                            d="M3 4h14a2 2 0 012 2v8a2 2 0 01-2 2H3a2 2 0 01-2-2V6a2 2 0 012-2z"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                        />
+                                        <path
+                                            d="M1 6l9 6 9-6"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                            strokeLinecap="round"
+                                        />
                                     </svg>
                                     <input
                                         type="email"
@@ -132,7 +151,11 @@ const Register = () => {
                                     <label className="form-label">Password</label>
                                     <div className="input-with-icon">
                                         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                                            <path d="M5 8V6a5 5 0 0110 0v2M3 8h14a2 2 0 012 2v6a2 2 0 01-2 2H3a2 2 0 01-2-2v-6a2 2 0 012-2z" stroke="currentColor" strokeWidth="2" />
+                                            <path
+                                                d="M5 8V6a5 5 0 0110 0v2M3 8h14a2 2 0 012 2v6a2 2 0 01-2 2H3a2 2 0 01-2-2v-6a2 2 0 012-2z"
+                                                stroke="currentColor"
+                                                strokeWidth="2"
+                                            />
                                         </svg>
                                         <input
                                             type="password"
@@ -150,7 +173,11 @@ const Register = () => {
                                     <label className="form-label">Confirm Password</label>
                                     <div className="input-with-icon">
                                         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                                            <path d="M5 8V6a5 5 0 0110 0v2M3 8h14a2 2 0 012 2v6a2 2 0 01-2 2H3a2 2 0 01-2-2v-6a2 2 0 012-2z" stroke="currentColor" strokeWidth="2" />
+                                            <path
+                                                d="M5 8V6a5 5 0 0110 0v2M3 8h14a2 2 0 012 2v6a2 2 0 01-2 2H3a2 2 0 01-2-2v-6a2 2 0 012-2z"
+                                                stroke="currentColor"
+                                                strokeWidth="2"
+                                            />
                                         </svg>
                                         <input
                                             type="password"
@@ -169,7 +196,11 @@ const Register = () => {
                                 <label className="form-label">Phone Number (Optional)</label>
                                 <div className="input-with-icon">
                                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                                        <path d="M3 5a2 2 0 012-2h.5a2 2 0 011.9 1.4l.9 2.7a2 2 0 01-.6 2.2l-.9.8a10 10 0 003.3 3.3l.8-.9a2 2 0 012.2-.6l2.7.9a2 2 0 011.4 1.9v.5a2 2 0 01-2 2h-1A11 11 0 013 6V5z" stroke="currentColor" strokeWidth="2" />
+                                        <path
+                                            d="M3 5a2 2 0 012-2h.5a2 2 0 011.9 1.4l.9 2.7a2 2 0 01-.6 2.2l-.9.8a10 10 0 003.3 3.3l.8-.9a2 2 0 012.2-.6l2.7.9a2 2 0 011.4 1.9v.5a2 2 0 01-2 2h-1A11 11 0 013 6V5z"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                        />
                                     </svg>
                                     <input
                                         type="tel"
@@ -185,7 +216,9 @@ const Register = () => {
                             <div className="form-group">
                                 <label className="form-label">Account Type</label>
                                 <div className="role-selection">
-                                    <label className={`role-option ${formData.role === 'customer' ? 'active' : ''}`}>
+                                    <label
+                                        className={`role-option ${formData.role === 'customer' ? 'active' : ''}`}
+                                    >
                                         <input
                                             type="radio"
                                             name="role"
@@ -194,8 +227,17 @@ const Register = () => {
                                             onChange={handleChange}
                                         />
                                         <div className="role-content">
-                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                                                <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" stroke="currentColor" strokeWidth="2" />
+                                            <svg
+                                                width="24"
+                                                height="24"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                            >
+                                                <path
+                                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                                                    stroke="currentColor"
+                                                    strokeWidth="2"
+                                                />
                                             </svg>
                                             <div>
                                                 <strong>Customer</strong>
@@ -204,7 +246,9 @@ const Register = () => {
                                         </div>
                                     </label>
 
-                                    <label className={`role-option ${formData.role === 'seller' ? 'active' : ''}`}>
+                                    <label
+                                        className={`role-option ${formData.role === 'seller' ? 'active' : ''}`}
+                                    >
                                         <input
                                             type="radio"
                                             name="role"
@@ -213,8 +257,18 @@ const Register = () => {
                                             onChange={handleChange}
                                         />
                                         <div className="role-content">
-                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                                                <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9zM9 22V12h6v10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                            <svg
+                                                width="24"
+                                                height="24"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                            >
+                                                <path
+                                                    d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9zM9 22V12h6v10"
+                                                    stroke="currentColor"
+                                                    strokeWidth="2"
+                                                    strokeLinecap="round"
+                                                />
                                             </svg>
                                             <div>
                                                 <strong>Seller</strong>

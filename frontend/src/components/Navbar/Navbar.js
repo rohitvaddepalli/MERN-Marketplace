@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
+import { useSocket } from '../../context/SocketContext';
 import './Navbar.css';
 
 const Navbar = () => {
     const { user, isAuthenticated, logout, isSeller, isAdmin } = useAuth();
     const { getCartCount } = useCart();
+    const { unreadCount, markAllRead } = useSocket();
     const navigate = useNavigate();
     const location = useLocation();
     const [showUserMenu, setShowUserMenu] = useState(false);
@@ -40,8 +42,19 @@ const Navbar = () => {
                             aria-label="Search for products, stores"
                         />
                         <button className="search-btn" aria-label="Submit search">
-                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                                <path d="M9 17A8 8 0 1 0 9 1a8 8 0 0 0 0 16zM18 18l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                            <svg
+                                width="20"
+                                height="20"
+                                viewBox="0 0 20 20"
+                                fill="none"
+                                aria-hidden="true"
+                            >
+                                <path
+                                    d="M9 17A8 8 0 1 0 9 1a8 8 0 0 0 0 16zM18 18l-4.35-4.35"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                />
                             </svg>
                         </button>
                     </div>
@@ -62,15 +75,56 @@ const Navbar = () => {
                         {isAuthenticated ? (
                             <>
                                 {!isSeller && !isAdmin && (
-                                    <Link to="/cart" className="nav-link cart-link">
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                                            <path d="M9 2L7.17 4M15 2l1.83 2M9 22v-6M15 22v-6M3 8h18M3 8v10a2 2 0 002 2h14a2 2 0 002-2V8M3 8l1.5-2m16.5 2l-1.5-2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                                        </svg>
-                                        Cart
-                                        {getCartCount() > 0 && (
-                                            <span className="cart-badge">{getCartCount()}</span>
-                                        )}
-                                    </Link>
+                                    <>
+                                        <Link
+                                            to="/customer/orders"
+                                            className="nav-link notification-link"
+                                            onClick={markAllRead}
+                                            aria-label="Notifications"
+                                            style={{ position: 'relative' }}
+                                        >
+                                            <svg
+                                                width="24"
+                                                height="24"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="2"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                            >
+                                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                                            </svg>
+                                            {unreadCount > 0 && (
+                                                <span
+                                                    className="cart-badge"
+                                                    style={{ right: '-5px', top: '-5px' }}
+                                                >
+                                                    {unreadCount}
+                                                </span>
+                                            )}
+                                        </Link>
+                                        <Link to="/cart" className="nav-link cart-link">
+                                            <svg
+                                                width="24"
+                                                height="24"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                            >
+                                                <path
+                                                    d="M9 2L7.17 4M15 2l1.83 2M9 22v-6M15 22v-6M3 8h18M3 8v10a2 2 0 002 2h14a2 2 0 002-2V8M3 8l1.5-2m16.5 2l-1.5-2"
+                                                    stroke="currentColor"
+                                                    strokeWidth="2"
+                                                    strokeLinecap="round"
+                                                />
+                                            </svg>
+                                            Cart
+                                            {getCartCount() > 0 && (
+                                                <span className="cart-badge">{getCartCount()}</span>
+                                            )}
+                                        </Link>
+                                    </>
                                 )}
 
                                 <div className="user-menu-wrapper">
@@ -81,25 +135,58 @@ const Navbar = () => {
                                         aria-controls="user-dropdown-menu"
                                     >
                                         <img
-                                            src={user?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=default'}
+                                            src={
+                                                user?.avatar ||
+                                                'https://api.dicebear.com/7.x/avataaars/svg?seed=default'
+                                            }
                                             alt={user?.name}
                                             className="user-avatar"
                                         />
                                         <span>{user?.name}</span>
-                                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                                            <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                        <svg
+                                            width="16"
+                                            height="16"
+                                            viewBox="0 0 16 16"
+                                            fill="none"
+                                            aria-hidden="true"
+                                        >
+                                            <path
+                                                d="M4 6l4 4 4-4"
+                                                stroke="currentColor"
+                                                strokeWidth="2"
+                                                strokeLinecap="round"
+                                            />
                                         </svg>
                                     </button>
 
                                     {showUserMenu && (
-                                        <div className="user-dropdown" id="user-dropdown-menu" role="menu">
+                                        <div
+                                            className="user-dropdown"
+                                            id="user-dropdown-menu"
+                                            role="menu"
+                                        >
                                             <Link
-                                                to={isSeller ? "/seller/dashboard" : isAdmin ? "/admin/dashboard" : "/customer/dashboard"}
+                                                to={
+                                                    isSeller
+                                                        ? '/seller/dashboard'
+                                                        : isAdmin
+                                                          ? '/admin/dashboard'
+                                                          : '/customer/dashboard'
+                                                }
                                                 className="dropdown-item"
                                                 onClick={() => setShowUserMenu(false)}
                                             >
-                                                <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
-                                                    <path d="M3 5a2 2 0 012-2h10a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V5z" stroke="currentColor" strokeWidth="2" />
+                                                <svg
+                                                    width="18"
+                                                    height="18"
+                                                    viewBox="0 0 20 20"
+                                                    fill="none"
+                                                >
+                                                    <path
+                                                        d="M3 5a2 2 0 012-2h10a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V5z"
+                                                        stroke="currentColor"
+                                                        strokeWidth="2"
+                                                    />
                                                 </svg>
                                                 Dashboard
                                             </Link>
@@ -110,8 +197,18 @@ const Navbar = () => {
                                                         className="dropdown-item"
                                                         onClick={() => setShowUserMenu(false)}
                                                     >
-                                                        <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
-                                                            <path d="M3 1v18M3 4h14a2 2 0 012 2v10a2 2 0 01-2 2H3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                                        <svg
+                                                            width="18"
+                                                            height="18"
+                                                            viewBox="0 0 20 20"
+                                                            fill="none"
+                                                        >
+                                                            <path
+                                                                d="M3 1v18M3 4h14a2 2 0 012 2v10a2 2 0 01-2 2H3"
+                                                                stroke="currentColor"
+                                                                strokeWidth="2"
+                                                                strokeLinecap="round"
+                                                            />
                                                         </svg>
                                                         My Orders
                                                     </Link>
@@ -120,7 +217,16 @@ const Navbar = () => {
                                                         className="dropdown-item"
                                                         onClick={() => setShowUserMenu(false)}
                                                     >
-                                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                        <svg
+                                                            width="18"
+                                                            height="18"
+                                                            viewBox="0 0 24 24"
+                                                            fill="none"
+                                                            stroke="currentColor"
+                                                            strokeWidth="2"
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                        >
                                                             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
                                                         </svg>
                                                         Wishlist
@@ -130,7 +236,17 @@ const Navbar = () => {
                                                         className="dropdown-item"
                                                         onClick={() => setShowUserMenu(false)}
                                                     >
-                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                                        <svg
+                                                            width="18"
+                                                            height="18"
+                                                            viewBox="0 0 24 24"
+                                                            fill="none"
+                                                            stroke="currentColor"
+                                                            strokeWidth="2"
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            aria-hidden="true"
+                                                        >
                                                             <circle cx="12" cy="12" r="3"></circle>
                                                             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                                                         </svg>
@@ -138,9 +254,24 @@ const Navbar = () => {
                                                     </Link>
                                                 </>
                                             )}
-                                            <button className="dropdown-item" onClick={handleLogout} role="menuitem">
-                                                <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                                                    <path d="M13 3h3a2 2 0 012 2v10a2 2 0 01-2 2h-3M8 16l-5-5m0 0l5-5m-5 5h13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                            <button
+                                                className="dropdown-item"
+                                                onClick={handleLogout}
+                                                role="menuitem"
+                                            >
+                                                <svg
+                                                    width="18"
+                                                    height="18"
+                                                    viewBox="0 0 20 20"
+                                                    fill="none"
+                                                    aria-hidden="true"
+                                                >
+                                                    <path
+                                                        d="M13 3h3a2 2 0 012 2v10a2 2 0 01-2 2h-3M8 16l-5-5m0 0l5-5m-5 5h13"
+                                                        stroke="currentColor"
+                                                        strokeWidth="2"
+                                                        strokeLinecap="round"
+                                                    />
                                                 </svg>
                                                 Logout
                                             </button>

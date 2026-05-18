@@ -1,10 +1,10 @@
-# Dependencies
+# ── Dependencies ──────────────────────────────────────────────────────────────
 node_modules/
 npm-debug.log
 yarn-error.log
 yarn-debug.log
 
-# Environment Variables
+# ── Environment Variables ──────────────────────────────────────────────────────
 .env
 .env.local
 .env.development.local
@@ -13,33 +13,64 @@ yarn-debug.log
 backend/.env
 frontend/.env
 
-# Production Builds
+# ── Production Builds ──────────────────────────────────────────────────────────
 frontend/build/
 dist/
 build/
 
-# Firebase
+# ── Firebase ───────────────────────────────────────────────────────────────────
 .firebase/
 .firebaserc
 firebase-debug.log*
 
-# Logs
+# ── Logs ───────────────────────────────────────────────────────────────────────
 *.log
 logs/
 
-# IDE / Editor / System
+# ── IDE / Editor / System ──────────────────────────────────────────────────────
 .vscode/
 .idea/
+.opencode/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 .DS_Store
 Thumbs.db
+*.swp
+*.swo
+*~
 
-# Agent and Artifacts
+# ── Agent & AI Tool Directories ────────────────────────────────────────────────
 .agent/
-UIs/
+.agents/
 .orchids/
+UIs/
+graphify-out/
+
+# ── Python ─────────────────────────────────────────────────────────────────────
 *.pyc
 __pycache__/
+
+# ── Test Coverage ──────────────────────────────────────────────────────────────
+coverage/
+backend/coverage/
+
+# ── MongoDB memory server cache (integration tests) ────────────────────────────
+.mongodb-binaries/
+backend/.mongodb-binaries/
+
+# ── AI/Agent-generated documentation (not for version control) ─────────────────
+# These are working/planning docs produced by AI agents — keep out of git history
+backend-architect.md
+backend-tasks.md
+design.md
+DESIGN.md
+design_tasks.md
+DESIGN_STITCH.md
+ADMIN.md
+SETUP.md
+audit.md
+enhance.md
+production.md
+backend/API_ARCHITECTURE.md

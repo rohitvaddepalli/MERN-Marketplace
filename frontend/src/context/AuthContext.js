@@ -42,7 +42,7 @@ export const AuthProvider = ({ children }) => {
         if (storedUser) {
             try {
                 setUser(JSON.parse(storedUser));
-            } catch (e) {
+            } catch (_e) {
                 localStorage.removeItem('user');
             }
         }
@@ -63,7 +63,7 @@ export const AuthProvider = ({ children }) => {
             logger.error('Login error:', error);
             return {
                 success: false,
-                message: error.response?.data?.message || 'Login failed'
+                message: error.response?.data?.message || 'Login failed',
             };
         }
     }, []);
@@ -82,7 +82,7 @@ export const AuthProvider = ({ children }) => {
             logger.error('Registration error:', error);
             return {
                 success: false,
-                message: error.response?.data?.message || 'Registration failed'
+                message: error.response?.data?.message || 'Registration failed',
             };
         }
     }, []);
@@ -109,20 +109,23 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('user', JSON.stringify(updatedUser));
     }, []);
 
-    const value = useMemo(() => ({
-        user,
-        loading,
-        login,
-        register,
-        loginWithGoogle,
-        logout,
-        updateUser,
-        refreshAuth: checkAuth,
-        isAuthenticated: !!user,
-        isSeller: user?.role === 'seller',
-        isCustomer: user?.role === 'customer' || !user?.role,
-        isAdmin: user?.role === 'admin'
-    }), [user, loading, login, register, loginWithGoogle, logout, updateUser, checkAuth]);
+    const value = useMemo(
+        () => ({
+            user,
+            loading,
+            login,
+            register,
+            loginWithGoogle,
+            logout,
+            updateUser,
+            refreshAuth: checkAuth,
+            isAuthenticated: !!user,
+            isSeller: user?.role === 'seller',
+            isCustomer: user?.role === 'customer' || !user?.role,
+            isAdmin: user?.role === 'admin',
+        }),
+        [user, loading, login, register, loginWithGoogle, logout, updateUser, checkAuth]
+    );
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

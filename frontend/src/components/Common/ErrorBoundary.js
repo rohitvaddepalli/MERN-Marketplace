@@ -8,7 +8,7 @@ class ErrorBoundary extends React.Component {
         this.state = { hasError: false };
     }
 
-    static getDerivedStateFromError(error) {
+    static getDerivedStateFromError(_error) {
         return { hasError: true };
     }
 
@@ -19,13 +19,31 @@ class ErrorBoundary extends React.Component {
     render() {
         if (this.state.hasError) {
             return (
-                <div className="page-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh', textAlign: 'center' }}>
+                <div
+                    className="page-container"
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        minHeight: '80vh',
+                        textAlign: 'center',
+                    }}
+                >
                     <div className="container">
-                        <div className="error-card" style={{ padding: '3rem', backgroundColor: 'white', borderRadius: '1rem', boxShadow: '0 10px 25px rgba(0,0,0,0.05)' }}>
+                        <div
+                            className="error-card"
+                            style={{
+                                padding: '3rem',
+                                backgroundColor: 'white',
+                                borderRadius: '1rem',
+                                boxShadow: '0 10px 25px rgba(0,0,0,0.05)',
+                            }}
+                        >
                             <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>⚠️</div>
                             <h1 style={{ marginBottom: '1rem' }}>Oops! Something went wrong.</h1>
                             <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
-                                We're sorry for the inconvenience. The application encountered an unexpected error.
+                                We're sorry for the inconvenience. The application encountered an
+                                unexpected error.
                             </p>
                             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
                                 <button
@@ -34,7 +52,11 @@ class ErrorBoundary extends React.Component {
                                 >
                                     Reload Page
                                 </button>
-                                <Link to="/" className="btn btn-outline" onClick={() => this.setState({ hasError: false })}>
+                                <Link
+                                    to="/"
+                                    className="btn btn-outline"
+                                    onClick={() => this.setState({ hasError: false })}
+                                >
                                     Back to Home
                                 </Link>
                             </div>

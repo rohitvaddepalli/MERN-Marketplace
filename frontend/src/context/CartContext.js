@@ -27,18 +27,22 @@ export const CartProvider = ({ children }) => {
         // Save cart to localStorage whenever it changes
         try {
             // Create a sanitized copy of the cart to avoid exceeding localStorage quota
-            const cartToSave = cartItems.map(item => {
+            const cartToSave = cartItems.map((item) => {
                 const sanitizedItem = { ...item };
 
                 // Handle images array
                 if (sanitizedItem.images && Array.isArray(sanitizedItem.images)) {
-                    sanitizedItem.images = sanitizedItem.images.map(img =>
-                        (typeof img === 'string' && img.length > 1000) ? DEFAULT_PRODUCT_IMAGE : img
+                    sanitizedItem.images = sanitizedItem.images.map((img) =>
+                        typeof img === 'string' && img.length > 1000 ? DEFAULT_PRODUCT_IMAGE : img
                     );
                 }
 
                 // Handle single image property if it exists
-                if (sanitizedItem.image && typeof sanitizedItem.image === 'string' && sanitizedItem.image.length > 1000) {
+                if (
+                    sanitizedItem.image &&
+                    typeof sanitizedItem.image === 'string' &&
+                    sanitizedItem.image.length > 1000
+                ) {
                     sanitizedItem.image = DEFAULT_PRODUCT_IMAGE;
                 }
 
@@ -51,9 +55,9 @@ export const CartProvider = ({ children }) => {
             // If quota is exceeded, we might want to try saving without any images as a fallback
             if (error.name === 'QuotaExceededError') {
                 try {
-                    const minimalCart = cartItems.map(({ images, image, ...rest }) => ({
+                    const minimalCart = cartItems.map(({ images: _images, image: _image, ...rest }) => ({
                         ...rest,
-                        images: [DEFAULT_PRODUCT_IMAGE] // Use placeholder
+                        images: [DEFAULT_PRODUCT_IMAGE], // Use placeholder
                     }));
                     localStorage.setItem('cart', JSON.stringify(minimalCart));
                 } catch (retryError) {
@@ -90,9 +94,7 @@ export const CartProvider = ({ children }) => {
         }
 
         setCartItems((prevItems) =>
-            prevItems.map((item) =>
-                item._id === productId ? { ...item, quantity } : item
-            )
+            prevItems.map((item) => (item._id === productId ? { ...item, quantity } : item))
         );
     };
 
@@ -104,7 +106,7 @@ export const CartProvider = ({ children }) => {
         let price = item.price;
         if (item.bulkDiscounts && item.bulkDiscounts.length > 0) {
             const sortedDiscounts = [...item.bulkDiscounts].sort((a, b) => b.quantity - a.quantity);
-            const applicableDiscount = sortedDiscounts.find(d => item.quantity >= d.quantity);
+            const applicableDiscount = sortedDiscounts.find((d) => item.quantity >= d.quantity);
 
             if (applicableDiscount) {
                 price = price * (1 - applicableDiscount.discountPercentage / 100);
@@ -114,7 +116,10 @@ export const CartProvider = ({ children }) => {
     };
 
     const getCartTotal = () => {
-        return cartItems.reduce((total, item) => total + calculateItemPrice(item) * item.quantity, 0);
+        return cartItems.reduce(
+            (total, item) => total + calculateItemPrice(item) * item.quantity,
+            0
+        );
     };
 
     const getCartCount = () => {
@@ -129,7 +134,7 @@ export const CartProvider = ({ children }) => {
         clearCart,
         getCartTotal,
         getCartCount,
-        calculateItemPrice
+        calculateItemPrice,
     };
 
     return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

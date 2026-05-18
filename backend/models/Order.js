@@ -3,35 +3,37 @@ import mongoose from 'mongoose';
 const orderSchema = new mongoose.Schema({
     orderNumber: {
         type: String,
-        unique: true
+        unique: true,
     },
     customer: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
+        ref: 'User',
     },
     guestInfo: {
         name: String,
-        email: String
+        email: String,
     },
-    items: [{
-        product: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'Product',
-            required: true
+    items: [
+        {
+            product: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'Product',
+                required: true,
+            },
+            name: String,
+            price: Number,
+            quantity: {
+                type: Number,
+                required: true,
+                min: 1,
+            },
+            image: String,
+            store: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'Store',
+            },
         },
-        name: String,
-        price: Number,
-        quantity: {
-            type: Number,
-            required: true,
-            min: 1
-        },
-        image: String,
-        store: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'Store'
-        }
-    }],
+    ],
     shippingAddress: {
         name: String,
         street: String,
@@ -39,44 +41,44 @@ const orderSchema = new mongoose.Schema({
         state: String,
         zipCode: String,
         country: String,
-        phone: String
+        phone: String,
     },
     paymentMethod: {
         type: String,
         required: true,
-        enum: ['card', 'paypal', 'cod']
+        enum: ['card', 'paypal', 'cod'],
     },
     paymentStatus: {
         type: String,
         enum: ['pending', 'completed', 'failed'],
-        default: 'pending'
+        default: 'pending',
     },
     itemsPrice: {
         type: Number,
-        required: true
+        required: true,
     },
     shippingPrice: {
         type: Number,
-        default: 0
+        default: 0,
     },
     taxPrice: {
         type: Number,
-        default: 0
+        default: 0,
     },
     totalPrice: {
         type: Number,
-        required: true
+        required: true,
     },
     status: {
         type: String,
         enum: ['pending', 'processing', 'shipped', 'delivered', 'cancelled'],
-        default: 'pending'
+        default: 'pending',
     },
     deliveredAt: Date,
     createdAt: {
         type: Date,
-        default: Date.now
-    }
+        default: Date.now,
+    },
 });
 
 // Generate order number before saving
@@ -87,5 +89,9 @@ orderSchema.pre('save', async function (next) {
     }
     next();
 });
+
+// Add database indexes
+orderSchema.index({ customer: 1 });
+orderSchema.index({ 'items.store': 1 });
 
 export default mongoose.model('Order', orderSchema);

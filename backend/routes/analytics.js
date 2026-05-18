@@ -6,7 +6,7 @@ import {
     getProductAnalytics,
     getAdminSalesAnalytics,
     getAdminCustomerAnalytics,
-    getAdminProductAnalytics
+    getAdminProductAnalytics,
 } from '../controllers/analyticsController.js';
 import { protect, authorize } from '../middleware/auth.js';
 

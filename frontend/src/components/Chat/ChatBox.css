@@ -34,8 +34,12 @@
     background: #ccc;
     flex-shrink: 0;
 }
-.chatbox-status.online  { background: #4ade80; }
-.chatbox-status.offline { background: #f87171; }
+.chatbox-status.online {
+    background: #4ade80;
+}
+.chatbox-status.offline {
+    background: #f87171;
+}
 
 .chatbox-close {
     background: transparent;
@@ -48,7 +52,9 @@
     border-radius: var(--border-radius-sm);
     transition: background-color var(--transition-fast);
 }
-.chatbox-close:hover { background: rgba(255,255,255,0.2); }
+.chatbox-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
 
 /* Messages */
 .chatbox-messages {
@@ -75,8 +81,14 @@
     max-width: 78%;
 }
 
-.chatbox-msg.mine  { align-self: flex-end; align-items: flex-end; }
-.chatbox-msg.theirs { align-self: flex-start; align-items: flex-start; }
+.chatbox-msg.mine {
+    align-self: flex-end;
+    align-items: flex-end;
+}
+.chatbox-msg.theirs {
+    align-self: flex-start;
+    align-items: flex-start;
+}
 
 .chatbox-msg-author {
     font-size: 0.75rem;

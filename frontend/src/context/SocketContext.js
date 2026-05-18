@@ -16,12 +16,14 @@ const SOCKET_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 export const SocketProvider = ({ children }) => {
     const { isAuthenticated } = useAuth();
     const socketRef = useRef(null);
+    // Expose the socket instance as reactive state so ChatBox can re-subscribe
+    const [socketInstance, setSocketInstance] = useState(null);
     const [connected, setConnected] = useState(false);
     // Notifications accumulated during the session
     const [notifications, setNotifications] = useState([]);
 
     const pushNotification = useCallback((notif) => {
-        setNotifications(prev => [notif, ...prev].slice(0, 50)); // keep last 50
+        setNotifications((prev) => [notif, ...prev].slice(0, 50)); // keep last 50
     }, []);
 
     useEffect(() => {
@@ -30,6 +32,7 @@ export const SocketProvider = ({ children }) => {
             if (socketRef.current) {
                 socketRef.current.disconnect();
                 socketRef.current = null;
+                setSocketInstance(null);
                 setConnected(false);
             }
             return;
@@ -38,10 +41,11 @@ export const SocketProvider = ({ children }) => {
         // Create socket — cookies are sent automatically (withCredentials)
         const socket = io(SOCKET_URL, {
             withCredentials: true,
-            transports: ['websocket', 'polling']
+            transports: ['websocket', 'polling'],
         });
 
         socketRef.current = socket;
+        setSocketInstance(socket);
 
         socket.on('connect', () => setConnected(true));
         socket.on('disconnect', () => setConnected(false));
@@ -50,19 +54,32 @@ export const SocketProvider = ({ children }) => {
         socket.on('order:status', (payload) => {
             const msg = `Order #${payload.orderNumber} is now ${payload.status}`;
             toast.success(msg, { duration: 6000, icon: '📦' });
-            pushNotification({ type: 'order:status', message: msg, ...payload, readAt: null, createdAt: payload.updatedAt });
+            pushNotification({
+                type: 'order:status',
+                message: msg,
+                ...payload,
+                readAt: null,
+                createdAt: payload.updatedAt,
+            });
         });
 
         // New order alert (sellers)
         socket.on('order:new', (payload) => {
             const msg = `New order #${payload.orderNumber} — ₹${payload.totalPrice}`;
             toast.success(msg, { duration: 8000, icon: '🛒' });
-            pushNotification({ type: 'order:new', message: msg, ...payload, readAt: null, createdAt: new Date().toISOString() });
+            pushNotification({
+                type: 'order:new',
+                message: msg,
+                ...payload,
+                readAt: null,
+                createdAt: new Date().toISOString(),
+            });
         });
 
         return () => {
             socket.disconnect();
             socketRef.current = null;
+            setSocketInstance(null);
             setConnected(false);
         };
     }, [isAuthenticated, pushNotification]);
@@ -97,24 +114,26 @@ export const SocketProvider = ({ children }) => {
     }, []);
 
     const markAllRead = useCallback(() => {
-        setNotifications(prev => prev.map(n => ({ ...n, readAt: new Date().toISOString() })));
+        setNotifications((prev) => prev.map((n) => ({ ...n, readAt: new Date().toISOString() })));
     }, []);
 
-    const unreadCount = notifications.filter(n => !n.readAt).length;
+    const unreadCount = notifications.filter((n) => !n.readAt).length;
 
     return (
-        <SocketContext.Provider value={{
-            socket: socketRef.current,
-            connected,
-            notifications,
-            unreadCount,
-            markAllRead,
-            joinOrderRoom,
-            leaveOrderRoom,
-            joinChat,
-            sendMessage,
-            onMessage
-        }}>
+        <SocketContext.Provider
+            value={{
+                socket: socketInstance, // reactive — triggers re-renders in ChatBox
+                connected,
+                notifications,
+                unreadCount,
+                markAllRead,
+                joinOrderRoom,
+                leaveOrderRoom,
+                joinChat,
+                sendMessage,
+                onMessage,
+            }}
+        >
             {children}
         </SocketContext.Provider>
     );
