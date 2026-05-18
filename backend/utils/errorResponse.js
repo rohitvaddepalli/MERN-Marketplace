@@ -33,9 +33,10 @@ export const sendError = (res, statusCode, message, code = null) => {
  * @param {string} [message] - Optional success message
  */
 export const sendSuccess = (res, statusCode, data, message = null) => {
+    // Spread data first, then overwrite success so data.success can never shadow it
     const response = {
-        success: true,
         ...data,
+        success: true,
     };
 
     if (message) {

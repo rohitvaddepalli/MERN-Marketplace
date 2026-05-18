@@ -22,7 +22,7 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "test": "CI=true react-scripts test",
+    "test": "cross-env CI=true react-scripts test",
     "test:watch": "react-scripts test",
     "eject": "react-scripts eject",
     "lint": "eslint src --max-warnings 0",
@@ -50,6 +50,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "cross-env": "^7.0.3",
     "eslint": "^9.39.4",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^4.6.2",

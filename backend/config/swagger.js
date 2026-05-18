@@ -4,8 +4,11 @@ import swaggerJsdoc from 'swagger-jsdoc';
 const servers = [{ url: 'http://localhost:5000', description: 'Development server' }];
 
 if (process.env.RENDER_EXTERNAL_URL) {
+    // Normalize: strip any existing protocol so we never produce "https://https://…"
+    const rawUrl = process.env.RENDER_EXTERNAL_URL;
+    const normalizedHost = rawUrl.replace(/^https?:\/\//i, '');
     servers.unshift({
-        url: `https://${process.env.RENDER_EXTERNAL_URL}`,
+        url: `https://${normalizedHost}`,
         description: 'Production server (Render)',
     });
 } else if (process.env.PRODUCTION_API_URL) {

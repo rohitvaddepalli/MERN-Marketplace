@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Order from '../models/Order.js';
 import Product from '../models/Product.js';
 import Settings from '../models/Settings.js';
@@ -345,11 +346,19 @@ export const updateOrderStatus = async (req, res) => {
 export const getSellerOrders = async (req, res) => {
     try {
         const limit = parseInt(req.query.limit, 10) || 20;
-        const cursor = req.query.cursor ? new (await import('mongoose')).default.Types.ObjectId(req.query.cursor) : null;
+
+        // Cursor is a createdAt ISO timestamp (must align with the $sort: { createdAt: -1 } stage)
+        let cursorDate = null;
+        if (req.query.cursor) {
+            cursorDate = new Date(req.query.cursor);
+            if (isNaN(cursorDate.getTime())) {
+                return res.status(400).json({ success: false, message: 'Invalid cursor value' });
+            }
+        }
 
         const pipeline = [
-            // 1. Only consider orders created before the cursor (for keyset pagination)
-            ...(cursor ? [{ $match: { _id: { $lt: cursor } } }] : []),
+            // 1. Only consider orders created before the cursor (keyset pagination on createdAt)
+            ...(cursorDate ? [{ $match: { createdAt: { $lt: cursorDate } } }] : []),
 
             // 2. Flatten order items so we can filter by seller
             { $unwind: '$items' },
@@ -436,8 +445,11 @@ export const getSellerOrders = async (req, res) => {
         ];
 
         const sellerOrders = await Order.aggregate(pipeline);
+        // Return createdAt as the next cursor so the client can pass it back
         const nextCursor =
-            sellerOrders.length === limit ? sellerOrders[sellerOrders.length - 1]._id : null;
+            sellerOrders.length === limit
+                ? sellerOrders[sellerOrders.length - 1].createdAt
+                : null;
 
         res.status(200).json({
             success: true,

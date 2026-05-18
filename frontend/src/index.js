@@ -46,7 +46,7 @@ const reportWebVital = (metric) => {
     });
 
     if (navigator.sendBeacon) {
-        navigator.sendBeacon(endpoint, body);
+        navigator.sendBeacon(endpoint, new Blob([body], { type: 'application/json' }));
     } else {
         fetch(endpoint, { method: 'POST', body, headers: { 'Content-Type': 'application/json' }, keepalive: true }).catch(() => {});
     }
