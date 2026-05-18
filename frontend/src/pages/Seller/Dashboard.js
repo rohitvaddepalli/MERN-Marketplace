@@ -74,22 +74,49 @@ const SellerDashboard = () => {
                     <div
                         className="empty-state"
                         style={{
-                            background: 'white',
+                            background: 'var(--bg-card)',
                             padding: 'var(--spacing-3xl)',
                             borderRadius: 'var(--border-radius-lg)',
+                            boxShadow: 'var(--shadow)',
+                            border: '1px solid var(--border-color)',
                         }}
                     >
-                        <div className="empty-state-icon">
-                            <svg width="60" height="60" viewBox="0 0 24 24" fill="none">
+                        <div
+                            className="empty-state-icon"
+                            style={{
+                                width: '96px',
+                                height: '96px',
+                                borderRadius: 'var(--border-radius-lg)',
+                                background: 'linear-gradient(135deg, #FF6B35, #F77F00)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                margin: '0 auto var(--spacing-xl)',
+                                boxShadow: '0 8px 24px rgba(255, 107, 53, 0.35)',
+                            }}
+                        >
+                            <svg width="44" height="44" viewBox="0 0 24 24" fill="none">
                                 <path
                                     d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z"
-                                    stroke="currentColor"
+                                    stroke="white"
                                     strokeWidth="2"
+                                    strokeLinejoin="round"
+                                />
+                                <path
+                                    d="M9 22V12h6v10"
+                                    stroke="white"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
                                 />
                             </svg>
                         </div>
-                        <h3>Create Your Store</h3>
-                        <p>Get started by creating your store to start selling products</p>
+                        <h3 style={{ color: 'var(--text-primary)', marginBottom: 'var(--spacing-sm)' }}>
+                            Create Your Store
+                        </h3>
+                        <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--spacing-xl)', fontSize: '1.05rem' }}>
+                            Get started by creating your store to start selling products
+                        </p>
                         <Link to="/seller/store" className="btn btn-primary btn-lg">
                             Create Store Now
                         </Link>

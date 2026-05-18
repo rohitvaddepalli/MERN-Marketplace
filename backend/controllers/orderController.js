@@ -332,40 +332,117 @@ export const updateOrderStatus = async (req, res) => {
 // @desc    Get seller orders
 // @route   GET /api/orders/seller/orders
 // @access  Private/Seller
+//
+// ARCHITECTURE: Uses an aggregation pipeline instead of loading every order
+// into memory and filtering in JavaScript.  The pipeline:
+//   1. $unwind   — flattens items so we can inspect each item's product
+//   2. $lookup   — joins Product to get the seller field
+//   3. $match    — keeps only items belonging to the requesting seller
+//   4. $lookup   — joins User (customer) for display info
+//   5. $group    — reassembles per-order documents with only the seller's items
+//   6. $sort     — newest first
+//   7. $limit    — honour the caller's page-size
 export const getSellerOrders = async (req, res) => {
     try {
         const limit = parseInt(req.query.limit, 10) || 20;
-        const orders = await Order.find({})
-            .populate('customer', 'name email')
-            .populate({
-                path: 'items.product',
-                populate: { path: 'seller' },
-            })
-            .sort('-createdAt');
+        const cursor = req.query.cursor ? new (await import('mongoose')).default.Types.ObjectId(req.query.cursor) : null;
 
-        const sellerOrders = orders
-            .map((order) => {
-                const sellerItems = order.items.filter(
-                    (item) =>
-                        item.product &&
-                        item.product.seller &&
-                        item.product.seller._id.toString() === req.user._id.toString()
-                );
+        const pipeline = [
+            // 1. Only consider orders created before the cursor (for keyset pagination)
+            ...(cursor ? [{ $match: { _id: { $lt: cursor } } }] : []),
 
-                if (sellerItems.length > 0) {
-                    return {
-                        ...order.toObject(),
-                        items: sellerItems,
-                    };
-                }
-                return null;
-            })
-            .filter((order) => order !== null)
-            .slice(0, limit);
+            // 2. Flatten order items so we can filter by seller
+            { $unwind: '$items' },
+
+            // 3. Join Product to get the seller reference
+            {
+                $lookup: {
+                    from: 'products',
+                    localField: 'items.product',
+                    foreignField: '_id',
+                    as: 'items._productDoc',
+                },
+            },
+
+            // 4. Keep only items that belong to this seller
+            {
+                $match: {
+                    'items._productDoc.seller': req.user._id,
+                },
+            },
+
+            // 5. Join the customer User document
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'customer',
+                    foreignField: '_id',
+                    as: '_customerDoc',
+                },
+            },
+
+            // 6. Reassemble one document per order; collapse the seller's items back
+            {
+                $group: {
+                    _id: '$_id',
+                    orderNumber: { $first: '$orderNumber' },
+                    status: { $first: '$status' },
+                    paymentStatus: { $first: '$paymentStatus' },
+                    paymentMethod: { $first: '$paymentMethod' },
+                    shippingAddress: { $first: '$shippingAddress' },
+                    itemsPrice: { $first: '$itemsPrice' },
+                    shippingPrice: { $first: '$shippingPrice' },
+                    taxPrice: { $first: '$taxPrice' },
+                    totalPrice: { $first: '$totalPrice' },
+                    createdAt: { $first: '$createdAt' },
+                    deliveredAt: { $first: '$deliveredAt' },
+                    customer: { $first: { $arrayElemAt: ['$_customerDoc', 0] } },
+                    items: {
+                        $push: {
+                            product: '$items.product',
+                            name: '$items.name',
+                            price: '$items.price',
+                            quantity: '$items.quantity',
+                            image: '$items.image',
+                            store: '$items.store',
+                        },
+                    },
+                },
+            },
+
+            // 7. Clean up customer projection (hide password)
+            {
+                $project: {
+                    orderNumber: 1,
+                    status: 1,
+                    paymentStatus: 1,
+                    paymentMethod: 1,
+                    shippingAddress: 1,
+                    itemsPrice: 1,
+                    shippingPrice: 1,
+                    taxPrice: 1,
+                    totalPrice: 1,
+                    createdAt: 1,
+                    deliveredAt: 1,
+                    items: 1,
+                    'customer._id': 1,
+                    'customer.name': 1,
+                    'customer.email': 1,
+                },
+            },
+
+            { $sort: { createdAt: -1 } },
+            { $limit: limit },
+        ];
+
+        const sellerOrders = await Order.aggregate(pipeline);
+        const nextCursor =
+            sellerOrders.length === limit ? sellerOrders[sellerOrders.length - 1]._id : null;
 
         res.status(200).json({
             success: true,
             count: sellerOrders.length,
+            nextCursor,
             orders: sellerOrders,
         });
     } catch (error) {
@@ -454,6 +531,33 @@ export const cancelOrder = async (req, res) => {
                 },
             }));
             await Product.bulkWrite(bulkOps);
+        }
+
+        // Emit real-time cancellation notifications
+        const io = req.app.get('io');
+        if (io) {
+            const cancelEvent = {
+                orderId: order._id,
+                orderNumber: order.orderNumber,
+                status: 'cancelled',
+                updatedAt: new Date().toISOString(),
+            };
+
+            // Buyer's personal room (confirms their cancellation)
+            if (order.customer) {
+                io.to(`user:${order.customer}`).emit('order:cancelled', cancelEvent);
+            }
+
+            // Order tracking room (anyone watching this order)
+            io.to(`order:${order._id}`).emit('order:cancelled', cancelEvent);
+
+            // Notify each seller's store room so dashboards update without polling
+            const storeIds = [
+                ...new Set(itemsWithProduct.map((i) => i.store).filter(Boolean)),
+            ];
+            storeIds.forEach((storeId) => {
+                io.to(`store:${storeId}`).emit('order:cancelled', cancelEvent);
+            });
         }
 
         res.status(200).json({

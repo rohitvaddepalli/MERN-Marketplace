@@ -29,6 +29,7 @@ import cookieParser from 'cookie-parser';
 import compression from 'compression';
 import jwt from 'jsonwebtoken';
 import fs from 'fs';
+import crypto from 'crypto';
 import MongoStore from 'connect-mongo';
 import User from './models/User.js';
 import './config/passport.js';
@@ -255,16 +256,35 @@ app.use(
 app.use(compression());
 
 // Security middleware - Helmet sets various HTTP headers for security
+// CSP uses a per-request nonce for script-src to eliminate 'unsafe-inline'. (#12)
+// The nonce is generated once per request and stored in res.locals.cspNonce so
+// that any server-rendered script tags can include it: <script nonce="<%= nonce %>">
+app.use((req, res, next) => {
+    res.locals.cspNonce = crypto.randomBytes(16).toString('base64');
+    next();
+});
+
 app.use(
     helmet({
         contentSecurityPolicy: {
+            useDefaults: false,
             directives: {
                 defaultSrc: ["'self'"],
+                // Nonce-based scripts — no more 'unsafe-inline' on scriptSrc (#12)
+                scriptSrc: ["'self'", (req, res) => `'nonce-${res.locals.cspNonce}'`],
+                // Styles: 'unsafe-inline' kept only for third-party component libraries
+                // that inject styles at runtime. Migrate to hashes when possible.
                 styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
                 fontSrc: ["'self'", 'https://fonts.gstatic.com'],
                 imgSrc: ["'self'", 'data:', 'https:', 'blob:', 'res.cloudinary.com'],
-                scriptSrc: ["'self'", "'unsafe-inline'"],
-                connectSrc: ["'self'", 'https://api.cloudinary.com', 'https://res.cloudinary.com'],
+                connectSrc: [
+                    "'self'",
+                    'https://api.cloudinary.com',
+                    'https://res.cloudinary.com',
+                ],
+                frameAncestors: ["'none'"],
+                objectSrc: ["'none'"],
+                upgradeInsecureRequests: [],
             },
         },
         crossOriginEmbedderPolicy: false,
@@ -311,8 +331,30 @@ app.use('/api', generalLimiter);
 app.use(cookieParser());
 
 // Body parser middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// NOTE: Stricter per-route limits can be configured on specific routes
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// ── Request timeout middleware ──────────────────────────────────────────────
+// Terminate requests that take longer than REQUEST_TIMEOUT_MS (default: 30s)
+// This prevents slow-loris style attacks and hung database queries.
+const REQUEST_TIMEOUT_MS = parseInt(process.env.REQUEST_TIMEOUT_MS || '30000', 10);
+app.use((req, res, next) => {
+    const timeout = setTimeout(() => {
+        if (!res.headersSent) {
+            res.status(503).json({
+                success: false,
+                message: 'Request timed out. Please try again.',
+            });
+        }
+    }, REQUEST_TIMEOUT_MS);
+
+    // Clear the timeout as soon as the response is finished (success or error)
+    res.on('finish', () => clearTimeout(timeout));
+    res.on('close', () => clearTimeout(timeout));
+
+    next();
+});
 
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
@@ -334,7 +376,9 @@ const sessionConfig = {
     cookie: {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        // 'strict' in production prevents the session cookie from being sent
+        // in cross-site requests, providing CSRF protection without a token. (#14)
+        sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
     },
 };
@@ -432,17 +476,42 @@ app.get('/api/settings', async (req, res) => {
     }
 });
 
-// Health check route
-app.get('/api/health', (req, res) => {
-    res.status(200).json({
-        success: true,
-        message: 'Server is running',
+// Health check route — verifies DB connectivity and reports runtime metrics (#19, #38)
+// Uptime monitors (e.g., Better Uptime, Render health checks) should hit this endpoint.
+app.get('/api/health', async (req, res) => {
+    const dbState = mongoose.connection.readyState;
+    // 0 = disconnected, 1 = connected, 2 = connecting, 3 = disconnecting
+    const dbStateMap = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
+    const dbStatus = dbStateMap[dbState] ?? 'unknown';
+    const dbHealthy = dbState === 1;
+
+    const memoryUsage = process.memoryUsage();
+    const payload = {
+        success: dbHealthy,
+        status: dbHealthy ? 'healthy' : 'degraded',
         timestamp: new Date().toISOString(),
-    });
+        uptime: Math.floor(process.uptime()),
+        version: process.env.npm_package_version || '1.0.0',
+        environment: process.env.NODE_ENV || 'development',
+        services: {
+            database: {
+                status: dbStatus,
+                healthy: dbHealthy,
+            },
+        },
+        memory: {
+            rss: `${Math.round(memoryUsage.rss / 1024 / 1024)}MB`,
+            heapUsed: `${Math.round(memoryUsage.heapUsed / 1024 / 1024)}MB`,
+            heapTotal: `${Math.round(memoryUsage.heapTotal / 1024 / 1024)}MB`,
+        },
+    };
+
+    res.status(dbHealthy ? 200 : 503).json(payload);
 });
 
 // Cloudinary direct upload signature (avoids proxying file through server)
-import crypto from 'crypto';
+// NOTE: Only cloudName, signature, timestamp, and folder are returned.
+// The apiKey is a server-side credential and must NOT be sent to the client. (#8)
 
 app.get('/api/upload/signature', (req, res) => {
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
@@ -461,10 +530,12 @@ app.get('/api/upload/signature', (req, res) => {
     const params = `folder=${folder}&timestamp=${timestamp}${apiSecret}`;
     const signature = crypto.createHash('sha1').update(params).digest('hex');
 
+    // Return only what the browser needs to upload directly — never the apiKey or apiSecret
     res.status(200).json({
         success: true,
         cloudName,
-        apiKey,
+        // apiKey intentionally omitted — use a signed upload preset in Cloudinary
+        // dashboard and reference it by name from the frontend if key is required.
         signature,
         timestamp,
         folder,

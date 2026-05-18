@@ -13,7 +13,7 @@ import passport from 'passport';
 import { protect } from '../middleware/auth.js';
 import { check } from 'express-validator';
 import { validate } from '../middleware/validate.js';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 
 const router = express.Router();
 
@@ -23,7 +23,7 @@ const router = express.Router();
 const forgotPasswordLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour
     limit: 3,
-    keyGenerator: (req) => (req.body?.email || req.ip).toLowerCase(),
+    keyGenerator: (req) => req.body?.email ? req.body.email.toLowerCase() : ipKeyGenerator(req),
     message: {
         success: false,
         message: 'Too many password reset requests for this email. Please try again in 1 hour.',

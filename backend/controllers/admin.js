@@ -19,6 +19,8 @@ export const getDashboardStats = async (req, res) => {
             recentOrders,
             customerCount,
             sellerCount,
+            settings,
+            revenueResult,
         ] = await Promise.all([
             User.countDocuments(),
             Store.countDocuments(),
@@ -28,18 +30,32 @@ export const getDashboardStats = async (req, res) => {
             Order.find().sort({ createdAt: -1 }).limit(5).populate('customer', 'name email'),
             User.countDocuments({ role: 'customer' }),
             User.countDocuments({ role: 'seller' }),
+            Settings.getSettings(),
+            // PERFORMANCE: compute revenue inside MongoDB — no document hydration needed
+            Order.aggregate([
+                {
+                    $match: {
+                        $or: [{ paymentStatus: 'completed' }, { status: 'delivered' }],
+                    },
+                },
+                {
+                    $group: {
+                        _id: null,
+                        totalTax: { $sum: '$taxPrice' },
+                        totalShipping: { $sum: '$shippingPrice' },
+                        orderCount: { $sum: 1 },
+                    },
+                },
+            ]),
         ]);
 
-        // Calculate total revenue
-        const orders = await Order.find({
-            $or: [{ paymentStatus: 'completed' }, { status: 'delivered' }],
-        });
-        const totalRevenue = orders.reduce((sum, order) => {
-            const tax = order.taxPrice || 0;
-            const shipping = order.shippingPrice || 0;
-            const fixedFee = 2; // Flat fee per order
-            return sum + tax + shipping + fixedFee;
-        }, 0);
+        // Add platform fixed fee per completed order (not stored on each order doc)
+        const fixedFeePerOrder = settings.fixedFeePerOrder || 0;
+        const revenueData = revenueResult[0] ?? { totalTax: 0, totalShipping: 0, orderCount: 0 };
+        const totalRevenue =
+            revenueData.totalTax +
+            revenueData.totalShipping +
+            revenueData.orderCount * fixedFeePerOrder;
 
         res.status(200).json({
             success: true,
@@ -415,7 +431,7 @@ export const getSettings = async (req, res) => {
 // @access  Private/Admin
 export const updateSettings = async (req, res) => {
     try {
-        const { taxRate, shippingFee } = req.body;
+        const { taxRate, shippingFee, fixedFeePerOrder } = req.body;
 
         // Validate inputs
         if (taxRate !== undefined && (taxRate < 0 || taxRate > 100)) {
@@ -432,7 +448,17 @@ export const updateSettings = async (req, res) => {
             });
         }
 
-        const settings = await Settings.updateSettings({ taxRate, shippingFee }, req.user._id);
+        if (fixedFeePerOrder !== undefined && fixedFeePerOrder < 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Fixed fee per order cannot be negative',
+            });
+        }
+
+        const settings = await Settings.updateSettings(
+            { taxRate, shippingFee, fixedFeePerOrder },
+            req.user._id
+        );
 
         res.status(200).json({
             success: true,

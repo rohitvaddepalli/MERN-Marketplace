@@ -39,12 +39,26 @@ describe('Cache Middleware', () => {
 
             const body = { success: true, message: 'test' };
             const bodyStr = JSON.stringify(body);
-            const expectedEtag = '"' + crypto.createHash('md5').update(bodyStr).digest('hex') + '"';
+            // Middleware uses sha1 with a 16-char prefix (changed from md5)
+            const expectedEtag =
+                '"' + crypto.createHash('sha1').update(bodyStr).digest('hex').slice(0, 16) + '"';
 
             req.headers = { 'if-none-match': expectedEtag };
             res.json(body);
 
             expect(res.status).toHaveBeenCalledWith(304);
+        });
+
+        it('should NOT return 304 when ETag does not match', () => {
+            setCache(req, res, next);
+
+            const body = { success: true, message: 'test' };
+            req.headers = { 'if-none-match': '"stale-etag-value-00"' };
+            res.json(body);
+
+            // Status should not be called with 304 for a stale etag
+            const was304 = res.status.mock.calls.some(([code]) => code === 304);
+            expect(was304).toBe(false);
         });
     });
 

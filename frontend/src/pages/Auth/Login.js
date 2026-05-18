@@ -224,6 +224,7 @@ const Login = () => {
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     gap: '0.5rem',
+                                    color: '#ff7a1a',
                                     cursor: 'pointer',
                                     background: 'white',
                                     border: '1px solid #e1e1e1',

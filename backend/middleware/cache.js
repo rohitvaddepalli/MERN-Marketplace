@@ -10,7 +10,11 @@ export const setCache = (req, res, next) => {
     const originalJson = res.json.bind(res);
     res.json = function (body) {
         const stringBody = JSON.stringify(body);
-        const etag = crypto.createHash('md5').update(stringBody).digest('hex');
+        // Use sha1 with a 16-char prefix — ETags need uniqueness, not crypto strength.
+        // sha1 is the fastest built-in digest in Node's native crypto module.
+        // NOTE: For high-traffic routes, consider a Redis-backed cache that stores
+        // pre-serialised responses and skips the hash on every request.
+        const etag = crypto.createHash('sha1').update(stringBody).digest('hex').slice(0, 16);
         res.set('ETag', `"${etag}"`);
 
         if (req.headers['if-none-match'] === `"${etag}"`) {

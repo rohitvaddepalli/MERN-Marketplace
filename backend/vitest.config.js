@@ -11,12 +11,14 @@ export default defineConfig({
         forceExit: true,
         coverage: {
             provider: 'v8',
-            reporter: ['text', 'lcov'],
+            reporter: ['text', 'lcov', 'html'],
+            // Target: >80% — raised to 70% after error.test.js + asyncHandler.test.js additions.
+            // Increase to 80 once integration coverage is included via --coverage flag.
             threshold: {
-                branches: 50,
-                functions: 50,
-                lines: 50,
-                statements: 50,
+                branches: 70,
+                functions: 70,
+                lines: 70,
+                statements: 70,
             },
         },
     },

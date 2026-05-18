@@ -9,7 +9,14 @@
         "dev": "concurrently \"npm run server\" \"npm run client\"",
         "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install",
         "build": "cd frontend && npm install && npm run build && cd ../backend && npm install",
-        "start": "cd backend && node server.js"
+        "start": "cd backend && node server.js",
+        "lint": "npm run lint --prefix backend && npm run lint --prefix frontend",
+        "lint:fix": "npm run lint:fix --prefix backend && npm run lint:fix --prefix frontend",
+        "format": "prettier --write .",
+        "format:check": "prettier --check .",
+        "test": "npm run test --prefix backend && npm run test --prefix frontend",
+        "test:backend": "cd backend && npm run test",
+        "test:frontend": "cd frontend && npm run test"
     },
     "keywords": [
         "marketplace",

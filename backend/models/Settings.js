@@ -13,6 +13,12 @@ const settingsSchema = new mongoose.Schema(
             default: 10,
             min: 0,
         },
+        fixedFeePerOrder: {
+            type: Number,
+            default: 2,
+            min: 0,
+            description: 'Fixed platform fee charged per order',
+        },
         updatedBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User',
@@ -23,24 +29,26 @@ const settingsSchema = new mongoose.Schema(
     }
 );
 
-// Ensure only one settings document exists
+// Ensure only one settings document exists.
+// Both methods use atomic findOneAndUpdate + upsert to eliminate the
+// "check-then-act" race condition where two concurrent calls could each
+// see findOne() return null and then both attempt to create a document.
 settingsSchema.statics.getSettings = async function () {
-    let settings = await this.findOne();
-    if (!settings) {
-        settings = await this.create({});
-    }
+    const settings = await this.findOneAndUpdate(
+        {}, // match the single settings doc (any)
+        { $setOnInsert: {} }, // only write on insert — don't touch existing fields
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
     return settings;
 };
 
 settingsSchema.statics.updateSettings = async function (data, userId) {
-    let settings = await this.findOne();
-    if (!settings) {
-        settings = await this.create({ ...data, updatedBy: userId });
-    } else {
-        Object.assign(settings, data);
-        settings.updatedBy = userId;
-        await settings.save();
-    }
+    const update = { ...data, updatedBy: userId };
+    const settings = await this.findOneAndUpdate(
+        {}, // match the single settings doc
+        { $set: update },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
     return settings;
 };
 

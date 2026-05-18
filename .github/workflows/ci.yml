@@ -101,14 +101,46 @@ jobs:
           CI: false  # Downgrade warnings to non-fatal for existing codebase
           REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL || 'http://localhost:5000' }}
 
-  # ─── Validate environment file (drift detection) ────────────────────────────
+  # ─── Security Audit: check for known CVEs (#41) ───────────────────────────────
+  security-audit:
+    name: Security Audit (npm audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Audit backend dependencies
+        working-directory: backend
+        run: |
+          npm ci
+          # Fail only on high/critical severity CVEs
+          npm audit --audit-level=high || {
+            echo "⚠️  High/critical vulnerabilities found in backend. Run 'npm audit fix' locally."
+            exit 1
+          }
+
+      - name: Audit frontend dependencies
+        working-directory: frontend
+        run: |
+          npm ci
+          # react-scripts 5.x has known low-severity issues; fail only on high+
+          npm audit --audit-level=high || {
+            echo "⚠️  High/critical vulnerabilities found in frontend. Run 'npm audit fix' locally."
+            exit 1
+          }
+
+  # ─── Validate environment variable schema (#40) ───────────────────────────────
   env-drift:
     name: Env Variable Drift Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check .env.example is present
+      - name: Validate .env.example is present
         run: |
           if [ ! -f backend/.env.example ]; then
             echo "❌ backend/.env.example is missing!"
@@ -116,10 +148,31 @@ jobs:
           fi
           echo "✅ .env.example found"
 
+      - name: Check required keys are documented
+        run: |
+          # These vars MUST appear in .env.example as a documentation contract
+          REQUIRED_KEYS="JWT_SECRET SESSION_SECRET MONGODB_URI FRONTEND_URL"
+          MISSING=0
+          for KEY in $REQUIRED_KEYS; do
+            if ! grep -q "^${KEY}=" backend/.env.example; then
+              echo "❌ Required key '$KEY' is missing from backend/.env.example"
+              MISSING=1
+            else
+              echo "✅ $KEY documented"
+            fi
+          done
+          if [ "$MISSING" -eq 1 ]; then
+            echo ""
+            echo "Please add all required keys to backend/.env.example"
+            exit 1
+          fi
+          echo ""
+          echo "✅ All required environment variables are documented in .env.example"
+
   # ─── Deploy to Render (main/master only) ─────────────────────────────────────
   deploy:
     name: Deploy to Render
-    needs: [backend-unit, backend-integration, frontend]
+    needs: [backend-unit, backend-integration, frontend, env-drift]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
 
@@ -132,3 +185,4 @@ jobs:
           fi
           curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
           echo "✅ Render deploy triggered"
+

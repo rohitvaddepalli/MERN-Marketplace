@@ -93,5 +93,11 @@ orderSchema.pre('save', async function (next) {
 // Add database indexes
 orderSchema.index({ customer: 1 });
 orderSchema.index({ 'items.store': 1 });
+// Supports the seller-orders aggregation pipeline ($unwind + $lookup on product seller)
+orderSchema.index({ 'items.product': 1 });
+// Supports admin order listing with status filter + sort
+orderSchema.index({ status: 1, createdAt: -1 });
+// Supports revenue aggregation $match on paymentStatus
+orderSchema.index({ paymentStatus: 1 });
 
 export default mongoose.model('Order', orderSchema);
