@@ -488,6 +488,7 @@ app.get('/api/health', async (req, res) => {
     const memoryUsage = process.memoryUsage();
     const payload = {
         success: dbHealthy,
+        message: 'Server is running',
         status: dbHealthy ? 'healthy' : 'degraded',
         timestamp: new Date().toISOString(),
         uptime: Math.floor(process.uptime()),

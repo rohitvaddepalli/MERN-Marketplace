@@ -31,7 +31,7 @@ const validateOrder = [
     body('shippingAddress').isObject().withMessage('Shipping address is required'),
     body('shippingAddress.street').notEmpty().withMessage('Street is required'),
     body('shippingAddress.city').notEmpty().withMessage('City is required'),
-    body('shippingAddress.postalCode').notEmpty().withMessage('Postal code is required'),
+    body('shippingAddress.zipCode').notEmpty().withMessage('Zip code is required'),
     body('shippingAddress.country').notEmpty().withMessage('Country is required'),
     body('paymentMethod')
         .isIn(['card', 'paypal', 'cod'])

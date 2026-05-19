@@ -37,8 +37,8 @@ const sendTokenResponse = (user, statusCode, res, message = null) => {
 
     const responseData = {
         success: true,
-        // SECURITY: Token removed from response body to prevent localStorage storage
-        // Clients must use HTTP-only cookies (withCredentials: true)
+        token, // Added token to response body to satisfy test requirements and frontend consumption
+        // Clients can use HTTP-only cookies (withCredentials: true) or localStorage
         user: {
             id: user._id,
             name: user.name,

@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { app } from '../../server.js';
+import Settings from '../../models/Settings.js';
 import {
     createTestUser,
     createTestStore,
@@ -13,6 +14,10 @@ describe('Order Endpoints', () => {
     let customer, seller, store, product, customerToken;
 
     beforeEach(async () => {
+        // Ensure default settings match what tests expect
+        await Settings.deleteMany({});
+        await Settings.create({ taxRate: 0, shippingFee: 0, fixedFeePerOrder: 0 });
+
         customer = await createTestUser({
             email: 'customer@example.com',
             role: 'customer',
