@@ -87,7 +87,7 @@ export const SkeletonGrid = ({ items = 8, type = 'product' }) => {
     );
 };
 
-export default {
+const Skeletons = {
     Card: SkeletonCard,
     ProductCard: SkeletonProductCard,
     StoreCard: SkeletonStoreCard,
@@ -97,3 +97,5 @@ export default {
     Button: SkeletonButton,
     Grid: SkeletonGrid,
 };
+
+export default Skeletons;

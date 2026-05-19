@@ -18,6 +18,8 @@
     "socket.io-client": "^4.2.0",
     "swiper": "^12.0.3",
     "web-vitals": "^2.1.4",
+    "ajv": "^8.12.0",
+    "ajv-keywords": "^5.1.0",
     "postcss": "^8.4.32"
   },
   "scripts": {

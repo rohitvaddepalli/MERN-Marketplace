@@ -62,7 +62,7 @@ jest.mock('react-hot-toast', () => ({
 
 // ── Tests ───────────────────────────────────────────────────────────────
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import App from './App';
 
 describe('App', () => {
@@ -71,23 +71,33 @@ describe('App', () => {
         window.history.pushState({}, 'Home', '/');
     });
 
-    it('renders without crashing', () => {
+    it('renders without crashing', async () => {
         render(<App />);
+        // Wait for any suspended resources to load
+        await waitFor(() => {
+            expect(screen.getByTestId('navbar')).toBeInTheDocument();
+        });
     });
 
-    it('renders the Navbar', () => {
+    it('renders the Navbar', async () => {
         render(<App />);
-        expect(screen.getByTestId('navbar')).toBeInTheDocument();
+        await waitFor(() => {
+            expect(screen.getByTestId('navbar')).toBeInTheDocument();
+        });
     });
 
-    it('renders the Home page at "/"', () => {
+    it('renders the Home page at "/"', async () => {
         render(<App />);
-        expect(screen.getByTestId('home-page')).toBeInTheDocument();
+        await waitFor(() => {
+            expect(screen.getByTestId('home-page')).toBeInTheDocument();
+        });
     });
 
-    it('renders the 404 page for unknown routes', () => {
+    it('renders the 404 page for unknown routes', async () => {
         window.history.pushState({}, 'Test Page', '/this-route-does-not-exist');
         render(<App />);
-        expect(screen.getByTestId('not-found-page')).toBeInTheDocument();
+        await waitFor(() => {
+            expect(screen.getByTestId('not-found-page')).toBeInTheDocument();
+        });
     });
 });
