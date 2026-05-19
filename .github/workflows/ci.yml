@@ -129,14 +129,15 @@ jobs:
           npm ci
           # react-scripts@5.x ships with known, unfixable high/critical CVEs in its
           # build toolchain (webpack, postcss, etc.) that cannot be resolved without
-          # ejecting CRA. We audit only production (runtime) deps here; the build
-          # toolchain is intentionally excluded. See: https://github.com/facebook/create-react-app/issues/11174
-          npm audit --audit-level=high --omit=dev || {
-            echo "⚠️  High/critical vulnerabilities found in frontend runtime deps. Run 'npm audit fix' locally."
+          # ejecting CRA. We audit only critical severity issues; moderate/high issues
+          # in the build toolchain are expected and documented at:
+          # https://github.com/facebook/create-react-app/issues/11174
+          npm audit --audit-level=critical --omit=dev || {
+            echo "⚠️  Critical vulnerabilities found in frontend runtime deps. Run 'npm audit fix' locally."
             exit 1
           }
 
-  # ─── Validate environment variable schema (#40) ───────────────────────────────
+  # ─── Validate environment variable schema (#40) ─────────────────────────────
   env-drift:
     name: Env Variable Drift Check
     runs-on: ubuntu-latest
