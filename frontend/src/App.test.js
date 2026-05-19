@@ -7,8 +7,6 @@
  *  3. A public route ("/") renders the Home page
  *  4. An unknown route renders the 404 page
  *
- * Heavy context dependencies (AuthProvider, CartProvider, SocketProvider,
- * Firebase) are mocked so tests stay fast and deterministic.
  */
 
 // ── Mocks (BEFORE any imports) ────────────────────────────────────────────
