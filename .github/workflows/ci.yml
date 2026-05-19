@@ -88,7 +88,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install frontend dependencies
-        run: npm ci
+        run: npm ci --verbose
 
       - name: Run frontend tests
         run: npm test -- --watchAll=false
@@ -98,7 +98,7 @@ jobs:
       - name: Build frontend
         run: npm run build
         env:
-          CI: false  # Downgrade warnings to non-fatal for existing codebase
+          CI: false
           REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL || 'http://localhost:5000' }}
 
   # ─── Security Audit: check for known CVEs (#41) ───────────────────────────────
