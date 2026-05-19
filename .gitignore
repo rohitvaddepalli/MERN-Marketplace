@@ -73,4 +73,5 @@ SETUP.md
 audit.md
 enhance.md
 production.md
-backend/API_ARCHITECTURE.md
+FIREBASE_DEPLOYMENT_CHECKLIST.md
+FIREBASE_HOSTING_TUTORIAL.md
