@@ -63,45 +63,31 @@ jest.mock('react-hot-toast', () => ({
 // ── Tests ───────────────────────────────────────────────────────────────
 
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
 import App from './App';
 
 describe('App', () => {
+    beforeEach(() => {
+        // Reset window.history to root before each test
+        window.history.pushState({}, 'Home', '/');
+    });
+
     it('renders without crashing', () => {
-        render(
-            <MemoryRouter initialEntries={['/']}>
-                <App />
-            </MemoryRouter>
-        );
+        render(<App />);
     });
 
     it('renders the Navbar', () => {
-        render(
-            <MemoryRouter initialEntries={['/']}>
-                <App />
-            </MemoryRouter>
-        );
-
+        render(<App />);
         expect(screen.getByTestId('navbar')).toBeInTheDocument();
     });
 
     it('renders the Home page at "/"', () => {
-        render(
-            <MemoryRouter initialEntries={['/']}>
-                <App />
-            </MemoryRouter>
-        );
-
+        render(<App />);
         expect(screen.getByTestId('home-page')).toBeInTheDocument();
     });
 
     it('renders the 404 page for unknown routes', () => {
-        render(
-            <MemoryRouter initialEntries={['/this-route-does-not-exist']}>
-                <App />
-            </MemoryRouter>
-        );
-
+        window.history.pushState({}, 'Test Page', '/this-route-does-not-exist');
+        render(<App />);
         expect(screen.getByTestId('not-found-page')).toBeInTheDocument();
     });
 });
