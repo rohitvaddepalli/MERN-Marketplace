@@ -242,6 +242,9 @@ app.set('trust proxy', 1);
 app.use(
     cors({
         origin: function (origin, callback) {
+            if (process.env.NODE_ENV !== 'production') {
+                return callback(null, true);
+            }
             if (!origin) return callback(null, true);
             if (allowedOrigins.indexOf(origin) === -1) {
                 return callback(new Error('CORS policy: origin not allowed'), false);
@@ -255,10 +258,6 @@ app.use(
 // Enable compression for all responses
 app.use(compression());
 
-// Security middleware - Helmet sets various HTTP headers for security
-// CSP uses a per-request nonce for script-src to eliminate 'unsafe-inline'. (#12)
-// The nonce is generated once per request and stored in res.locals.cspNonce so
-// that any server-rendered script tags can include it: <script nonce="<%= nonce %>">
 app.use((req, res, next) => {
     res.locals.cspNonce = crypto.randomBytes(16).toString('base64');
     next();

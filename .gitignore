@@ -11,7 +11,14 @@ yarn-debug.log
 .env.test.local
 .env.production.local
 backend/.env
+backend/.env.production
 frontend/.env
+frontend/.env.production
+
+# ── Firebase Secrets ───────────────────────────────────────────────────────────
+# NEVER commit the service account key - it grants full admin access to Firebase
+backend/serviceAccountKey.json
+serviceAccountKey.json
 
 # ── Production Builds ──────────────────────────────────────────────────────────
 frontend/build/

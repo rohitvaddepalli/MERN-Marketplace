@@ -1,14 +1,17 @@
 import axios from 'axios';
 
-const isProduction =
-    process.env.NODE_ENV === 'production' || !window.location.host.includes('localhost');
+// Use NODE_ENV (not hostname) to detect environment.
+// Using hostname broke ngrok: non-localhost hosts were treated as "production",
+// causing API calls to go to /api on the React dev server (port 3000) which has no backend.
+const isProduction = process.env.NODE_ENV === 'production';
 
-const API_URL =
-    isProduction && !process.env.REACT_APP_API_URL
-        ? '/api'
-        : process.env.REACT_APP_API_URL
-          ? `${process.env.REACT_APP_API_URL}/api`
-          : 'http://localhost:5000/api';
+const API_URL = isProduction
+    ? process.env.REACT_APP_API_URL
+        ? `${process.env.REACT_APP_API_URL}/api`
+        : '/api'
+    : process.env.REACT_APP_API_URL
+      ? `${process.env.REACT_APP_API_URL}/api`
+      : 'http://localhost:5000/api';
 
 // Create axios instance with credentials support for HTTP-only cookies
 const api = axios.create({
@@ -185,9 +188,8 @@ export const uploadAPI = {
 };
 
 export { API_URL };
-export const BASE_API_URL =
-    isProduction && !process.env.REACT_APP_API_URL
-        ? window.location.origin
-        : process.env.REACT_APP_API_URL || 'http://localhost:5000';
+export const BASE_API_URL = isProduction
+    ? process.env.REACT_APP_API_URL || window.location.origin
+    : process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 export default api;
