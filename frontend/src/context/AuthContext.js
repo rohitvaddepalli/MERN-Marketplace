@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
-import { authAPI, BASE_API_URL } from '../services/api';
+import { authAPI, API_URL } from '../services/api';
 import logger from '../utils/logger';
 
 const AuthContext = createContext(null);
@@ -88,8 +88,10 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     // Login with Google (Directly to backend)
+    // API_URL already includes /api (e.g. "/api" on Firebase or "http://localhost:5000/api" in dev)
+    // so we just append /auth/google — no extra /api prefix needed.
     const loginWithGoogle = useCallback(() => {
-        window.location.href = `${BASE_API_URL}/api/auth/google`;
+        window.location.href = `${API_URL}/auth/google`;
     }, []);
 
     // Logout
