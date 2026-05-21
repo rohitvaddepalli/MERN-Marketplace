@@ -9,14 +9,18 @@ const generateToken = (id) => {
 };
 
 // Cookie options for secure HTTP-only cookies
+// IMPORTANT: SameSite must be 'none' (not 'strict') because the frontend
+// (market-place01.web.app) and backend (onrender.com) are on different domains.
+// Browsers silently block SameSite=strict cookies on cross-site requests.
+// SameSite=none REQUIRES secure:true (HTTPS), which is always true on Render.
 const getCookieOptions = () => {
     const isProduction = process.env.NODE_ENV === 'production';
     return {
-        httpOnly: true, // Prevents XSS attacks - JavaScript cannot access this cookie
-        secure: isProduction, // Only send over HTTPS in production
-        sameSite: isProduction ? 'strict' : 'lax', // CSRF protection
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
-        path: '/', // Cookie available for all paths
+        httpOnly: true,   // Prevents XSS — JS cannot read this cookie
+        secure: isProduction, // HTTPS only in production (required for SameSite=none)
+        sameSite: isProduction ? 'none' : 'lax', // 'none' allows cross-origin cookie sending
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        path: '/',
     };
 };
 

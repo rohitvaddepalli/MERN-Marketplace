@@ -375,9 +375,9 @@ const sessionConfig = {
     cookie: {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        // 'strict' in production prevents the session cookie from being sent
-        // in cross-site requests, providing CSRF protection without a token. (#14)
-        sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+        // 'none' is required for cross-origin requests (Firebase frontend → Render backend).
+        // 'none' REQUIRES secure:true which is enforced above.
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
     },
 };
