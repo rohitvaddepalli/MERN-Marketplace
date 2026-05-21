@@ -9,18 +9,22 @@ dotenv.config();
 // This prevents using dummy credentials in production
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     // The OAuth callback must point to the BACKEND (Render), not the frontend (Firebase).
-    // Google will POST the auth code to this URL after the user grants access.
-    // Priority: BACKEND_URL env var → RENDER_EXTERNAL_URL (auto-set by Render) → localhost
-    const backendBase =
-        process.env.BACKEND_URL ||
-        (process.env.RENDER_EXTERNAL_URL
-            ? `https://${process.env.RENDER_EXTERNAL_URL}`
-            : null) ||
-        (process.env.NODE_ENV === 'production' ? null : 'http://localhost:5000');
+    // Priority: GOOGLE_CALLBACK_URL (explicit) → BACKEND_URL → RENDER_EXTERNAL_URL → localhost
+    const callbackURL =
+        process.env.GOOGLE_CALLBACK_URL ||
+        (() => {
+            const base =
+                process.env.BACKEND_URL ||
+                (process.env.RENDER_EXTERNAL_URL
+                    ? `https://${process.env.RENDER_EXTERNAL_URL}`
+                    : null) ||
+                (process.env.NODE_ENV === 'production' ? null : 'http://localhost:5000');
+            return base
+                ? `${base.replace(/\/$/, '')}/api/auth/google/callback`
+                : '/api/auth/google/callback';
+        })();
 
-    const callbackURL = backendBase
-        ? `${backendBase.replace(/\/$/, '')}/api/auth/google/callback`
-        : '/api/auth/google/callback';
+    console.log('🔑 Google OAuth callback URL:', callbackURL);
 
     passport.use(
         new GoogleStrategy(

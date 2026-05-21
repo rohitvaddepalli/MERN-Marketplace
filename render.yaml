@@ -17,6 +17,8 @@ services:
         value: https://market-place01.web.app
       - key: BACKEND_URL
         value: https://mern-marketplace-backend-29yc.onrender.com
+      - key: GOOGLE_CALLBACK_URL
+        value: https://mern-marketplace-backend-29yc.onrender.com/api/auth/google/callback
       - key: MONGODB_URI
         sync: false   # set in Render Dashboard → Environment
       - key: JWT_SECRET
