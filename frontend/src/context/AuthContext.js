@@ -100,6 +100,7 @@ export const AuthProvider = ({ children }) => {
             await authAPI.logout();
             setUser(null);
             localStorage.removeItem('user');
+            localStorage.removeItem('access_token');
         } catch (error) {
             logger.error('Logout error:', error);
         }

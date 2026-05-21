@@ -24,24 +24,42 @@ const api = axios.create({
     withCredentials: true,
 });
 
-// SECURITY: Request interceptor removed - authentication via HTTP-only cookies only
-// Cookies are sent automatically with withCredentials: true
-// No manual Authorization header needed
+// Request interceptor: attach JWT from localStorage as Authorization header.
+// This is a fallback for cross-origin deployments where SameSite cookies may
+// be blocked. The backend accepts both cookie AND Authorization header.
+api.interceptors.request.use(
+    (config) => {
+        const token = localStorage.getItem('access_token');
+        if (token) {
+            config.headers['Authorization'] = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => Promise.reject(error)
+);
+
 
 // Handle response errors
 api.interceptors.response.use(
-    (response) => response,
+    (response) => {
+        // If the response contains a JWT token, persist it to localStorage
+        // so the Authorization header interceptor can attach it on future requests.
+        // This handles cross-origin deployments where cookies may be blocked.
+        if (response.data?.token) {
+            localStorage.setItem('access_token', response.data.token);
+        }
+        return response;
+    },
     (error) => {
         if (error.response?.status === 401) {
             // Don't redirect if this is just an auth check
             if (error.config?.url?.includes('/auth/me')) {
                 return Promise.reject(error);
             }
-
-            // Clear any legacy localStorage data
+            // Clear stored credentials and redirect to login
             localStorage.removeItem('token');
             localStorage.removeItem('user');
-            // Redirect to login (cookies are cleared server-side)
+            localStorage.removeItem('access_token');
             window.location.href = '/login';
         }
         return Promise.reject(error);
