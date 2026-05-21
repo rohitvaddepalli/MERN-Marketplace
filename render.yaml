@@ -15,6 +15,8 @@ services:
         value: 10000
       - key: FRONTEND_URL
         value: https://market-place01.web.app
+      - key: BACKEND_URL
+        value: https://mern-marketplace-backend-29yc.onrender.com
       - key: MONGODB_URI
         sync: false   # set in Render Dashboard → Environment
       - key: JWT_SECRET

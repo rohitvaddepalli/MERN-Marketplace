@@ -8,14 +8,19 @@ dotenv.config();
 // SECURITY: Only configure Google OAuth if credentials are provided
 // This prevents using dummy credentials in production
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-    // Build an absolute callbackURL so Google redirects to Firebase Hosting,
-    // not to the raw Cloud Function URL. FRONTEND_URL should be your Firebase
-    // Hosting URL (e.g. https://market-place01.web.app).
-    const callbackURL = process.env.FRONTEND_URL
-        ? `${process.env.FRONTEND_URL.replace(/\/$/, '')}/api/auth/google/callback`
-        : process.env.NODE_ENV === 'production'
-          ? '/api/auth/google/callback'
-          : 'http://localhost:5000/api/auth/google/callback';
+    // The OAuth callback must point to the BACKEND (Render), not the frontend (Firebase).
+    // Google will POST the auth code to this URL after the user grants access.
+    // Priority: BACKEND_URL env var → RENDER_EXTERNAL_URL (auto-set by Render) → localhost
+    const backendBase =
+        process.env.BACKEND_URL ||
+        (process.env.RENDER_EXTERNAL_URL
+            ? `https://${process.env.RENDER_EXTERNAL_URL}`
+            : null) ||
+        (process.env.NODE_ENV === 'production' ? null : 'http://localhost:5000');
+
+    const callbackURL = backendBase
+        ? `${backendBase.replace(/\/$/, '')}/api/auth/google/callback`
+        : '/api/auth/google/callback';
 
     passport.use(
         new GoogleStrategy(
