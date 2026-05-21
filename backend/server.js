@@ -542,15 +542,15 @@ app.get('/api/upload/signature', (req, res) => {
     });
 });
 
-// Serve static assets in production
-if (process.env.NODE_ENV === 'production') {
-    // Set static folder
-    app.use(express.static(path.join(__dirname, '../frontend/build')));
-
-    app.get('*', (req, res) => {
-        res.sendFile(path.resolve(__dirname, '../frontend', 'build', 'index.html'));
+// The frontend is hosted on Firebase Hosting (market-place01.web.app).
+// This backend only serves API routes — no static frontend files needed.
+// Return a JSON 404 for any unmatched routes so the client gets a clear error.
+app.use((req, res) => {
+    res.status(404).json({
+        success: false,
+        message: `Route not found: ${req.method} ${req.originalUrl}`,
     });
-}
+});
 
 // Sentry error handler must come before our own error handler
 Sentry.setupExpressErrorHandler(app);
