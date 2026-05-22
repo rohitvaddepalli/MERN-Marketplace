@@ -16,27 +16,48 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // Fetch current user from backend
+    // Verify session with backend.
+    // KEY RULES:
+    //  1. If there is no token AND no stored user, skip the API call entirely.
+    //  2. On 401: only clear state when there is ALSO no token in localStorage.
+    //     A token present means the user just logged in — a transient 401 from
+    //     a Render cold-start or race condition must NOT wipe their session.
+    //  3. On network/5xx errors: keep existing state — don't log out.
     const checkAuth = useCallback(async () => {
+        const token = localStorage.getItem('access_token');
+        const storedUser = localStorage.getItem('user');
+
+        // No credentials at all → definitely logged out, no need to hit the server
+        if (!token && !storedUser) {
+            setLoading(false);
+            return;
+        }
+
         try {
             const response = await authAPI.getMe();
             if (response.data.success && response.data.user) {
                 setUser(response.data.user);
                 localStorage.setItem('user', JSON.stringify(response.data.user));
-            } else {
-                setUser(null);
-                localStorage.removeItem('user');
             }
         } catch (error) {
             logger.error('Auth check failed:', error);
-            setUser(null);
-            localStorage.removeItem('user');
+            const statusCode = error.response?.status;
+
+            // Only hard-logout on 401 when there is no token.
+            // If a token IS present, this is a race / cold-start — keep the user.
+            if (statusCode === 401 && !token) {
+                setUser(null);
+                localStorage.removeItem('user');
+                localStorage.removeItem('access_token');
+            }
+            // Any other error (network, 5xx) → keep existing state, don't log out
         } finally {
             setLoading(false);
         }
     }, []);
 
-    // Initial auth check
+    // On mount: restore user from localStorage immediately (instant UI) then
+    // verify with the server in the background.
     useEffect(() => {
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
@@ -87,22 +108,21 @@ export const AuthProvider = ({ children }) => {
         }
     }, []);
 
-    // Login with Google (Directly to backend)
-    // API_URL already includes /api (e.g. "/api" on Firebase or "http://localhost:5000/api" in dev)
-    // so we just append /auth/google — no extra /api prefix needed.
+    // Login with Google — full-page redirect to backend OAuth handler
     const loginWithGoogle = useCallback(() => {
         window.location.href = `${API_URL}/auth/google`;
     }, []);
 
-    // Logout
+    // Logout — always clear local credentials even if server call fails
     const logout = useCallback(async () => {
         try {
             await authAPI.logout();
+        } catch (error) {
+            logger.error('Logout error:', error);
+        } finally {
             setUser(null);
             localStorage.removeItem('user');
             localStorage.removeItem('access_token');
-        } catch (error) {
-            logger.error('Logout error:', error);
         }
     }, []);
 
