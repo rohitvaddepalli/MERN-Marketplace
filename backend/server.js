@@ -357,8 +357,10 @@ app.use((req, res, next) => {
     next();
 });
 
-const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
+// Skip uploads directory creation on serverless platforms (read-only filesystem)
+const isServerless = !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+const uploadsDir = isServerless ? '/tmp/uploads' : path.join(__dirname, 'uploads');
+if (!isServerless && !fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
     console.log('📁 Created uploads directory');
 }
