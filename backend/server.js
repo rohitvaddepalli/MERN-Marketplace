@@ -1,15 +1,17 @@
 // Sentry must be initialized before all other imports so it can instrument the app
-import * as Sentry from '@sentry/node';
-import { nodeProfilingIntegration } from '@sentry/profiling-node';
-
-Sentry.init({
-    dsn: process.env.SENTRY_DSN,
-    environment: process.env.NODE_ENV || 'development',
-    integrations: [nodeProfilingIntegration()],
-    // Capture 10% of transactions for performance monitoring in production
-    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
-    profilesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
-});
+let Sentry;
+if (process.env.NODE_ENV === 'production' && process.env.SENTRY_DSN) {
+    Sentry = await import('@sentry/node');
+    const { nodeProfilingIntegration } = await import('@sentry/profiling-node');
+    Sentry.init({
+        dsn: process.env.SENTRY_DSN,
+        environment: 'production',
+        integrations: [nodeProfilingIntegration()],
+        // Capture 10% of transactions for performance monitoring in production
+        tracesSampleRate: 0.1,
+        profilesSampleRate: 0.1,
+    });
+}
 
 import express from 'express';
 import { createServer } from 'http';
@@ -553,7 +555,9 @@ app.use((req, res) => {
 });
 
 // Sentry error handler must come before our own error handler
-Sentry.setupExpressErrorHandler(app);
+if (Sentry) {
+    Sentry.setupExpressErrorHandler(app);
+}
 
 // Error handler middleware (must be last)
 app.use(errorHandler);
@@ -586,7 +590,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
                 logger.info('MongoDB connection closed');
 
                 // 3. Flush Sentry events
-                await Sentry.close(2000);
+                if (Sentry) {
+                    await Sentry.close(2000);
+                }
 
                 logger.info('Graceful shutdown complete');
                 process.exit(0);

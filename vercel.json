@@ -1,0 +1,11 @@
+{
+  "experimentalServices": {
+    "marketplace-backend": {
+      "type": "web",
+      "root": "backend",
+      "entrypoint": "firebase-entry.js",
+      "routePrefix": "/",
+      "buildCommand": "npm install"
+    }
+  }
+}
