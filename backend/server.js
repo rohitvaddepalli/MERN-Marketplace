@@ -560,6 +560,7 @@ app.use(errorHandler);
 
 // Export app and httpServer for Firebase Functions / tests
 export { app, httpServer };
+export default app;
 
 // Only listen if run directly (not imported)
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
