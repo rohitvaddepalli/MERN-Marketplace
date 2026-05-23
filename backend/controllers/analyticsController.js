@@ -439,6 +439,13 @@ export const getAdminProductAnalytics = async (req, res) => {
         if (cached) return res.status(200).json({ success: true, ...cached });
 
         const productPerformance = await Order.aggregate([
+            // PERF: Filter completed orders BEFORE the expensive $unwind so MongoDB
+            // only processes a fraction of the collection.
+            {
+                $match: {
+                    paymentStatus: 'completed',
+                },
+            },
             { $unwind: '$items' },
             {
                 $group: {

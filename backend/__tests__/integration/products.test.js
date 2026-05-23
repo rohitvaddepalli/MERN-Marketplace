@@ -18,7 +18,7 @@ describe('Product Endpoints', () => {
             role: 'seller',
         });
         store = await createTestStore(seller._id);
-        token = generateToken(seller._id);
+        token = generateToken(seller._id, 'seller');
         await createTestProduct(store._id, seller._id);
     });
 

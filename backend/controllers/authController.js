@@ -1,9 +1,9 @@
 import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
 
-// Generate JWT Token
-const generateToken = (id) => {
-    return jwt.sign({ id }, process.env.JWT_SECRET, {
+// Generate JWT Token — includes role so auth middleware skips the DB lookup
+const generateToken = (user) => {
+    return jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
         expiresIn: process.env.JWT_EXPIRE || '7d',
     });
 };
@@ -34,7 +34,7 @@ const getCookieOptions = () => {
  * @param {string} message - Optional message
  */
 const sendTokenResponse = (user, statusCode, res, message = null) => {
-    const token = generateToken(user._id);
+    const token = generateToken(user);
 
     // Set HTTP-only cookie - this is the ONLY way the token is transmitted
     res.cookie('access_token', token, getCookieOptions());
@@ -149,7 +149,16 @@ export const login = async (req, res) => {
 // @access  Private
 export const getMe = async (req, res) => {
     try {
+        // Re-fetch from DB here — this is the one route that needs fresh user data.
+        // All other protected routes use the lightweight JWT payload via req.user.
         const user = await User.findById(req.user._id);
+
+        if (!user) {
+            return res.status(401).json({
+                success: false,
+                message: 'User not found',
+            });
+        }
 
         res.status(200).json({
             success: true,
@@ -308,7 +317,7 @@ export const resetPassword = async (req, res) => {
 // @route   GET /api/auth/google/callback
 // @access  Public
 export const socialLoginCallback = (req, res) => {
-    const token = generateToken(req.user._id);
+    const token = generateToken(req.user);
     const frontendUrl =
         process.env.FRONTEND_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:3000';
 

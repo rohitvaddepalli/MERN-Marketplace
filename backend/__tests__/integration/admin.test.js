@@ -19,7 +19,7 @@ describe('Admin Endpoints', () => {
         store = await createTestStore(seller._id);
         product = await createTestProduct(store._id, seller._id);
         order = await createTestOrder(customer._id, product);
-        adminToken = generateToken(admin._id);
+        adminToken = generateToken(admin._id, 'admin');
     });
 
     // ── Access control ─────────────────────────────────────────────────────────
@@ -30,7 +30,7 @@ describe('Admin Endpoints', () => {
         });
 
         it('should reject non-admin users', async () => {
-            const customerToken = generateToken(customer._id);
+            const customerToken = generateToken(customer._id, 'customer');
             const res = await request(app)
                 .get('/api/admin/stats')
                 .set('Cookie', getAuthCookie(customerToken));

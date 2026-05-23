@@ -46,6 +46,10 @@ export const createStore = async (req, res) => {
 export const getStores = async (req, res) => {
     try {
         const { category, search } = req.query;
+        const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+        const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
+        const skip = (page - 1) * limit;
+
         const query = { isActive: true };
 
         if (category) {
@@ -53,15 +57,25 @@ export const getStores = async (req, res) => {
         }
 
         if (search) {
-            const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
+            const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&');
             query.name = { $regex: escapeRegex(search), $options: 'i' };
         }
 
-        const stores = await Store.find(query).populate('owner', 'name email').sort('-createdAt');
+        const [stores, total] = await Promise.all([
+            Store.find(query)
+                .populate('owner', 'name email')
+                .sort('-createdAt')
+                .skip(skip)
+                .limit(limit),
+            Store.countDocuments(query),
+        ]);
 
         res.status(200).json({
             success: true,
             count: stores.length,
+            total,
+            page,
+            pages: Math.ceil(total / limit),
             stores,
         });
     } catch (error) {
@@ -77,7 +91,11 @@ export const getStores = async (req, res) => {
 // @access  Public
 export const getStore = async (req, res) => {
     try {
-        const store = await Store.findById(req.params.id).populate('owner', 'name email');
+        // PERF: Fetch store and its first 20 products in parallel
+        const [store, products] = await Promise.all([
+            Store.findById(req.params.id).populate('owner', 'name email'),
+            Product.find({ store: req.params.id, isActive: true }).limit(20),
+        ]);
 
         if (!store) {
             return res.status(404).json({
@@ -85,9 +103,6 @@ export const getStore = async (req, res) => {
                 message: 'Store not found',
             });
         }
-
-        // Get products for this store
-        const products = await Product.find({ store: store._id, isActive: true });
 
         res.status(200).json({
             success: true,

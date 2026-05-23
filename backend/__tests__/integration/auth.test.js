@@ -72,7 +72,7 @@ describe('Auth Endpoints', () => {
     describe('GET /api/auth/me', () => {
         it('should return current user profile', async () => {
             const user = await createTestUser();
-            const token = generateToken(user._id);
+            const token = generateToken(user._id, user.role || 'customer');
 
             const res = await request(app).get('/api/auth/me').set('Cookie', getAuthCookie(token));
 

@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import validator from 'validator';
 import Order from '../models/Order.js';
 import Product from '../models/Product.js';
 import Settings from '../models/Settings.js';
@@ -34,9 +35,14 @@ export const createOrder = async (req, res) => {
         let serverItemsPrice = 0;
         const verifiedItems = [];
 
+        // Batch-fetch all products in a single query to avoid N+1 round-trips
+        const itemIds = items.map((i) => i.product);
+        const productDocs = await Product.find({ _id: { $in: itemIds } });
+        const productMap = new Map(productDocs.map((p) => [p._id.toString(), p]));
+
         // Verify products exist, have sufficient stock, and compute server-side prices
         for (const item of items) {
-            const product = await Product.findById(item.product);
+            const product = productMap.get(item.product.toString());
             if (!product) {
                 return res.status(404).json({
                     success: false,
@@ -124,9 +130,8 @@ export const createOrder = async (req, res) => {
                 });
             }
 
-            // Import validator for email validation
-            const validator = await import('validator');
-            if (!validator.default.isEmail(guestInfo.email)) {
+            // Validate and normalise guest email (validator is a static import)
+            if (!validator.isEmail(guestInfo.email)) {
                 return res.status(400).json({
                     success: false,
                     message: 'Invalid email format',
@@ -136,7 +141,7 @@ export const createOrder = async (req, res) => {
             // Normalize email
             orderData.guestInfo = {
                 ...guestInfo,
-                email: validator.default.normalizeEmail(guestInfo.email),
+                email: validator.normalizeEmail(guestInfo.email),
             };
         }
 

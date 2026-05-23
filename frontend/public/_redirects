@@ -1,0 +1,2 @@
+/api/* https://us-central1-your-project-id.cloudfunctions.net/api/api/:splat 200
+/* /index.html 200

@@ -19,8 +19,8 @@ describe('Analytics Endpoints', () => {
         store = await createTestStore(seller._id);
         product = await createTestProduct(store._id, seller._id, { price: 100, stock: 50 });
         await createTestOrder(customer._id, product);
-        sellerToken = generateToken(seller._id);
-        adminToken = generateToken(admin._id);
+        sellerToken = generateToken(seller._id, 'seller');
+        adminToken = generateToken(admin._id, 'admin');
     });
 
     // ── Access control ─────────────────────────────────────────────────────────
@@ -31,7 +31,7 @@ describe('Analytics Endpoints', () => {
         });
 
         it('should reject customers from seller analytics', async () => {
-            const customerToken = generateToken(customer._id);
+            const customerToken = generateToken(customer._id, 'customer');
             const res = await request(app)
                 .get('/api/analytics/sales')
                 .set('Cookie', getAuthCookie(customerToken));
@@ -68,7 +68,7 @@ describe('Analytics Endpoints', () => {
                 email: 'new-seller@example.com',
                 role: 'seller',
             });
-            const newToken = generateToken(newSeller._id);
+            const newToken = generateToken(newSeller._id, 'seller');
 
             const res = await request(app)
                 .get('/api/analytics/sales')

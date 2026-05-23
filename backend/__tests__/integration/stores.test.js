@@ -10,7 +10,7 @@ describe('Store Endpoints', () => {
             email: 'store-seller@example.com',
             role: 'seller',
         });
-        token = generateToken(seller._id);
+        token = generateToken(seller._id, 'seller');
         store = await createTestStore(seller._id);
     });
 

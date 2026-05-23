@@ -57,9 +57,8 @@ api.interceptors.response.use(
                 return Promise.reject(error);
             }
             // Clear stored credentials and redirect to login
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
             localStorage.removeItem('access_token');
+            localStorage.removeItem('user');
             window.location.href = '/login';
         }
         return Promise.reject(error);

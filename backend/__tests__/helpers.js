@@ -17,8 +17,8 @@ export const createTestUser = async (overrides = {}) => {
     return await User.create(userData);
 };
 
-export const generateToken = (userId) => {
-    return jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: '30d' });
+export const generateToken = (userId, role = 'customer') => {
+    return jwt.sign({ id: userId, role }, process.env.JWT_SECRET, { expiresIn: '30d' });
 };
 
 export const getAuthCookie = (token) => {

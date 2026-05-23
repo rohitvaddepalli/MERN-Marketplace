@@ -28,7 +28,7 @@ describe('Order Endpoints', () => {
         });
         store = await createTestStore(seller._id);
         product = await createTestProduct(store._id, seller._id, { stock: 100 });
-        customerToken = generateToken(customer._id);
+        customerToken = generateToken(customer._id, 'customer');
     });
 
     describe('POST /api/orders', () => {

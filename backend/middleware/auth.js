@@ -1,18 +1,12 @@
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 import User from '../models/User.js';
 
-/**
- * Extract token from request
- * Priority: 1) HTTP-only cookie, 2) Authorization header
- * This allows backward compatibility while preferring secure cookies
- */
 const getTokenFromRequest = (req) => {
-    // First, check for HTTP-only cookie (more secure)
     if (req.cookies && req.cookies.access_token) {
         return req.cookies.access_token;
     }
 
-    // Fallback to Authorization header for backward compatibility
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
         return req.headers.authorization.split(' ')[1];
     }
@@ -33,18 +27,27 @@ export const protect = async (req, res, next) => {
 
         try {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            req.user = await User.findById(decoded.id);
+            // Always cast to ObjectId so aggregation pipelines work correctly
+            // (they don't auto-cast strings the way Mongoose queries do)
+            const userId = new mongoose.Types.ObjectId(decoded.id);
 
-            if (!req.user) {
-                return res.status(401).json({
-                    success: false,
-                    message: 'User not found',
-                });
+            if (decoded.role) {
+                // PERF: New token format — role embedded, zero DB round-trips
+                req.user = { _id: userId, role: decoded.role };
+            } else {
+                // COMPAT: Legacy token — one DB lookup until the user re-logs-in
+                const user = await User.findById(userId).select('role');
+                if (!user) {
+                    return res.status(401).json({
+                        success: false,
+                        message: 'User not found',
+                    });
+                }
+                req.user = { _id: userId, role: user.role };
             }
 
             next();
         } catch (_error) {
-            // Clear invalid cookie if present
             res.clearCookie('access_token');
             return res.status(401).json({
                 success: false,
@@ -81,7 +84,16 @@ export const optionalProtect = async (req, res, next) => {
 
         try {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            req.user = await User.findById(decoded.id);
+            const userId = new mongoose.Types.ObjectId(decoded.id);
+
+            if (decoded.role) {
+                req.user = { _id: userId, role: decoded.role };
+            } else {
+                const user = await User.findById(userId).select('role');
+                if (user) {
+                    req.user = { _id: userId, role: user.role };
+                }
+            }
             next();
         } catch (_error) {
             // If token is invalid, just proceed as guest
