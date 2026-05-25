@@ -9,9 +9,7 @@ const baseController = new BaseController();
  * @returns {Function} - Express middleware function
  */
 const asyncHandler = (fn) => (req, res, next) => {
-    Promise.resolve(fn(req, res, next)).catch(error => {
-        baseController.handleError(error, res, fn.name || 'Controller');
-    });
+    Promise.resolve(fn(req, res, next)).catch(next);
 };
 
 export default asyncHandler;

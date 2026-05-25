@@ -13,7 +13,7 @@ export const validateZod = (schema) => async (req, res, next) => {
             return res.status(400).json({
                 success: false,
                 code: 'VALIDATION_ERROR',
-                message: error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', '),
+                message: error.errors?.map((e) => `${e.path.join('.')}: ${e.message}`).join(', ') || 'Validation failed',
                 errors: error.errors,
             });
         }
