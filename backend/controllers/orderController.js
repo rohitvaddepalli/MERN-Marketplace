@@ -3,12 +3,14 @@ import validator from 'validator';
 import Order from '../models/Order.js';
 import Product from '../models/Product.js';
 import Settings from '../models/Settings.js';
+import cache from '../utils/cache.js';
+import { BaseController } from './BaseController.js';
 
-// @desc    Create new order
-// @route   POST /api/orders
-// @access  Private/Customer
-export const createOrder = async (req, res) => {
-    try {
+class OrderController extends BaseController {
+    // @desc    Create new order
+    // @route   POST /api/orders
+    // @access  Private/Customer
+    createOrder = async (req, res) => {
         const {
             items,
             shippingAddress,
@@ -25,6 +27,18 @@ export const createOrder = async (req, res) => {
                 success: false,
                 message: 'No order items',
             });
+        }
+
+        const idempotencyKey = req.headers['idempotency-key'];
+        if (idempotencyKey && req.user) {
+            const cacheKey = `idempotency:order:${req.user._id}:${idempotencyKey}`;
+            const existingOrderId = await cache.get(cacheKey);
+            if (existingOrderId) {
+                const existingOrder = await Order.findById(existingOrderId);
+                if (existingOrder) {
+                    return res.status(200).json({ success: true, order: existingOrder, cached: true });
+                }
+            }
         }
 
         // Get system settings for tax and shipping
@@ -75,6 +89,7 @@ export const createOrder = async (req, res) => {
             verifiedItems.push({
                 product: item.product,
                 store: item.store,
+                seller: product.seller,
                 quantity: item.quantity,
                 price: price, // Use server-side calculated price
             });
@@ -147,6 +162,11 @@ export const createOrder = async (req, res) => {
 
         const order = await Order.create(orderData);
 
+        if (idempotencyKey && req.user) {
+            const cacheKey = `idempotency:order:${req.user._id}:${idempotencyKey}`;
+            await cache.set(cacheKey, order._id.toString(), 5 * 60);
+        }
+
         // Update product stock
         if (verifiedItems.length > 0) {
             const bulkOps = verifiedItems.map((item) => ({
@@ -172,23 +192,13 @@ export const createOrder = async (req, res) => {
             });
         }
 
-        res.status(201).json({
-            success: true,
-            order,
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-    }
-};
+        this.handleSuccess(res, { order }, 201);
+    };
 
-// @desc    Get logged in user orders
-// @route   GET /api/orders/myorders
-// @access  Private/Customer
-export const getMyOrders = async (req, res) => {
-    try {
+    // @desc    Get logged in user orders
+    // @route   GET /api/orders/myorders
+    // @access  Private/Customer
+    getMyOrders = async (req, res) => {
         const limit = parseInt(req.query.limit, 10) || 20;
         const cursor = req.query.cursor;
         const query = { customer: req.user._id };
@@ -209,25 +219,17 @@ export const getMyOrders = async (req, res) => {
 
         const nextCursor = orders.length === limit ? orders[orders.length - 1]._id : null;
 
-        res.status(200).json({
-            success: true,
+        this.handleSuccess(res, {
             count: orders.length,
             nextCursor,
             orders,
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-    }
-};
+        }, 200);
+    };
 
-// @desc    Get single order
-// @route   GET /api/orders/:id
-// @access  Private
-export const getOrder = async (req, res) => {
-    try {
+    // @desc    Get single order
+    // @route   GET /api/orders/:id
+    // @access  Private
+    getOrder = async (req, res) => {
         const order = await Order.findById(req.params.id)
             .populate('customer', 'name email')
             .populate('items.product', 'name images price seller') // Added 'seller' to enable seller authorization check
@@ -241,12 +243,11 @@ export const getOrder = async (req, res) => {
         }
 
         // Make sure user is order owner or seller of products in order
-        const isCustomer = order.customer._id.toString() === req.user._id.toString();
+        const isCustomer = order.customer && order.customer._id.toString() === req.user._id.toString();
         const isSeller = order.items.some(
             (item) =>
-                item.product &&
-                item.product.seller &&
-                item.product.seller.toString() === req.user._id.toString()
+                (item.seller && item.seller.toString() === req.user._id.toString()) ||
+                (item.product && item.product.seller && item.product.seller.toString() === req.user._id.toString())
         );
 
         if (!isCustomer && !isSeller) {
@@ -256,23 +257,13 @@ export const getOrder = async (req, res) => {
             });
         }
 
-        res.status(200).json({
-            success: true,
-            order,
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-    }
-};
+        this.handleSuccess(res, { order }, 200);
+    };
 
-// @desc    Update order status
-// @route   PUT /api/orders/:id/status
-// @access  Private/Seller
-export const updateOrderStatus = async (req, res) => {
-    try {
+    // @desc    Update order status
+    // @route   PUT /api/orders/:id/status
+    // @access  Private/Seller
+    updateOrderStatus = async (req, res) => {
         const { status } = req.body;
 
         const order = await Order.findById(req.params.id).populate('items.product');
@@ -287,9 +278,8 @@ export const updateOrderStatus = async (req, res) => {
         // Check if seller owns any products in the order
         const hasSellersProduct = order.items.some(
             (item) =>
-                item.product &&
-                item.product.seller &&
-                item.product.seller.toString() === req.user._id.toString()
+                (item.seller && item.seller.toString() === req.user._id.toString()) ||
+                (item.product && item.product.seller && item.product.seller.toString() === req.user._id.toString())
         );
 
         if (!hasSellersProduct) {
@@ -299,12 +289,15 @@ export const updateOrderStatus = async (req, res) => {
             });
         }
 
-        order.status = status;
+        const updateDoc = { status };
         if (status === 'delivered') {
-            order.deliveredAt = Date.now();
+            updateDoc.deliveredAt = Date.now();
         }
 
-        await order.save();
+        await Order.findByIdAndUpdate(req.params.id, { $set: updateDoc }, { new: true });
+        
+        order.status = status;
+        if (updateDoc.deliveredAt) order.deliveredAt = updateDoc.deliveredAt;
 
         // Emit real-time status update to buyer and order room
         const io = req.app.get('io');
@@ -323,33 +316,23 @@ export const updateOrderStatus = async (req, res) => {
             io.to(`order:${order._id}`).emit('order:status', statusEvent);
         }
 
-        res.status(200).json({
-            success: true,
-            order,
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-    }
-};
+        this.handleSuccess(res, { order }, 200);
+    };
 
-// @desc    Get seller orders
-// @route   GET /api/orders/seller/orders
-// @access  Private/Seller
-//
-// ARCHITECTURE: Uses an aggregation pipeline instead of loading every order
-// into memory and filtering in JavaScript.  The pipeline:
-//   1. $unwind   — flattens items so we can inspect each item's product
-//   2. $lookup   — joins Product to get the seller field
-//   3. $match    — keeps only items belonging to the requesting seller
-//   4. $lookup   — joins User (customer) for display info
-//   5. $group    — reassembles per-order documents with only the seller's items
-//   6. $sort     — newest first
-//   7. $limit    — honour the caller's page-size
-export const getSellerOrders = async (req, res) => {
-    try {
+    // @desc    Get seller orders
+    // @route   GET /api/orders/seller/orders
+    // @access  Private/Seller
+    //
+    // ARCHITECTURE: Uses an aggregation pipeline instead of loading every order
+    // into memory and filtering in JavaScript.  The pipeline:
+    //   1. $unwind   — flattens items so we can inspect each item's product
+    //   2. $lookup   — joins Product to get the seller field
+    //   3. $match    — keeps only items belonging to the requesting seller
+    //   4. $lookup   — joins User (customer) for display info
+    //   5. $group    — reassembles per-order documents with only the seller's items
+    //   6. $sort     — newest first
+    //   7. $limit    — honour the caller's page-size
+    getSellerOrders = async (req, res) => {
         const limit = parseInt(req.query.limit, 10) || 20;
 
         // Cursor is a createdAt ISO timestamp (must align with the $sort: { createdAt: -1 } stage)
@@ -456,25 +439,17 @@ export const getSellerOrders = async (req, res) => {
                 ? sellerOrders[sellerOrders.length - 1].createdAt
                 : null;
 
-        res.status(200).json({
-            success: true,
+        this.handleSuccess(res, {
             count: sellerOrders.length,
             nextCursor,
             orders: sellerOrders,
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-    }
-};
+        }, 200);
+    };
 
-// @desc    Get all orders (Admin)
-// @route   GET /api/orders
-// @access  Private/Admin
-export const getAllOrders = async (req, res) => {
-    try {
+    // @desc    Get all orders (Admin)
+    // @route   GET /api/orders
+    // @access  Private/Admin
+    getAllOrders = async (req, res) => {
         const limit = parseInt(req.query.limit, 10) || 20;
         const cursor = req.query.cursor;
         const query = {};
@@ -491,25 +466,17 @@ export const getAllOrders = async (req, res) => {
 
         const nextCursor = orders.length === limit ? orders[orders.length - 1]._id : null;
 
-        res.status(200).json({
-            success: true,
+        this.handleSuccess(res, {
             count: orders.length,
             nextCursor,
             orders,
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-    }
-};
+        }, 200);
+    };
 
-// @desc    Cancel order
-// @route   PUT /api/orders/:id/cancel
-// @access  Private/Customer
-export const cancelOrder = async (req, res) => {
-    try {
+    // @desc    Cancel order
+    // @route   PUT /api/orders/:id/cancel
+    // @access  Private/Customer
+    cancelOrder = async (req, res) => {
         const order = await Order.findById(req.params.id);
 
         if (!order) {
@@ -535,8 +502,8 @@ export const cancelOrder = async (req, res) => {
             });
         }
 
+        await Order.findByIdAndUpdate(req.params.id, { $set: { status: 'cancelled' } }, { new: true });
         order.status = 'cancelled';
-        await order.save();
 
         // Restore stock
         const itemsWithProduct = order.items.filter((item) => item.product);
@@ -577,14 +544,8 @@ export const cancelOrder = async (req, res) => {
             });
         }
 
-        res.status(200).json({
-            success: true,
-            order,
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-    }
-};
+        this.handleSuccess(res, { order }, 200);
+    };
+}
+
+export default new OrderController();

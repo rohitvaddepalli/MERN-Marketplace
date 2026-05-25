@@ -1,121 +1,7 @@
 import Store from '../models/Store.js';
 import Product from '../models/Product.js';
-
-// @desc    Create store
-// @route   POST /api/stores
-// @access  Private/Seller
-export const createStore = async (req, res) => {
-    try {
-        const { name, description, category, address, contact, logo, banner } = req.body;
-
-        // Check if seller already has a store
-        const existingStore = await Store.findOne({ owner: req.user._id });
-        if (existingStore) {
-            return res.status(400).json({
-                success: false,
-                message: 'You already have a store. Each seller can only have one store.',
-            });
-        }
-
-        const store = await Store.create({
-            name,
-            description,
-            category,
-            address,
-            contact,
-            logo,
-            banner,
-            owner: req.user._id,
-        });
-
-        res.status(201).json({
-            success: true,
-            store,
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-    }
-};
-
-// @desc    Get all stores
-// @route   GET /api/stores
-// @access  Public
-export const getStores = async (req, res) => {
-    try {
-        const { category, search } = req.query;
-        const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
-        const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
-        const skip = (page - 1) * limit;
-
-        const query = { isActive: true };
-
-        if (category) {
-            query.category = category;
-        }
-
-        if (search) {
-            const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&');
-            query.name = { $regex: escapeRegex(search), $options: 'i' };
-        }
-
-        const [stores, total] = await Promise.all([
-            Store.find(query)
-                .populate('owner', 'name email')
-                .sort('-createdAt')
-                .skip(skip)
-                .limit(limit),
-            Store.countDocuments(query),
-        ]);
-
-        res.status(200).json({
-            success: true,
-            count: stores.length,
-            total,
-            page,
-            pages: Math.ceil(total / limit),
-            stores,
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-    }
-};
-
-// @desc    Get single store
-// @route   GET /api/stores/:id
-// @access  Public
-export const getStore = async (req, res) => {
-    try {
-        // PERF: Fetch store and its first 20 products in parallel
-        const [store, products] = await Promise.all([
-            Store.findById(req.params.id).populate('owner', 'name email'),
-            Product.find({ store: req.params.id, isActive: true }).limit(20),
-        ]);
-
-        if (!store) {
-            return res.status(404).json({
-                success: false,
-                message: 'Store not found',
-            });
-        }
-
-        res.status(200).json({
-            success: true,
-            store,
-            products,
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-    }
-};
+import { BaseController } from './BaseController.js';
+import { sanitizeSearchInput } from '../utils/sanitize.js';
 
 // SECURITY: Whitelist of fields allowed for store update
 // Prevents mass assignment attacks that could modify owner, isActive, etc.
@@ -145,11 +31,101 @@ const pickAllowedFields = (source, allowedFields) => {
     return result;
 };
 
-// @desc    Update store
-// @route   PUT /api/stores/:id
-// @access  Private/Seller
-export const updateStore = async (req, res) => {
-    try {
+class StoreController extends BaseController {
+    // @desc    Create store
+    // @route   POST /api/stores
+    // @access  Private/Seller
+    createStore = async (req, res) => {
+        const { name, description, category, address, contact, logo, banner } = req.body;
+
+        // Check if seller already has a store
+        const existingStore = await Store.findOne({ owner: req.user._id });
+        if (existingStore) {
+            return res.status(400).json({
+                success: false,
+                message: 'You already have a store. Each seller can only have one store.',
+            });
+        }
+
+        const store = await Store.create({
+            name,
+            description,
+            category,
+            address,
+            contact,
+            logo,
+            banner,
+            owner: req.user._id,
+        });
+
+        this.handleSuccess(res, { store }, 201);
+    };
+
+    // @desc    Get all stores
+    // @route   GET /api/stores
+    // @access  Public
+    getStores = async (req, res) => {
+        const { category, search } = req.query;
+        const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+        const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
+        const skip = (page - 1) * limit;
+
+        const query = { isActive: true };
+
+        if (category) {
+            query.category = category;
+        }
+
+        const safeSearch = sanitizeSearchInput(search);
+        if (safeSearch) {
+            query.name = { $regex: safeSearch, $options: 'i' };
+        }
+
+        const [stores, total] = await Promise.all([
+            Store.find(query)
+                .populate('owner', 'name email')
+                .sort('-createdAt')
+                .skip(skip)
+                .limit(limit),
+            Store.countDocuments(query),
+        ]);
+
+        this.handleSuccess(res, {
+            count: stores.length,
+            total,
+            page,
+            pages: Math.ceil(total / limit),
+            stores,
+        }, 200);
+    };
+
+    // @desc    Get single store
+    // @route   GET /api/stores/:id
+    // @access  Public
+    getStore = async (req, res) => {
+        // PERF: Fetch store and its first 20 products in parallel
+        const [store, products] = await Promise.all([
+            Store.findById(req.params.id).populate('owner', 'name email'),
+            Product.find({ store: req.params.id, isActive: true }).limit(20),
+        ]);
+
+        if (!store) {
+            return res.status(404).json({
+                success: false,
+                message: 'Store not found',
+            });
+        }
+
+        this.handleSuccess(res, {
+            store,
+            products,
+        }, 200);
+    };
+
+    // @desc    Update store
+    // @route   PUT /api/stores/:id
+    // @access  Private/Seller
+    updateStore = async (req, res) => {
         let store = await Store.findById(req.params.id);
 
         if (!store) {
@@ -175,23 +151,13 @@ export const updateStore = async (req, res) => {
             runValidators: true,
         });
 
-        res.status(200).json({
-            success: true,
-            store,
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-    }
-};
+        this.handleSuccess(res, { store }, 200);
+    };
 
-// @desc    Delete store
-// @route   DELETE /api/stores/:id
-// @access  Private/Seller
-export const deleteStore = async (req, res) => {
-    try {
+    // @desc    Delete store
+    // @route   DELETE /api/stores/:id
+    // @access  Private/Seller
+    deleteStore = async (req, res) => {
         const store = await Store.findById(req.params.id);
 
         if (!store) {
@@ -211,23 +177,13 @@ export const deleteStore = async (req, res) => {
 
         await store.deleteOne();
 
-        res.status(200).json({
-            success: true,
-            message: 'Store deleted successfully',
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-    }
-};
+        this.handleSuccess(res, { message: 'Store deleted successfully' }, 200);
+    };
 
-// @desc    Get seller's store
-// @route   GET /api/stores/my/store
-// @access  Private/Seller
-export const getMyStore = async (req, res) => {
-    try {
+    // @desc    Get seller's store
+    // @route   GET /api/stores/my/store
+    // @access  Private/Seller
+    getMyStore = async (req, res) => {
         const store = await Store.findOne({ owner: req.user._id });
 
         if (!store) {
@@ -240,15 +196,11 @@ export const getMyStore = async (req, res) => {
         // Get products count
         const productsCount = await Product.countDocuments({ store: store._id });
 
-        res.status(200).json({
-            success: true,
+        this.handleSuccess(res, {
             store,
             productsCount,
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-    }
-};
+        }, 200);
+    };
+}
+
+export default new StoreController();

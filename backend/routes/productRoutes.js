@@ -1,25 +1,11 @@
 import express from 'express';
-import {
-    createProduct,
-    getProducts,
-    getProduct,
-    updateProduct,
-    deleteProduct,
-    getMyProducts,
-    getFeaturedProducts,
-    getLowStockProducts,
-    bulkImportProducts,
-    exportProducts,
-} from '../controllers/productController.js';
-import {
-    createReview,
-    getProductReviews,
-    markReviewHelpful,
-} from '../controllers/reviewController.js';
+import productController from '../controllers/productController.js';
+import reviewController from '../controllers/reviewController.js';
 import { protect, authorize } from '../middleware/auth.js';
-import { body } from 'express-validator';
 import rateLimit from 'express-rate-limit';
-import { validate } from '../middleware/validate.js';
+import { validateZod } from '../middleware/validateZod.js';
+import { productSchema, reviewSchema } from '../validators/productValidator.js';
+import asyncHandler from '../utils/asyncHandler.js';
 
 const router = express.Router();
 
@@ -32,35 +18,6 @@ const createProductLimiter = rateLimit({
     },
 });
 
-const validateProduct = [
-    body('name')
-        .trim()
-        .notEmpty()
-        .withMessage('Product name is required')
-        .isLength({ max: 100 })
-        .withMessage('Name cannot exceed 100 characters'),
-    body('description')
-        .trim()
-        .notEmpty()
-        .withMessage('Description is required')
-        .isLength({ max: 2000 })
-        .withMessage('Description cannot exceed 2000 characters'),
-    body('price').isFloat({ min: 0 }).withMessage('Price must be a positive number'),
-    body('stock').isInt({ min: 0 }).withMessage('Stock must be a non-negative integer'),
-    body('category').trim().notEmpty().withMessage('Category is required'),
-    validate,
-];
-
-const validateReview = [
-    body('rating').isFloat({ min: 1, max: 5 }).withMessage('Rating must be between 1 and 5'),
-    body('comment')
-        .optional()
-        .trim()
-        .isLength({ max: 500 })
-        .withMessage('Comment cannot exceed 500 characters'),
-    validate,
-];
-
 /**
  * @swagger
  * /api/products/featured:
@@ -70,11 +27,11 @@ const validateReview = [
  *     responses:
  *       200: { description: Featured products list }
  */
-router.get('/featured', getFeaturedProducts);
-router.get('/my/products', protect, authorize('seller'), getMyProducts);
-router.get('/low-stock', protect, authorize('seller'), getLowStockProducts);
-router.get('/export', protect, authorize('seller'), exportProducts);
-router.post('/bulk-import', protect, authorize('seller'), bulkImportProducts);
+router.get('/featured', asyncHandler(productController.getFeaturedProducts));
+router.get('/my/products', protect, authorize('seller'), asyncHandler(productController.getMyProducts));
+router.get('/low-stock', protect, authorize('seller'), asyncHandler(productController.getLowStockProducts));
+router.get('/export', protect, authorize('seller'), productController.exportProducts); // no asyncHandler for streaming
+router.post('/bulk-import', protect, authorize('seller'), asyncHandler(productController.bulkImportProducts));
 
 /**
  * @swagger
@@ -111,9 +68,11 @@ router.post('/bulk-import', protect, authorize('seller'), bulkImportProducts);
  *     responses:
  *       201: { description: Review created }
  */
-router.route('/:id/reviews').post(protect, validateReview, createReview).get(getProductReviews);
+router.route('/:id/reviews')
+    .post(protect, validateZod(reviewSchema), asyncHandler(reviewController.createReview))
+    .get(asyncHandler(reviewController.getProductReviews));
 
-router.put('/:id/reviews/:reviewId/helpful', protect, markReviewHelpful);
+router.put('/:id/reviews/:reviewId/helpful', protect, asyncHandler(reviewController.markReviewHelpful));
 
 /**
  * @swagger
@@ -170,8 +129,8 @@ router.put('/:id/reviews/:reviewId/helpful', protect, markReviewHelpful);
  */
 router
     .route('/')
-    .get(getProducts)
-    .post(protect, authorize('seller'), createProductLimiter, validateProduct, createProduct);
+    .get(asyncHandler(productController.getProducts))
+    .post(protect, authorize('seller'), createProductLimiter, validateZod(productSchema), asyncHandler(productController.createProduct));
 
 /**
  * @swagger
@@ -214,8 +173,8 @@ router
  */
 router
     .route('/:id')
-    .get(getProduct)
-    .put(protect, authorize('seller'), validateProduct, updateProduct)
-    .delete(protect, authorize('seller'), deleteProduct);
+    .get(asyncHandler(productController.getProduct))
+    .put(protect, authorize('seller'), validateZod(productSchema), asyncHandler(productController.updateProduct))
+    .delete(protect, authorize('seller'), asyncHandler(productController.deleteProduct));
 
 export default router;

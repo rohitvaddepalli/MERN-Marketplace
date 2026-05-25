@@ -109,10 +109,16 @@ productSchema.pre('save', function (next) {
     next();
 });
 
-// Add database indexes
+// Existing single-field indexes (kept for targeted seller/category/store lookups)
+productSchema.index({ seller: 1, stock: 1 }); // Replaces or augments seller:1 for low stock queries
 productSchema.index({ seller: 1 });
 productSchema.index({ category: 1 });
 productSchema.index({ store: 1 });
 productSchema.index({ name: 'text', description: 'text', brand: 'text' });
+
+// PERF: Compound indexes for common product listing filter + sort combinations.
+// getProducts filters on { isActive, category, price } and sorts by -createdAt or -rating.
+productSchema.index({ isActive: 1, category: 1, price: 1 });
+productSchema.index({ isActive: 1, rating: -1 });
 
 export default mongoose.model('Product', productSchema);

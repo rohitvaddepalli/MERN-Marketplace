@@ -1,71 +1,19 @@
 import User from '../models/User.js';
-import jwt from 'jsonwebtoken';
+import {
+    generateToken,
+    getCookieOptions,
+    sendTokenResponse,
+    sendPasswordResetEmail,
+} from '../services/authService.js';
+import { BaseController } from './BaseController.js';
+import config from '../config/unifiedConfig.js';
+import crypto from 'crypto';
 
-// Generate JWT Token — includes role so auth middleware skips the DB lookup
-const generateToken = (user) => {
-    return jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
-        expiresIn: process.env.JWT_EXPIRE || '7d',
-    });
-};
-
-// Cookie options for secure HTTP-only cookies
-// IMPORTANT: SameSite must be 'none' (not 'strict') because the frontend
-// (market-place01.web.app) and backend (onrender.com) are on different domains.
-// Browsers silently block SameSite=strict cookies on cross-site requests.
-// SameSite=none REQUIRES secure:true (HTTPS), which is always true on Render.
-const getCookieOptions = () => {
-    const isProduction = process.env.NODE_ENV === 'production';
-    return {
-        httpOnly: true,   // Prevents XSS — JS cannot read this cookie
-        secure: isProduction, // HTTPS only in production (required for SameSite=none)
-        sameSite: isProduction ? 'none' : 'lax', // 'none' allows cross-origin cookie sending
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        path: '/',
-    };
-};
-
-/**
- * Send token response - sets HTTP-only cookie and returns user data
- * SECURITY: Token is ONLY sent via HTTP-only cookie, NOT in response body
- * This prevents XSS attacks from stealing tokens via localStorage
- * @param {Object} user - User document
- * @param {number} statusCode - HTTP status code
- * @param {Object} res - Express response object
- * @param {string} message - Optional message
- */
-const sendTokenResponse = (user, statusCode, res, message = null) => {
-    const token = generateToken(user);
-
-    // Set HTTP-only cookie - this is the ONLY way the token is transmitted
-    res.cookie('access_token', token, getCookieOptions());
-
-    const responseData = {
-        success: true,
-        token, // Added token to response body to satisfy test requirements and frontend consumption
-        // Clients can use HTTP-only cookies (withCredentials: true) or localStorage
-        user: {
-            id: user._id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            avatar: user.avatar,
-            phone: user.phone,
-            address: user.address,
-        },
-    };
-
-    if (message) {
-        responseData.message = message;
-    }
-
-    res.status(statusCode).json(responseData);
-};
-
-// @desc    Register user
-// @route   POST /api/auth/register
-// @access  Public
-export const register = async (req, res) => {
-    try {
+class AuthController extends BaseController {
+    // @desc    Register user
+    // @route   POST /api/auth/register
+    // @access  Public
+    register = async (req, res) => {
         // SECURITY: Only allow 'customer' or 'seller' roles from public registration
         // Admin role must be granted via database or admin panel
         const { name, email, password, phone } = req.body;
@@ -94,19 +42,12 @@ export const register = async (req, res) => {
         });
 
         sendTokenResponse(user, 201, res);
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-    }
-};
+    };
 
-// @desc    Login user
-// @route   POST /api/auth/login
-// @access  Public
-export const login = async (req, res) => {
-    try {
+    // @desc    Login user
+    // @route   POST /api/auth/login
+    // @access  Public
+    login = async (req, res) => {
         const { email, password } = req.body;
 
         // Validate email & password
@@ -136,19 +77,12 @@ export const login = async (req, res) => {
         }
 
         sendTokenResponse(user, 200, res);
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-    }
-};
+    };
 
-// @desc    Get current logged in user
-// @route   GET /api/auth/me
-// @access  Private
-export const getMe = async (req, res) => {
-    try {
+    // @desc    Get current logged in user
+    // @route   GET /api/auth/me
+    // @access  Private
+    getMe = async (req, res) => {
         // Re-fetch from DB here — this is the one route that needs fresh user data.
         // All other protected routes use the lightweight JWT payload via req.user.
         const user = await User.findById(req.user._id);
@@ -160,23 +94,13 @@ export const getMe = async (req, res) => {
             });
         }
 
-        res.status(200).json({
-            success: true,
-            user,
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-    }
-};
+        this.handleSuccess(res, { user }, 200);
+    };
 
-// @desc    Update user profile
-// @route   PUT /api/auth/updateprofile
-// @access  Private
-export const updateProfile = async (req, res) => {
-    try {
+    // @desc    Update user profile
+    // @route   PUT /api/auth/updateprofile
+    // @access  Private
+    updateProfile = async (req, res) => {
         const fieldsToUpdate = {
             name: req.body.name,
             email: req.body.email,
@@ -189,23 +113,13 @@ export const updateProfile = async (req, res) => {
             runValidators: true,
         });
 
-        res.status(200).json({
-            success: true,
-            user,
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-    }
-};
+        this.handleSuccess(res, { user }, 200);
+    };
 
-// @desc    Forgot password
-// @route   POST /api/auth/forgotpassword
-// @access  Public
-export const forgotPassword = async (req, res) => {
-    try {
+    // @desc    Forgot password
+    // @route   POST /api/auth/forgotpassword
+    // @access  Public
+    forgotPassword = async (req, res) => {
         const { email } = req.body;
 
         const user = await User.findOne({ email });
@@ -218,46 +132,16 @@ export const forgotPassword = async (req, res) => {
 
         // Get reset token
         const resetToken = user.getResetPasswordToken();
-
         await user.save({ validateBeforeSave: false });
 
-        // Create reset url
-        const frontendUrl =
-            process.env.FRONTEND_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:3000';
-        const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
-
-        const message = `
-            <h1>Password Reset Request</h1>
-            <p>You requested a password reset for your Marketplace account.</p>
-            <p>Please click the link below to reset your password:</p>
-            <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background-color: #FF6B35; color: white; text-decoration: none; border-radius: 8px; margin: 16px 0;">Reset Password</a>
-            <p>Or copy and paste this URL into your browser:</p>
-            <p>${resetUrl}</p>
-            <p>This link will expire in 10 minutes.</p>
-            <p>If you didn't request this, please ignore this email.</p>
-            <hr>
-            <p style="color: #666; font-size: 12px;">Marketplace Team</p>
-        `;
-
+        // Dispatch password-reset email via service (URL building + SMTP live there)
         try {
-            // Dynamically import sendEmail
-            const { default: sendEmail } = await import('../utils/sendEmail.js');
+            await sendPasswordResetEmail({ email: user.email, resetToken });
 
-            await sendEmail({
-                email: user.email,
-                subject: 'Password Reset Request - Marketplace',
-                message,
-            });
-
-            res.status(200).json({
-                success: true,
-                message: 'Password reset link sent to your email',
-            });
+            this.handleSuccess(res, { message: 'Password reset link sent to your email' }, 200);
         } catch (err) {
-            console.error('Email error:', err);
             user.resetPasswordToken = undefined;
             user.resetPasswordExpire = undefined;
-
             await user.save({ validateBeforeSave: false });
 
             return res.status(500).json({
@@ -265,23 +149,14 @@ export const forgotPassword = async (req, res) => {
                 message: 'Email could not be sent. Please try again later.',
             });
         }
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-    }
-};
+    };
 
-// @desc    Reset password
-// @route   PUT /api/auth/resetpassword/:resettoken
-// @access  Public
-export const resetPassword = async (req, res) => {
-    try {
-        const crypto = await import('crypto');
-
+    // @desc    Reset password
+    // @route   PUT /api/auth/resetpassword/:resettoken
+    // @access  Public
+    resetPassword = async (req, res) => {
         // Get hashed token
-        const resetPasswordToken = crypto.default
+        const resetPasswordToken = crypto
             .createHash('sha256')
             .update(req.params.resettoken)
             .digest('hex');
@@ -305,43 +180,36 @@ export const resetPassword = async (req, res) => {
         await user.save();
 
         sendTokenResponse(user, 200, res, 'Password reset successful');
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message,
+    };
+
+    // @desc    Social Login Callback
+    // @route   GET /api/auth/google/callback
+    // @access  Public
+    socialLoginCallback = (req, res) => {
+        const token = generateToken(req.user);
+        const frontendUrl = config.frontendUrl;
+
+        // Set HTTP-only cookie for the token
+        res.cookie('access_token', token, getCookieOptions());
+
+        // SECURITY: Use URL fragment instead of query param
+        // Fragments are not sent to the server in HTTP requests, reducing exposure
+        // The frontend will read the fragment and clear it immediately
+        res.redirect(`${frontendUrl}/login/success#authenticated=true`);
+    };
+
+    // @desc    Logout user - clear auth cookie
+    // @route   POST /api/auth/logout
+    // @access  Private
+    logout = (req, res) => {
+        res.cookie('access_token', '', {
+            httpOnly: true,
+            expires: new Date(0), // Expire immediately
+            path: '/',
         });
-    }
-};
 
-// @desc    Social Login Callback
-// @route   GET /api/auth/google/callback
-// @access  Public
-export const socialLoginCallback = (req, res) => {
-    const token = generateToken(req.user);
-    const frontendUrl =
-        process.env.FRONTEND_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:3000';
+        this.handleSuccess(res, { message: 'Logged out successfully' }, 200);
+    };
+}
 
-    // Set HTTP-only cookie for the token
-    res.cookie('access_token', token, getCookieOptions());
-
-    // SECURITY: Use URL fragment instead of query param
-    // Fragments are not sent to the server in HTTP requests, reducing exposure
-    // The frontend will read the fragment and clear it immediately
-    res.redirect(`${frontendUrl}/login/success#authenticated=true`);
-};
-
-// @desc    Logout user - clear auth cookie
-// @route   POST /api/auth/logout
-// @access  Private
-export const logout = (req, res) => {
-    res.cookie('access_token', '', {
-        httpOnly: true,
-        expires: new Date(0), // Expire immediately
-        path: '/',
-    });
-
-    res.status(200).json({
-        success: true,
-        message: 'Logged out successfully',
-    });
-};
+export default new AuthController();

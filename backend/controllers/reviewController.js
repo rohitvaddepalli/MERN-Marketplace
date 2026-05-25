@@ -1,12 +1,13 @@
 import Review from '../models/Review.js';
 import Product from '../models/Product.js';
 import Order from '../models/Order.js';
+import { BaseController } from './BaseController.js';
 
-// @desc    Create new review
-// @route   POST /api/products/:id/reviews
-// @access  Private
-export const createReview = async (req, res) => {
-    try {
+class ReviewController extends BaseController {
+    // @desc    Create new review
+    // @route   POST /api/products/:id/reviews
+    // @access  Private
+    createReview = async (req, res) => {
         const { rating, comment, media = [] } = req.body;
         const productId = req.params.id;
 
@@ -57,44 +58,35 @@ export const createReview = async (req, res) => {
             isVerifiedPurchase: !!verifiedOrder,
         });
 
-        res.status(201).json({ success: true, review });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-};
+        this.handleSuccess(res, { review }, 201);
+    };
 
-// @desc    Get product reviews
-// @route   GET /api/products/:id/reviews
-// @access  Public
-export const getProductReviews = async (req, res) => {
-    try {
+    // @desc    Get product reviews
+    // @route   GET /api/products/:id/reviews
+    // @access  Public
+    getProductReviews = async (req, res) => {
         const reviews = await Review.find({ product: req.params.id })
             .populate('user', 'name avatar')
             .sort('-createdAt');
 
-        res.status(200).json({
-            success: true,
+        this.handleSuccess(res, {
             count: reviews.length,
             reviews,
-        });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-};
+        }, 200);
+    };
 
-// @desc    Vote a review as helpful
-// @route   PUT /api/products/:id/reviews/:reviewId/helpful
-// @access  Private
-export const markReviewHelpful = async (req, res) => {
-    try {
+    // @desc    Vote a review as helpful
+    // @route   PUT /api/products/:id/reviews/:reviewId/helpful
+    // @access  Private
+    markReviewHelpful = async (req, res) => {
         const review = await Review.findById(req.params.reviewId);
         if (!review) {
             return res.status(404).json({ success: false, message: 'Review not found' });
         }
         review.helpfulVotes += 1;
         await review.save();
-        res.status(200).json({ success: true, helpfulVotes: review.helpfulVotes });
-    } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-    }
-};
+        this.handleSuccess(res, { helpfulVotes: review.helpfulVotes }, 200);
+    };
+}
+
+export default new ReviewController();

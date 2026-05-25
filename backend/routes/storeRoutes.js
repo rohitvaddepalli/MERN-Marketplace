@@ -1,36 +1,11 @@
 import express from 'express';
-import {
-    createStore,
-    getStores,
-    getStore,
-    updateStore,
-    deleteStore,
-    getMyStore,
-} from '../controllers/storeController.js';
+import storeController from '../controllers/storeController.js';
 import { protect, authorize } from '../middleware/auth.js';
-import { body } from 'express-validator';
-import { validate } from '../middleware/validate.js';
+import { validateZod } from '../middleware/validateZod.js';
+import { storeSchema } from '../validators/storeValidator.js';
+import asyncHandler from '../utils/asyncHandler.js';
 
 const router = express.Router();
-
-const validateStore = [
-    body('name')
-        .trim()
-        .notEmpty()
-        .withMessage('Store name is required')
-        .isLength({ max: 100 })
-        .withMessage('Name cannot exceed 100 characters'),
-    body('description')
-        .trim()
-        .notEmpty()
-        .withMessage('Description is required')
-        .isLength({ max: 1000 })
-        .withMessage('Description cannot exceed 1000 characters'),
-    body('category').trim().notEmpty().withMessage('Category is required'),
-    body('address').optional().isObject(),
-    body('contact').optional().isObject(),
-    validate,
-];
 
 /**
  * @swagger
@@ -68,9 +43,11 @@ const validateStore = [
  *       201: { description: Store created }
  *       400: { description: Seller already has a store }
  */
-router.route('/').get(getStores).post(protect, authorize('seller'), validateStore, createStore);
+router.route('/')
+    .get(asyncHandler(storeController.getStores))
+    .post(protect, authorize('seller'), validateZod(storeSchema), asyncHandler(storeController.createStore));
 
-router.get('/my/store', protect, authorize('seller'), getMyStore);
+router.get('/my/store', protect, authorize('seller'), asyncHandler(storeController.getMyStore));
 
 /**
  * @swagger
@@ -113,8 +90,8 @@ router.get('/my/store', protect, authorize('seller'), getMyStore);
  */
 router
     .route('/:id')
-    .get(getStore)
-    .put(protect, authorize('seller'), validateStore, updateStore)
-    .delete(protect, authorize('seller'), deleteStore);
+    .get(asyncHandler(storeController.getStore))
+    .put(protect, authorize('seller'), validateZod(storeSchema), asyncHandler(storeController.updateStore))
+    .delete(protect, authorize('seller'), asyncHandler(storeController.deleteStore));
 
 export default router;

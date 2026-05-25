@@ -1,12 +1,13 @@
 import Product from '../models/Product.js';
 import Store from '../models/Store.js';
 import cache from '../utils/cache.js';
+import { BaseController } from './BaseController.js';
+import { sanitizeSearchInput } from '../utils/sanitize.js';
 
 const PRODUCT_LIST_TTL = 60; // 60 seconds for filtered listings
 const FEATURED_TTL = 5 * 60; // 5 minutes for featured (rarely changes)
 
 // SECURITY: Whitelist of fields allowed for product updates
-// Prevents mass assignment attacks that could modify seller, store, rating, reviewCount, etc.
 const ALLOWED_PRODUCT_UPDATE_FIELDS = [
     'name',
     'description',
@@ -48,32 +49,6 @@ const ALLOWED_PRODUCT_CREATE_FIELDS = [
     'dimensions',
 ];
 
-// Maximum length for search/filter inputs to prevent abuse
-const MAX_SEARCH_LENGTH = 100;
-
-/**
- * Escapes special regex characters in a string to prevent ReDoS attacks
- * @param {string} str - Input string
- * @returns {string} - Escaped string safe for use in RegExp
- */
-const escapeRegex = (str) => {
-    if (!str || typeof str !== 'string') return '';
-    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-};
-
-/**
- * Sanitizes and limits search input
- * @param {string} input - User input
- * @returns {string|null} - Sanitized input or null if invalid
- */
-const sanitizeSearchInput = (input) => {
-    if (!input || typeof input !== 'string') return null;
-    // Trim and limit length
-    const trimmed = input.trim().slice(0, MAX_SEARCH_LENGTH);
-    // Escape regex special characters
-    return escapeRegex(trimmed);
-};
-
 /**
  * Helper to pick only allowed fields from an object
  * @param {Object} source - Source object
@@ -90,11 +65,11 @@ const pickAllowedFields = (source, allowedFields) => {
     return result;
 };
 
-// @desc    Create product
-// @route   POST /api/products
-// @access  Private/Seller
-export const createProduct = async (req, res) => {
-    try {
+class ProductController extends BaseController {
+    // @desc    Create product
+    // @route   POST /api/products
+    // @access  Private/Seller
+    createProduct = async (req, res) => {
         // Get seller's store
         const store = await Store.findOne({ owner: req.user._id });
 
@@ -118,23 +93,13 @@ export const createProduct = async (req, res) => {
         await cache.delPattern('products:list:*');
         await cache.del('products:featured');
 
-        res.status(201).json({
-            success: true,
-            product,
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-    }
-};
+        this.handleSuccess(res, { product }, 201);
+    };
 
-// @desc    Get all products
-// @route   GET /api/products
-// @access  Public
-export const getProducts = async (req, res) => {
-    try {
+    // @desc    Get all products
+    // @route   GET /api/products
+    // @access  Public
+    getProducts = async (req, res) => {
         const {
             category,
             subcategory,
@@ -263,20 +228,13 @@ export const getProducts = async (req, res) => {
 
         if (cacheKey) await cache.set(cacheKey, payload, PRODUCT_LIST_TTL);
 
-        res.status(200).json({ success: true, ...payload });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-    }
-};
+        this.handleSuccess(res, payload, 200);
+    };
 
-// @desc    Get single product
-// @route   GET /api/products/:id
-// @access  Public
-export const getProduct = async (req, res) => {
-    try {
+    // @desc    Get single product
+    // @route   GET /api/products/:id
+    // @access  Public
+    getProduct = async (req, res) => {
         const product = await Product.findById(req.params.id)
             .populate('store', 'name logo description contact')
             .populate('seller', 'name email');
@@ -288,68 +246,39 @@ export const getProduct = async (req, res) => {
             });
         }
 
-        res.status(200).json({
-            success: true,
-            product,
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-    }
-};
+        this.handleSuccess(res, { product }, 200);
+    };
 
-// @desc    Update product
-// @route   PUT /api/products/:id
-// @access  Private/Seller
-export const updateProduct = async (req, res) => {
-    try {
-        let product = await Product.findById(req.params.id);
-
-        if (!product) {
-            return res.status(404).json({
-                success: false,
-                message: 'Product not found',
-            });
-        }
-
-        // Make sure user is product owner
-        if (product.seller.toString() !== req.user._id.toString()) {
-            return res.status(403).json({
-                success: false,
-                message: 'Not authorized to update this product',
-            });
-        }
-
+    // @desc    Update product
+    // @route   PUT /api/products/:id
+    // @access  Private/Seller
+    updateProduct = async (req, res) => {
         // SECURITY: Only allow whitelisted fields to be updated
         const updates = pickAllowedFields(req.body, ALLOWED_PRODUCT_UPDATE_FIELDS);
 
-        product = await Product.findByIdAndUpdate(req.params.id, updates, {
-            new: true,
-            runValidators: true,
-        });
+        const product = await Product.findOneAndUpdate(
+            { _id: req.params.id, seller: req.user._id },
+            updates,
+            { new: true, runValidators: true }
+        );
+
+        if (!product) {
+            return res.status(403).json({
+                success: false,
+                message: 'Product not found or not authorized to update',
+            });
+        }
 
         // Invalidate listing caches
         await cache.delPattern('products:list:*');
 
-        res.status(200).json({
-            success: true,
-            product,
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-    }
-};
+        this.handleSuccess(res, { product }, 200);
+    };
 
-// @desc    Delete product
-// @route   DELETE /api/products/:id
-// @access  Private/Seller
-export const deleteProduct = async (req, res) => {
-    try {
+    // @desc    Delete product
+    // @route   DELETE /api/products/:id
+    // @access  Private/Seller
+    deleteProduct = async (req, res) => {
         const product = await Product.findById(req.params.id);
 
         if (!product) {
@@ -373,45 +302,68 @@ export const deleteProduct = async (req, res) => {
         await cache.delPattern('products:list:*');
         await cache.del('products:featured');
 
-        res.status(200).json({
-            success: true,
-            message: 'Product deleted successfully',
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-    }
-};
+        this.handleSuccess(res, { message: 'Product deleted successfully' }, 200);
+    };
 
-// @desc    Get seller's products
-// @route   GET /api/products/my/products
-// @access  Private/Seller
-export const getMyProducts = async (req, res) => {
-    try {
-        const products = await Product.find({ seller: req.user._id })
-            .populate('store', 'name')
-            .sort('-createdAt');
+    // @desc    Get seller's products
+    // @route   GET /api/products/my/products
+    // @access  Private/Seller
+    getMyProducts = async (req, res) => {
+        const limit = parseInt(req.query.limit, 10) || 50;
+        const cursor = req.query.cursor;
+        const page = parseInt(req.query.page, 10) || 1;
 
-        res.status(200).json({
-            success: true,
+        let query = { seller: req.user._id };
+        let products, total;
+
+        if (cursor) {
+            const cursorDoc = await Product.findById(cursor).select('_id');
+            if (!cursorDoc) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid cursor',
+                });
+            }
+
+            [products, total] = await Promise.all([
+                Product.find({ ...query, _id: { $lt: cursorDoc._id } })
+                    .select('name price stock isActive images createdAt')
+                    .populate('store', 'name')
+                    .sort('-createdAt')
+                    .limit(limit),
+                Product.countDocuments(query),
+            ]);
+        } else {
+            const skip = (page - 1) * limit;
+
+            [products, total] = await Promise.all([
+                Product.find(query)
+                    .select('name price stock isActive images createdAt')
+                    .populate('store', 'name')
+                    .sort('-createdAt')
+                    .skip(skip)
+                    .limit(limit),
+                Product.countDocuments(query),
+            ]);
+        }
+
+        const nextCursor =
+            products.length === limit && cursor ? products[products.length - 1]._id : null;
+
+        this.handleSuccess(res, {
             count: products.length,
+            total,
+            page: cursor ? null : page,
+            pages: cursor ? null : Math.ceil(total / limit),
+            nextCursor,
             products,
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-    }
-};
+        }, 200);
+    };
 
-// @desc    Get featured products
-// @route   GET /api/products/featured
-// @access  Public
-export const getFeaturedProducts = async (req, res) => {
-    try {
+    // @desc    Get featured products
+    // @route   GET /api/products/featured
+    // @access  Public
+    getFeaturedProducts = async (req, res) => {
         const cacheKey = 'products:featured';
         const hit = await cache.get(cacheKey);
         if (hit) return res.status(200).json({ success: true, products: hit });
@@ -423,48 +375,30 @@ export const getFeaturedProducts = async (req, res) => {
 
         await cache.set(cacheKey, products, FEATURED_TTL);
 
-        res.status(200).json({
-            success: true,
-            products,
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-    }
-};
+        this.handleSuccess(res, { products }, 200);
+    };
 
-// @desc    Get low stock products
-// @route   GET /api/products/low-stock
-// @access  Private/Seller
-export const getLowStockProducts = async (req, res) => {
-    try {
+    // @desc    Get low stock products
+    // @route   GET /api/products/low-stock
+    // @access  Private/Seller
+    getLowStockProducts = async (req, res) => {
         const products = await Product.find({
             seller: req.user._id,
-            $expr: { $lte: ['$stock', { $ifNull: ['$lowStockThreshold', 10] }] },
+            $expr: { $lte: ['$stock', '$lowStockThreshold'] },
         })
             .populate('store', 'name')
             .sort('stock');
 
-        res.status(200).json({
-            success: true,
+        this.handleSuccess(res, {
             count: products.length,
             products,
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-    }
-};
+        }, 200);
+    };
 
-// @desc    Bulk import products
-// @route   POST /api/products/bulk-import
-// @access  Private/Seller
-export const bulkImportProducts = async (req, res) => {
-    try {
+    // @desc    Bulk import products
+    // @route   POST /api/products/bulk-import
+    // @access  Private/Seller
+    bulkImportProducts = async (req, res) => {
         const { products } = req.body;
 
         // Get seller's store
@@ -486,36 +420,43 @@ export const bulkImportProducts = async (req, res) => {
 
         const createdProducts = await Product.insertMany(productsWithStore);
 
-        res.status(201).json({
-            success: true,
+        this.handleSuccess(res, {
             count: createdProducts.length,
             products: createdProducts,
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message,
-        });
-    }
-};
+        }, 201);
+    };
 
-// @desc    Export products to CSV
-// @route   GET /api/products/export
-// @access  Private/Seller
-export const exportProducts = async (req, res) => {
-    try {
-        const products = await Product.find({ seller: req.user._id })
+    // @desc    Export products to CSV
+    // @route   GET /api/products/export
+    // @access  Private/Seller
+    exportProducts = (req, res) => {
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename="products.csv"');
+
+        // Write CSV header
+        res.write('ID,Name,Price,Stock,Category,isActive\n');
+
+        const cursor = Product.find({ seller: req.user._id })
             .populate('store', 'name')
-            .lean();
+            .cursor();
 
-        res.status(200).json({
-            success: true,
-            products,
+        cursor.on('data', (doc) => {
+            const row = `"${doc._id}","${doc.name ? doc.name.replace(/"/g, '""') : ''}",${doc.price},${doc.stock},"${doc.category || ''}",${doc.isActive}\n`;
+            res.write(row);
         });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message,
+
+        cursor.on('end', () => {
+            res.end();
         });
-    }
-};
+
+        cursor.on('error', (error) => {
+            if (!res.headersSent) {
+                this.handleError(error, res);
+            } else {
+                res.end();
+            }
+        });
+    };
+}
+
+export default new ProductController();

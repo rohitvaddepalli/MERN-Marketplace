@@ -81,4 +81,26 @@ describe('Product Endpoints', () => {
             expect(res.body.success).toBe(true);
         });
     });
+
+    describe('GET /api/products/export', () => {
+        it('should export products to CSV as a seller', async () => {
+            const res = await request(app)
+                .get('/api/products/export')
+                .set('Cookie', getAuthCookie(token));
+
+            expect(res.status).toBe(200);
+            expect(res.headers['content-type']).toContain('text/csv');
+            expect(res.headers['content-disposition']).toContain('attachment; filename="products.csv"');
+            
+            // Check CSV headers
+            expect(res.text).toContain('ID,Name,Price,Stock,Category,isActive');
+            // Check if test product is in the CSV (from beforeEach)
+            expect(res.text).toContain('Test Product');
+        });
+
+        it('should reject export without auth', async () => {
+            const res = await request(app).get('/api/products/export');
+            expect(res.status).toBe(401);
+        });
+    });
 });

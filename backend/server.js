@@ -36,6 +36,7 @@ import MongoStore from 'connect-mongo';
 import User from './models/User.js';
 import './config/passport.js';
 import logger from './utils/logger.js';
+import cache from './utils/cache.js';
 
 // Load env vars
 dotenv.config();
@@ -67,16 +68,16 @@ for (const [varName, description] of Object.entries(requiredEnvVars)) {
 // In production, fail if any required vars are missing or insecure
 if (process.env.NODE_ENV === 'production') {
     if (missingVars.length > 0 || insecureVars.length > 0) {
-        console.error('\n❌ FATAL: Cannot start server in production mode\n');
+        logger.error('\n❌ FATAL: Cannot start server in production mode\n');
         if (missingVars.length > 0) {
-            console.error('Missing required environment variables:');
-            missingVars.forEach((v) => console.error(`  - ${v}`));
+            logger.error('Missing required environment variables:');
+            missingVars.forEach((v) => logger.error(`  - ${v}`));
         }
         if (insecureVars.length > 0) {
-            console.error('\nInsecure environment variables:');
-            insecureVars.forEach((v) => console.error(`  - ${v}`));
+            logger.error('\nInsecure environment variables:');
+            insecureVars.forEach((v) => logger.error(`  - ${v}`));
         }
-        console.error(
+        logger.error(
             '\nPlease set all required environment variables in your .env file or environment.\n'
         );
         process.exit(1);
@@ -84,20 +85,20 @@ if (process.env.NODE_ENV === 'production') {
 } else {
     // In development, show warnings but allow startup
     if (missingVars.length > 0) {
-        console.warn('\n⚠️  WARNING: Missing environment variables (development mode):');
-        missingVars.forEach((v) => console.warn(`  - ${v}`));
-        console.warn('');
+        logger.warn('\n⚠️  WARNING: Missing environment variables (development mode):');
+        missingVars.forEach((v) => logger.warn(`  - ${v}`));
+        logger.warn('');
     }
     if (insecureVars.length > 0) {
-        console.warn('⚠️  WARNING: Insecure environment variables (development mode):');
-        insecureVars.forEach((v) => console.warn(`  - ${v}`));
-        console.warn('');
+        logger.warn('⚠️  WARNING: Insecure environment variables (development mode):');
+        insecureVars.forEach((v) => logger.warn(`  - ${v}`));
+        logger.warn('');
     }
 }
 
 // Warn about optional OAuth credentials
 if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-    console.warn(
+    logger.warn(
         '⚠️  WARNING: Google OAuth credentials not configured. Social login will not work.'
     );
 }
@@ -114,25 +115,25 @@ if (process.env.NODE_ENV === 'production') {
 
     for (const v of optionalVars) {
         if (!process.env[v.name]) {
-            console.warn(`⚠️  WARNING: ${v.name} not configured (${v.desc})`);
+            logger.warn(`⚠️  WARNING: ${v.name} not configured (${v.desc})`);
         }
     }
 
     if (process.env.JWT_SECRET && process.env.JWT_SECRET.length < 48) {
-        console.warn(
+        logger.warn(
             '⚠️  WARNING: JWT_SECRET is shorter than 48 characters. Consider using a longer secret.'
         );
     }
 }
 
 // Import routes
-import authRoutes from './routes/auth.js';
-import storeRoutes from './routes/stores.js';
-import productRoutes from './routes/products.js';
-import orderRoutes from './routes/orders.js';
-import adminRoutes from './routes/admin.js';
-import analyticsRoutes from './routes/analytics.js';
-import userRoutes from './routes/users.js';
+import authRoutes from './routes/authRoutes.js';
+import storeRoutes from './routes/storeRoutes.js';
+import productRoutes from './routes/productRoutes.js';
+import orderRoutes from './routes/orderRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
+import analyticsRoutes from './routes/analyticsRoutes.js';
+import userRoutes from './routes/userRoutes.js';
 import uploadRoutes from './routes/upload.js';
 import chatRoutes from './routes/chat.js';
 import Message from './models/Message.js';
@@ -174,7 +175,15 @@ io.use(async (socket, next) => {
         if (!token) return next(new Error('Authentication required'));
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await User.findById(decoded.id).select('name role store');
+        
+        const cacheKey = `socket:user:${decoded.id}`;
+        let user = await cache.get(cacheKey);
+        
+        if (!user) {
+            user = await User.findById(decoded.id).select('name role store').lean();
+            if (user) await cache.set(cacheKey, user, 60); // Cache for 60 seconds
+        }
+        
         if (!user) return next(new Error('User not found'));
 
         socket.user = user;
@@ -362,7 +371,7 @@ const isServerless = !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NA
 const uploadsDir = isServerless ? '/tmp/uploads' : path.join(__dirname, 'uploads');
 if (!isServerless && !fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
-    console.log('📁 Created uploads directory');
+    logger.info('📁 Created uploads directory');
 }
 
 // Static folder for uploads
@@ -398,9 +407,9 @@ if (process.env.MONGODB_URI) {
             secret: process.env.SESSION_SECRET || 'development-secret-change-in-production',
         },
     });
-    console.log('📦 Using MongoDB session store');
+    logger.info('📦 Using MongoDB session store');
 } else {
-    console.warn(
+    logger.warn(
         '⚠️  WARNING: No MONGODB_URI, using in-memory session store (not for production!)'
     );
 }
@@ -416,10 +425,15 @@ if (process.env.NODE_ENV !== 'test') {
     mongoose
         .connect(process.env.MONGODB_URI, {
             maxPoolSize: parseInt(process.env.MONGO_POOL_SIZE || '10', 10),
+            // RELIABILITY: Fail fast when MongoDB is unreachable instead of hanging
+            // for the full 30s request timeout, which causes thundering-herd on recovery.
+            serverSelectionTimeoutMS: 5000,
+            // Close idle sockets after 45 s to avoid stale connection issues.
+            socketTimeoutMS: 45000,
         })
-        .then(() => console.log('✅ MongoDB Connected'))
+        .then(() => logger.info('✅ MongoDB Connected'))
         .catch((err) => {
-            console.error('❌ MongoDB Connection Error:', err.message);
+            logger.error('❌ MongoDB Connection Error:', err.message);
             process.exit(1);
         });
 }
@@ -572,9 +586,9 @@ export default app;
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const PORT = process.env.PORT || 5000;
     httpServer.listen(PORT, () => {
-        console.log(`🚀 Server running on port ${PORT}`);
-        console.log(`📍 Environment: ${process.env.NODE_ENV}`);
-        console.log('🔌 Socket.io ready');
+        logger.info(`🚀 Server running on port ${PORT}`);
+        logger.info(`📍 Environment: ${process.env.NODE_ENV}`);
+        logger.info('🔌 Socket.io ready');
     });
 
     // ── Graceful shutdown ──────────────────────────────────────────────────────

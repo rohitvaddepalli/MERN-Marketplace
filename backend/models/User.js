@@ -100,4 +100,13 @@ userSchema.methods.getResetPasswordToken = function () {
     return resetToken;
 };
 
+// INDEX: Explicit email index — documents the uniqueness constraint and allows
+// tuning (e.g., collation). The unique:true on the field already creates one
+// implicitly, but declaring it here makes it visible and consistent.
+userSchema.index({ email: 1 });
+
+// INDEX: Sparse index for password reset — only documents with a token set are
+// indexed, keeping it tiny. Prevents a full collection scan on reset lookups.
+userSchema.index({ resetPasswordToken: 1 }, { sparse: true });
+
 export default mongoose.model('User', userSchema);

@@ -32,6 +32,10 @@ const orderSchema = new mongoose.Schema({
                 type: mongoose.Schema.Types.ObjectId,
                 ref: 'Store',
             },
+            seller: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'User',
+            },
         },
     ],
     shippingAddress: {
@@ -82,10 +86,12 @@ const orderSchema = new mongoose.Schema({
 });
 
 // Generate order number before saving
+import crypto from 'crypto';
+
 orderSchema.pre('save', async function (next) {
     if (!this.orderNumber) {
-        const count = await mongoose.model('Order').countDocuments();
-        this.orderNumber = `ORD-${Date.now()}-${count + 1}`;
+        const randomSuffix = crypto.randomBytes(3).toString('hex').toUpperCase();
+        this.orderNumber = `ORD-${Date.now()}-${randomSuffix}`;
     }
     next();
 });
@@ -99,5 +105,8 @@ orderSchema.index({ 'items.product': 1 });
 orderSchema.index({ status: 1, createdAt: -1 });
 // Supports revenue aggregation $match on paymentStatus
 orderSchema.index({ paymentStatus: 1 });
+// PERF: Compound index for seller aggregation pipeline — covers the common
+// pattern of matching on items.product and then sorting/grouping by createdAt.
+orderSchema.index({ 'items.product': 1, createdAt: -1 });
 
 export default mongoose.model('Order', orderSchema);

@@ -1,17 +1,10 @@
 import express from 'express';
-import {
-    createOrder,
-    getMyOrders,
-    getOrder,
-    updateOrderStatus,
-    getSellerOrders,
-    getAllOrders,
-    cancelOrder,
-} from '../controllers/orderController.js';
+import orderController from '../controllers/orderController.js';
 import { protect, authorize, optionalProtect } from '../middleware/auth.js';
-import { body } from 'express-validator';
 import rateLimit from 'express-rate-limit';
-import { validate } from '../middleware/validate.js';
+import { validateZod } from '../middleware/validateZod.js';
+import { orderSchema, updateOrderStatusSchema } from '../validators/orderValidator.js';
+import asyncHandler from '../utils/asyncHandler.js';
 
 const router = express.Router();
 
@@ -23,21 +16,6 @@ const createOrderLimiter = rateLimit({
         message: 'Too many orders created from this IP, please try again later',
     },
 });
-
-const validateOrder = [
-    body('items').isArray({ min: 1 }).withMessage('At least one item is required'),
-    body('items.*.product').isMongoId().withMessage('Invalid product ID'),
-    body('items.*.quantity').isInt({ min: 1 }).withMessage('Quantity must be at least 1'),
-    body('shippingAddress').isObject().withMessage('Shipping address is required'),
-    body('shippingAddress.street').notEmpty().withMessage('Street is required'),
-    body('shippingAddress.city').notEmpty().withMessage('City is required'),
-    body('shippingAddress.zipCode').notEmpty().withMessage('Zip code is required'),
-    body('shippingAddress.country').notEmpty().withMessage('Country is required'),
-    body('paymentMethod')
-        .isIn(['card', 'paypal', 'cod'])
-        .withMessage('Valid payment method is required'),
-    validate,
-];
 
 /**
  * @swagger
@@ -76,11 +54,11 @@ const validateOrder = [
  */
 router
     .route('/')
-    .post(optionalProtect, createOrderLimiter, validateOrder, createOrder)
-    .get(protect, authorize('admin'), getAllOrders);
+    .post(optionalProtect, createOrderLimiter, validateZod(orderSchema), asyncHandler(orderController.createOrder))
+    .get(protect, authorize('admin'), asyncHandler(orderController.getAllOrders));
 
-router.get('/myorders', protect, authorize('customer'), getMyOrders);
-router.get('/seller/orders', protect, authorize('seller'), getSellerOrders);
+router.get('/myorders', protect, authorize('customer'), asyncHandler(orderController.getMyOrders));
+router.get('/seller/orders', protect, authorize('seller'), asyncHandler(orderController.getSellerOrders));
 
 /**
  * @swagger
@@ -98,9 +76,9 @@ router.get('/seller/orders', protect, authorize('seller'), getSellerOrders);
  *       200: { description: Order detail }
  *       403: { description: Not authorized }
  */
-router.route('/:id').get(protect, getOrder);
+router.route('/:id').get(protect, asyncHandler(orderController.getOrder));
 
-router.put('/:id/status', protect, authorize('seller'), updateOrderStatus);
-router.put('/:id/cancel', protect, authorize('customer'), cancelOrder);
+router.put('/:id/status', protect, authorize('seller'), validateZod(updateOrderStatusSchema), asyncHandler(orderController.updateOrderStatus));
+router.put('/:id/cancel', protect, authorize('customer'), asyncHandler(orderController.cancelOrder));
 
 export default router;
