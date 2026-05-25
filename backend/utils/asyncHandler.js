@@ -1,15 +1,11 @@
-import { BaseController } from '../controllers/BaseController.js';
-const baseController = new BaseController();
-
 /**
- * Async error handler wrapper
- * Eliminates repetitive try-catch blocks in controllers
- * 
- * @param {Function} fn - Async controller function
- * @returns {Function} - Express middleware function
+ * Wraps an async controller function to catch any errors
+ * and forward them to Express error middleware via next()
  */
-const asyncHandler = (fn) => (req, res, next) => {
-    Promise.resolve(fn(req, res, next)).catch(next);
+const asyncHandler = (fn) => {
+    return (req, res, next) => {
+        Promise.resolve(fn(req, res, next)).catch(next);
+    };
 };
 
 export default asyncHandler;
