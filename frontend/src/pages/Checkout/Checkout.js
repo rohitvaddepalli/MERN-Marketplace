@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
@@ -173,12 +173,22 @@ const Checkout = () => {
         }
     }, [cartItems, loading, navigate]);
 
+    // Precompute per-item discounted prices so the render loop does O(1) reads
+    // instead of re-running calculateItemPrice for every render.
+    // Must be placed before any early returns to comply with Rules of Hooks.
+    const itemPrices = useMemo(
+        () => Object.fromEntries(cartItems.map((item) => [item._id, calculateItemPrice(item)])),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [cartItems]
+    );
+
     if (cartItems.length === 0) return null;
 
     const subtotal = getCartTotal();
     const shipping = settings.shippingFee;
     const tax = subtotal * (settings.taxRate / 100);
     const total = subtotal + shipping + tax;
+
 
     return (
         <div className="page-container">
@@ -415,12 +425,14 @@ const Checkout = () => {
                                     <img
                                         src={item.images?.[0] || DEFAULT_PRODUCT_IMAGE}
                                         alt={item.name}
+                                        loading="lazy"
+                                        decoding="async"
                                         onError={(e) => (e.target.src = DEFAULT_PRODUCT_IMAGE)}
                                     />
                                     <div className="summary-item-details">
                                         <h4>{item.name}</h4>
                                         <span>Qty: {item.quantity}</span>
-                                        {calculateItemPrice(item) < item.price && (
+                                        {itemPrices[item._id] < item.price && (
                                             <span
                                                 style={{
                                                     fontSize: '0.8rem',
@@ -433,7 +445,7 @@ const Checkout = () => {
                                         )}
                                     </div>
                                     <span className="summary-item-price">
-                                        ₹{(calculateItemPrice(item) * item.quantity).toFixed(2)}
+                                        ₹{(itemPrices[item._id] * item.quantity).toFixed(2)}
                                     </span>
                                 </div>
                             ))}

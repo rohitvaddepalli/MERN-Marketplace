@@ -87,6 +87,8 @@ const Wishlist = () => {
                                     <img
                                         src={product.images?.[0] || DEFAULT_PRODUCT_IMAGE}
                                         alt={product.name}
+                                        loading="lazy"
+                                        decoding="async"
                                         onError={(e) => (e.target.src = DEFAULT_PRODUCT_IMAGE)}
                                     />
                                 </Link>

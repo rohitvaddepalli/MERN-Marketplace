@@ -30,13 +30,17 @@ const Home = () => {
     const [featuredStores, setFeaturedStores] = useState([]);
     const [loading, setLoading] = useState(true);
     const hasNavigated = useRef(false);
-    const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+    // SSR-safe initializer: read the preference synchronously so the first paint
+    // already respects the user's reduced-motion setting, avoiding a brief flash
+    // of animations for users who prefer reduced motion.
+    const [prefersReducedMotion, setPrefersReducedMotion] = useState(() => {
+        if (typeof window === 'undefined') return false;
+        return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    });
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const mql = window.matchMedia('(prefers-reduced-motion: reduce)');
-            setPrefersReducedMotion(mql.matches);
-
             const handler = (e) => setPrefersReducedMotion(e.matches);
             mql.addEventListener('change', handler);
             return () => mql.removeEventListener('change', handler);

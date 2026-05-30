@@ -121,4 +121,8 @@ productSchema.index({ name: 'text', description: 'text', brand: 'text' });
 productSchema.index({ isActive: 1, category: 1, price: 1 });
 productSchema.index({ isActive: 1, rating: -1 });
 
+// PERF: Primary listing index — getProducts defaults to sort -createdAt with isActive:true.
+// This allows MongoDB to use an index scan instead of a collection scan + sort.
+productSchema.index({ isActive: 1, createdAt: -1 });
+
 export default mongoose.model('Product', productSchema);

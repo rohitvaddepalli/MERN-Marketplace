@@ -9,6 +9,7 @@ const ProductReviews = ({ productId, reviews: initialReviews = [] }) => {
     const [reviews, setReviews] = useState(initialReviews);
     const [newReview, setNewReview] = useState({ rating: 5, comment: '' });
     const [loading, setLoading] = useState(false);
+    // Each entry: { file: File, url: string } — url is created once on selection
     const [mediaFiles, setMediaFiles] = useState([]);
     const [uploading, setUploading] = useState(false);
     const { isAuthenticated } = useAuth();
@@ -28,19 +29,32 @@ const ProductReviews = ({ productId, reviews: initialReviews = [] }) => {
         }
     }, [productId, fetchReviews]);
 
+    // Revoke all preview URLs on unmount to avoid memory leaks
+    useEffect(() => {
+        return () => {
+            mediaFiles.forEach(({ url }) => URL.revokeObjectURL(url));
+        };
+        // Only run on unmount — intentionally omitting mediaFiles from deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     const handleFileChange = (e) => {
         const files = Array.from(e.target.files);
         if (files.length + mediaFiles.length > 5) {
             toast.error('You can upload a maximum of 5 media files');
             return;
         }
-        setMediaFiles([...mediaFiles, ...files]);
+        // Create object URLs once here; never create them during render
+        const newEntries = files.map((file) => ({ file, url: URL.createObjectURL(file) }));
+        setMediaFiles((prev) => [...prev, ...newEntries]);
     };
 
     const removeFile = (index) => {
-        const updatedFiles = [...mediaFiles];
-        updatedFiles.splice(index, 1);
-        setMediaFiles(updatedFiles);
+        setMediaFiles((prev) => {
+            const entry = prev[index];
+            if (entry) URL.revokeObjectURL(entry.url); // revoke immediately on removal
+            return prev.filter((_, i) => i !== index);
+        });
     };
 
     const handleSubmit = async (e) => {
@@ -57,7 +71,7 @@ const ProductReviews = ({ productId, reviews: initialReviews = [] }) => {
             if (mediaFiles.length > 0) {
                 setUploading(true);
                 const formData = new FormData();
-                mediaFiles.forEach((file) => {
+                mediaFiles.forEach(({ file }) => {
                     formData.append('images', file);
                 });
 
@@ -73,6 +87,8 @@ const ProductReviews = ({ productId, reviews: initialReviews = [] }) => {
 
             await productAPI.createReview(productId, reviewData);
             setNewReview({ rating: 5, comment: '' });
+            // Revoke all preview URLs before clearing
+            mediaFiles.forEach(({ url }) => URL.revokeObjectURL(url));
             setMediaFiles([]);
             fetchReviews();
             toast.success('Review submitted successfully!');
@@ -151,7 +167,7 @@ const ProductReviews = ({ productId, reviews: initialReviews = [] }) => {
                                         marginTop: '10px',
                                     }}
                                 >
-                                    {mediaFiles.map((file, index) => (
+                                    {mediaFiles.map(({ file, url }, index) => (
                                         <div
                                             key={index}
                                             style={{
@@ -161,19 +177,23 @@ const ProductReviews = ({ productId, reviews: initialReviews = [] }) => {
                                             }}
                                         >
                                             {file.type.startsWith('video/') ? (
+                                                // Use a poster thumbnail for videos; avoid auto-loading
                                                 <video
-                                                    src={URL.createObjectURL(file)}
+                                                    src={url}
                                                     style={{
                                                         width: '100%',
                                                         height: '100%',
                                                         objectFit: 'cover',
                                                         borderRadius: '4px',
                                                     }}
+                                                    preload="none"
                                                 />
                                             ) : (
                                                 <img
-                                                    src={URL.createObjectURL(file)}
+                                                    src={url}
                                                     alt={`preview ${index}`}
+                                                    loading="lazy"
+                                                    decoding="async"
                                                     style={{
                                                         width: '100%',
                                                         height: '100%',
@@ -230,7 +250,12 @@ const ProductReviews = ({ productId, reviews: initialReviews = [] }) => {
                             <div className="review-header">
                                 <div className="review-avatar" aria-hidden="true">
                                     {review.user?.avatar ? (
-                                        <img src={review.user.avatar} alt={review.user.name} />
+                                        <img
+                                            src={review.user.avatar}
+                                            alt={review.user.name}
+                                            loading="lazy"
+                                            decoding="async"
+                                        />
                                     ) : (
                                         <span className="review-avatar-initial">
                                             {review.user?.name?.charAt(0) || 'U'}
@@ -304,10 +329,12 @@ const ProductReviews = ({ productId, reviews: initialReviews = [] }) => {
                                 >
                                     {review.media.map((item, index) =>
                                         item.type === 'video' ? (
+                                            // Avoid auto-loading remote review videos; user must click controls
                                             <video
                                                 key={index}
                                                 src={item.url}
                                                 controls
+                                                preload="none"
                                                 style={{
                                                     width: '100px',
                                                     height: '100px',
@@ -320,6 +347,8 @@ const ProductReviews = ({ productId, reviews: initialReviews = [] }) => {
                                                 key={index}
                                                 src={item.url}
                                                 alt="Review media"
+                                                loading="lazy"
+                                                decoding="async"
                                                 style={{
                                                     width: '100px',
                                                     height: '100px',

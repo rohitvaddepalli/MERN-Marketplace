@@ -61,4 +61,11 @@ const storeSchema = new mongoose.Schema({
 // Add database indexes
 storeSchema.index({ owner: 1 });
 
+// PERF: Compound index for getStores — filters isActive:true and sorts by -createdAt.
+// Without this MongoDB must do a full scan + in-memory sort for every listing request.
+storeSchema.index({ isActive: 1, createdAt: -1 });
+
+// PERF: Support sort by rating for featured stores queries.
+storeSchema.index({ isActive: 1, rating: -1 });
+
 export default mongoose.model('Store', storeSchema);

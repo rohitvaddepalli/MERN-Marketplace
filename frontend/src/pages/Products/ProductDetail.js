@@ -1,15 +1,20 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { productAPI, userAPI } from '../../services/api';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
-import ProductReviews from '../../components/Products/ProductReviews';
-import RecentlyViewed from '../../components/Products/RecentlyViewed';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import toast from 'react-hot-toast';
 import logger from '../../utils/logger';
 import { DEFAULT_PRODUCT_IMAGE } from '../../constants/images';
-import ChatBox from '../../components/Chat/ChatBox';
+import RecentlyViewed from '../../components/Products/RecentlyViewed';
+
+// Lazy-load heavy sub-features so the main product page chunk stays lean.
+// ProductReviews: always rendered below the fold — code-split for initial JS savings.
+// ChatBox: conditionally shown; only starts downloading when the user opens chat.
+const ProductReviews = lazy(() => import('../../components/Products/ProductReviews'));
+const ChatBox = lazy(() => import('../../components/Chat/ChatBox'));
+
 
 const ProductDetail = () => {
     const { id } = useParams();
@@ -337,18 +342,22 @@ const ProductDetail = () => {
                     </div>
                 </div>
 
-                <ProductReviews productId={product._id} />
+                <Suspense fallback={<div style={{ minHeight: '200px' }} />}>
+                    <ProductReviews productId={product._id} />
+                </Suspense>
 
                 <RecentlyViewed />
             </div>
 
             {isChatOpen && product.seller && (
                 <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 1000 }}>
-                    <ChatBox
-                        peerId={product.seller._id}
-                        peerName={product.store?.name || product.seller.name || 'Seller'}
-                        onClose={() => setIsChatOpen(false)}
-                    />
+                    <Suspense fallback={null}>
+                        <ChatBox
+                            peerId={product.seller._id}
+                            peerName={product.store?.name || product.seller.name || 'Seller'}
+                            onClose={() => setIsChatOpen(false)}
+                        />
+                    </Suspense>
                 </div>
             )}
         </div>

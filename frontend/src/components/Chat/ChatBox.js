@@ -11,7 +11,31 @@ import './ChatBox.css';
  *   peerId   {string}  MongoDB _id of the other participant
  *   peerName {string}  Display name of the other participant
  *   onClose  {fn}      Called when user closes the chat
+ *
+ * Performance improvements:
+ *   - Timestamps are formatted once when a message enters state (not on every render).
+ *   - Deduplication uses a Set in a useRef for O(1) lookups instead of Array.some O(n²).
+ *   - Messages are capped at MAX_MESSAGES to avoid unbounded growth.
+ *   - Auto-scroll only fires when the user is already near the bottom of the container.
  */
+
+const MAX_MESSAGES = 200;
+const SCROLL_THRESHOLD = 100; // px from bottom to consider "near bottom"
+
+/** Format a timestamp string once; returns a human-readable HH:MM string. */
+function formatTime(isoString) {
+    if (!isoString) return '';
+    return new Date(isoString).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+}
+
+/** Enrich a raw message object with a precomputed formatted timestamp. */
+function enrichMessage(msg) {
+    return { ...msg, _formattedTime: formatTime(msg.createdAt) };
+}
+
 const ChatBox = ({ peerId, peerName, onClose }) => {
     const { user } = useAuth();
     const { socket, connected } = useSocket();
@@ -19,6 +43,10 @@ const ChatBox = ({ peerId, peerName, onClose }) => {
     const [draft, setDraft] = useState('');
     const [loadingHistory, setLoadingHistory] = useState(true);
     const endRef = useRef(null);
+    const scrollContainerRef = useRef(null);
+
+    // O(1) deduplication: tracks seen message _id values
+    const seenIdsRef = useRef(new Set());
 
     // Deterministic room ID from the two sorted user IDs
     // Guard: if peerId is missing (product/seller not populated), bail out
@@ -31,7 +59,12 @@ const ChatBox = ({ peerId, peerName, onClose }) => {
         const init = async () => {
             try {
                 const res = await chatAPI.getMessages(roomId);
-                if (active) setMessages(res.data.messages || []);
+                if (active) {
+                    const enriched = (res.data.messages || []).map(enrichMessage);
+                    // Seed the seen-ids set from history
+                    enriched.forEach((m) => m._id && seenIdsRef.current.add(String(m._id)));
+                    setMessages(enriched);
+                }
             } catch {
                 // no history yet — fine
             } finally {
@@ -45,30 +78,40 @@ const ChatBox = ({ peerId, peerName, onClose }) => {
     }, [roomId]);
 
     // Join the chat room AND subscribe to incoming messages.
-    // This runs again whenever `socket` changes (e.g. socket connects after mount).
     useEffect(() => {
         if (!socket || !roomId) return;
 
-        // (Re-)join the room every time we get a socket instance
         socket.emit('join:chat', roomId);
 
         const handler = (msg) => {
-            if (msg.roomId === roomId) {
-                setMessages((prev) => {
-                    // Deduplicate by _id
-                    if (prev.some((m) => String(m._id) === String(msg._id))) return prev;
-                    return [...prev, msg];
-                });
-            }
+            if (msg.roomId !== roomId) return;
+            const idStr = String(msg._id);
+            // O(1) dedup check via Set
+            if (seenIdsRef.current.has(idStr)) return;
+            seenIdsRef.current.add(idStr);
+
+            const enriched = enrichMessage(msg);
+            setMessages((prev) => {
+                const next = [...prev, enriched];
+                // Cap total messages to avoid unbounded memory growth
+                return next.length > MAX_MESSAGES ? next.slice(next.length - MAX_MESSAGES) : next;
+            });
         };
 
         socket.on('chat:message', handler);
         return () => socket.off('chat:message', handler);
     }, [socket, roomId]);
 
-    // Auto-scroll to bottom whenever messages change
+    // Auto-scroll to bottom — only when the user is already near the bottom.
+    // This avoids forcing scroll and causing jank when the user has scrolled up.
     useEffect(() => {
-        endRef.current?.scrollIntoView({ behavior: 'smooth' });
+        const container = scrollContainerRef.current;
+        if (!container) return;
+        const distanceFromBottom =
+            container.scrollHeight - container.scrollTop - container.clientHeight;
+        if (distanceFromBottom <= SCROLL_THRESHOLD) {
+            endRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }
     }, [messages]);
 
     const handleSend = useCallback(
@@ -116,7 +159,12 @@ const ChatBox = ({ peerId, peerName, onClose }) => {
                 </button>
             </div>
 
-            <div className="chatbox-messages" aria-live="polite" aria-label="Message history">
+            <div
+                ref={scrollContainerRef}
+                className="chatbox-messages"
+                aria-live="polite"
+                aria-label="Message history"
+            >
                 {loadingHistory && <p className="chatbox-empty">Loading messages…</p>}
                 {!loadingHistory && messages.length === 0 && (
                     <p className="chatbox-empty">No messages yet. Say hello! 👋</p>
@@ -133,11 +181,9 @@ const ChatBox = ({ peerId, peerName, onClose }) => {
                                 <span className="chatbox-msg-author">{msg.sender?.name}</span>
                             )}
                             <p className="chatbox-msg-text">{msg.text}</p>
+                            {/* Use precomputed time — no Date parsing on every render */}
                             <time className="chatbox-msg-time" dateTime={msg.createdAt}>
-                                {new Date(msg.createdAt).toLocaleTimeString([], {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                })}
+                                {msg._formattedTime}
                             </time>
                         </div>
                     );

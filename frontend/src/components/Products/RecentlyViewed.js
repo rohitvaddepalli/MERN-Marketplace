@@ -47,6 +47,7 @@ const RecentlyViewed = () => {
                     <Link
                         to={`/products/${product._id}`}
                         key={product._id}
+                        className="recently-viewed-card"
                         style={{
                             display: 'block',
                             textDecoration: 'none',
@@ -56,8 +57,6 @@ const RecentlyViewed = () => {
                             overflow: 'hidden',
                             transition: 'transform 0.2s',
                         }}
-                        onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-4px)')}
-                        onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
                     >
                         <div style={{ height: '200px', overflow: 'hidden' }}>
                             <img

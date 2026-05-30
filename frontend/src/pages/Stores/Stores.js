@@ -49,6 +49,8 @@ const Stores = () => {
                                     <img
                                         src={store.banner || DEFAULT_STORE_BANNER}
                                         alt={store.name}
+                                        loading="lazy"
+                                        decoding="async"
                                         onError={(e) => (e.target.src = DEFAULT_STORE_BANNER)}
                                     />
                                 </div>
@@ -57,6 +59,8 @@ const Stores = () => {
                                         src={store.logo || DEFAULT_STORE_LOGO}
                                         alt={store.name}
                                         className="store-logo"
+                                        loading="lazy"
+                                        decoding="async"
                                         onError={(e) => (e.target.src = DEFAULT_STORE_LOGO)}
                                     />
                                     <h3>{store.name}</h3>

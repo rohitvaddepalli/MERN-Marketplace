@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { productAPI } from '../../services/api';
 import { useCart } from '../../context/CartContext';
@@ -13,6 +13,9 @@ import { DEFAULT_PRODUCT_IMAGE } from '../../constants/images';
 const Products = () => {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const ITEMS_PER_PAGE = 20;
     const [filters, setFilters] = useState({
         category: '',
         search: '',
@@ -21,6 +24,9 @@ const Products = () => {
         color: '',
         size: '',
     });
+    // Local search input value — debounced before it updates filters.search
+    const [searchInput, setSearchInput] = useState('');
+    const searchDebounceRef = useRef(null);
 
     const navigate = useNavigate();
     const { addToCart } = useCart();
@@ -30,21 +36,33 @@ const Products = () => {
     const fetchProducts = useCallback(async () => {
         try {
             setLoading(true);
-            const response = await productAPI.getProducts(filters);
+            const response = await productAPI.getProducts({ ...filters, page, limit: ITEMS_PER_PAGE });
             setProducts(response.data.products || []);
+            setTotalPages(response.data.pages || 1);
         } catch (error) {
             logger.error('Error fetching products:', error);
         } finally {
             setLoading(false);
         }
-    }, [filters]);
+    }, [filters, page]);
 
     useEffect(() => {
         fetchProducts();
-    }, [filters, fetchProducts]);
+    }, [filters, page, fetchProducts]);
 
     const handleFilterChange = (name, value) => {
-        setFilters({ ...filters, [name]: value });
+        if (name === 'search') {
+            // Update display immediately; debounce the actual filter/fetch
+            setSearchInput(value);
+            if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+            searchDebounceRef.current = setTimeout(() => {
+                setFilters((prev) => ({ ...prev, search: value }));
+                setPage(1); // Reset to first page on new search
+            }, 300);
+        } else {
+            setFilters((prev) => ({ ...prev, [name]: value }));
+            setPage(1); // Reset to first page when any filter changes
+        }
     };
 
     const handleAddToCart = (e, product) => {
@@ -78,7 +96,7 @@ const Products = () => {
                                 type="text"
                                 className="form-input"
                                 placeholder="Search products..."
-                                value={filters.search}
+                                value={searchInput}
                                 onChange={(e) => handleFilterChange('search', e.target.value)}
                             />
                         </div>
@@ -264,6 +282,40 @@ const Products = () => {
                             </div>
                         )}
                     </div>
+
+                    {/* Pagination controls */}
+                    {totalPages > 1 && (
+                        <div
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 'var(--spacing-md)',
+                                marginTop: 'var(--spacing-xl)',
+                                padding: 'var(--spacing-md) 0',
+                            }}
+                        >
+                            <button
+                                className="btn btn-outline btn-sm"
+                                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                                disabled={page === 1 || loading}
+                                aria-label="Previous page"
+                            >
+                                ← Prev
+                            </button>
+                            <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>
+                                Page {page} of {totalPages}
+                            </span>
+                            <button
+                                className="btn btn-outline btn-sm"
+                                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                                disabled={page === totalPages || loading}
+                                aria-label="Next page"
+                            >
+                                Next →
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
