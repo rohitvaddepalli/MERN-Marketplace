@@ -342,12 +342,9 @@ app.use(cookieParser());
 
 // Body parser middleware
 // NOTE: Stricter per-route limits can be configured on specific routes
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// ── Request timeout middleware ──────────────────────────────────────────────
-// Terminate requests that take longer than REQUEST_TIMEOUT_MS (default: 30s)
-// This prevents slow-loris style attacks and hung database queries.
 const REQUEST_TIMEOUT_MS = parseInt(process.env.REQUEST_TIMEOUT_MS || '30000', 10);
 app.use((req, res, next) => {
     const timeout = setTimeout(() => {
