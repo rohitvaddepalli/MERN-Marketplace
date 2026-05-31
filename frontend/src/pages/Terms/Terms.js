@@ -1,9 +1,21 @@
 import React from 'react';
+import { Helmet } from 'react-helmet-async';
 import './Terms.css';
 
 const Terms = () => {
     return (
         <div className="terms-page">
+            <Helmet>
+                <title>Terms & Conditions | Marketplace</title>
+                <meta
+                    name="description"
+                    content="Read Marketplace's Terms & Conditions covering user accounts, seller obligations, buyer obligations, payment policies, returns, and intellectual property."
+                />
+                <link rel="canonical" href="https://market-place01.web.app/terms" />
+                <meta property="og:type" content="website" />
+                <meta property="og:title" content="Terms & Conditions | Marketplace" />
+                <meta property="og:url" content="https://market-place01.web.app/terms" />
+            </Helmet>
             <section className="terms-hero">
                 <div className="container">
                     <h1>Terms & Conditions</h1>

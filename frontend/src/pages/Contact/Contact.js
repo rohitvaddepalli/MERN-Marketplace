@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Helmet } from 'react-helmet-async';
 import './Contact.css';
 
 const Contact = () => {
@@ -31,6 +32,21 @@ const Contact = () => {
 
     return (
         <div className="contact-page">
+            <Helmet>
+                <title>Contact Us | Marketplace – Get in Touch</title>
+                <meta
+                    name="description"
+                    content="Have a question or need help? Contact the Marketplace support team via email, phone, or our contact form. We're here Monday–Friday 9 AM – 6 PM."
+                />
+                <link rel="canonical" href="https://market-place01.web.app/contact" />
+                <meta property="og:type" content="website" />
+                <meta property="og:title" content="Contact Us | Marketplace" />
+                <meta
+                    property="og:description"
+                    content="Reach the Marketplace support team. We're happy to help with orders, seller queries, and more."
+                />
+                <meta property="og:url" content="https://market-place01.web.app/contact" />
+            </Helmet>
             <section className="contact-hero">
                 <div className="container">
                     <h1>Contact Us</h1>

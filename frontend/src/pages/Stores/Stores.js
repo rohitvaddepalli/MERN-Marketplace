@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { storeAPI } from '../../services/api';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import logger from '../../utils/logger';
@@ -27,6 +28,21 @@ const Stores = () => {
 
     return (
         <div className="page-container">
+            <Helmet>
+                <title>Browse Stores | Marketplace – Verified Local Sellers</title>
+                <meta
+                    name="description"
+                    content="Discover verified seller storefronts on Marketplace. Browse stores by category, check ratings, and shop unique products directly from local merchants."
+                />
+                <link rel="canonical" href="https://market-place01.web.app/stores" />
+                <meta property="og:type" content="website" />
+                <meta property="og:title" content="Browse Stores | Marketplace" />
+                <meta
+                    property="og:description"
+                    content="Find and shop from verified seller storefronts on Marketplace."
+                />
+                <meta property="og:url" content="https://market-place01.web.app/stores" />
+            </Helmet>
             <div className="container">
                 <h1 className="page-title">All Stores</h1>
                 <p style={{ marginBottom: 'var(--spacing-xl)' }}>

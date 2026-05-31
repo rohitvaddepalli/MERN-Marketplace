@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { productAPI, userAPI } from '../../services/api';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
@@ -142,6 +143,62 @@ const ProductDetail = () => {
 
     return (
         <div className="page-container">
+            <Helmet>
+                <title>{product.name} | Marketplace</title>
+                <meta
+                    name="description"
+                    content={`Buy ${product.name} for ₹${product.price}${product.store?.name ? ` from ${product.store.name}` : ''}. ${product.description ? product.description.slice(0, 120) : 'Quality product on Marketplace.'}`}
+                />
+                <link rel="canonical" href={`https://market-place01.web.app/products/${id}`} />
+                {/* Open Graph */}
+                <meta property="og:type" content="product" />
+                <meta property="og:title" content={`${product.name} | Marketplace`} />
+                <meta
+                    property="og:description"
+                    content={product.description ? product.description.slice(0, 200) : `Buy ${product.name} on Marketplace.`}
+                />
+                <meta property="og:image" content={product.images?.[0] || DEFAULT_PRODUCT_IMAGE} />
+                <meta property="og:url" content={`https://market-place01.web.app/products/${id}`} />
+                <meta property="og:site_name" content="Marketplace" />
+                {/* Twitter Card */}
+                <meta name="twitter:card" content="summary_large_image" />
+                <meta name="twitter:title" content={`${product.name} | Marketplace`} />
+                <meta name="twitter:image" content={product.images?.[0] || DEFAULT_PRODUCT_IMAGE} />
+                {/* Product Schema.org JSON-LD */}
+                <script type="application/ld+json">
+                    {JSON.stringify({
+                        '@context': 'https://schema.org',
+                        '@type': 'Product',
+                        name: product.name,
+                        description: product.description || '',
+                        image: product.images || [DEFAULT_PRODUCT_IMAGE],
+                        brand: product.brand
+                            ? { '@type': 'Brand', name: product.brand }
+                            : undefined,
+                        offers: {
+                            '@type': 'Offer',
+                            priceCurrency: 'INR',
+                            price: product.price,
+                            availability:
+                                product.stock > 0
+                                    ? 'https://schema.org/InStock'
+                                    : 'https://schema.org/OutOfStock',
+                            url: `https://market-place01.web.app/products/${id}`,
+                            seller: product.store
+                                ? { '@type': 'Organization', name: product.store.name }
+                                : undefined,
+                        },
+                        aggregateRating:
+                            product.rating > 0 && product.reviewCount > 0
+                                ? {
+                                      '@type': 'AggregateRating',
+                                      ratingValue: product.rating.toFixed(1),
+                                      reviewCount: product.reviewCount,
+                                  }
+                                : undefined,
+                    })}
+                </script>
+            </Helmet>
             <div className="container">
                 <div
                     style={{

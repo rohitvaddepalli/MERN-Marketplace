@@ -20,6 +20,7 @@ const StoreManagement = () => {
         phone: '',
         logo: '',
         banner: '',
+        businessHours: '',
     });
 
     useEffect(() => {
@@ -45,6 +46,7 @@ const StoreManagement = () => {
                     phone: storeData.contact?.phone || '',
                     logo: storeData.logo || '',
                     banner: storeData.banner || '',
+                    businessHours: storeData.businessHours || '',
                 });
             }
         } catch (error) {
@@ -82,6 +84,7 @@ const StoreManagement = () => {
                 category: formData.category,
                 logo: formData.logo,
                 banner: formData.banner,
+                businessHours: formData.businessHours,
                 address: {
                     street: formData.street,
                     city: formData.city,
@@ -359,6 +362,21 @@ const StoreManagement = () => {
                                         onChange={handleChange}
                                     />
                                 </div>
+                            </div>
+
+                            <div className="form-group">
+                                <label className="form-label">Business Hours</label>
+                                <input
+                                    type="text"
+                                    name="businessHours"
+                                    className="form-input"
+                                    placeholder="e.g. Mon–Fri: 9 AM – 6 PM, Sat: 10 AM – 4 PM"
+                                    value={formData.businessHours}
+                                    onChange={handleChange}
+                                />
+                                <small style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                                    Shown publicly on your store page and helps with local SEO
+                                </small>
                             </div>
 
                             <button

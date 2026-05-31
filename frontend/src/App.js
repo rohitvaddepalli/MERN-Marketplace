@@ -32,6 +32,7 @@ const About = React.lazy(() => import('./pages/About/About'));
 const Contact = React.lazy(() => import('./pages/Contact/Contact'));
 const Help = React.lazy(() => import('./pages/Help/Help'));
 const Terms = React.lazy(() => import('./pages/Terms/Terms'));
+const Privacy = React.lazy(() => import('./pages/Privacy/Privacy'));
 
 // Customer Pages
 const CustomerDashboard = React.lazy(() => import('./pages/Customer/Dashboard'));
@@ -148,6 +149,7 @@ function App() {
                                             <Route path="/contact" element={<Contact />} />
                                             <Route path="/help" element={<Help />} />
                                             <Route path="/terms" element={<Terms />} />
+                                            <Route path="/privacy" element={<Privacy />} />
 
                                             {/* Customer Routes */}
                                             <Route path="/cart" element={<Cart />} />

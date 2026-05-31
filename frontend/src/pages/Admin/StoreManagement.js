@@ -55,6 +55,17 @@ const StoreManagement = () => {
         }
     };
 
+    const handleToggleVerify = async (id, currentVerified) => {
+        try {
+            await adminAPI.verifyStore(id, { isVerified: !currentVerified });
+            toast.success(`Store ${!currentVerified ? 'verified' : 'unverified'} successfully`);
+            fetchStores();
+        } catch (error) {
+            logger.error('Error updating store verification:', error);
+            toast.error('Failed to update verification status');
+        }
+    };
+
     const handleDelete = async (id) => {
         if (!window.confirm('Are you sure? This will delete the store and all its products.'))
             return;
@@ -156,6 +167,7 @@ const StoreManagement = () => {
                                             <th>Category</th>
                                             <th>Rating</th>
                                             <th>Status</th>
+                                            <th>Verified</th>
                                             <th>Created</th>
                                             <th>Actions</th>
                                         </tr>
@@ -196,10 +208,41 @@ const StoreManagement = () => {
                                                     </span>
                                                 </td>
                                                 <td>
+                                                    <span
+                                                        className={`badge badge-${store.isVerified ? 'info' : 'secondary'}`}
+                                                    >
+                                                        {store.isVerified ? '✓ Verified' : 'Unverified'}
+                                                    </span>
+                                                </td>
+                                                <td>
                                                     {new Date(store.createdAt).toLocaleDateString()}
                                                 </td>
                                                 <td>
                                                     <div className="admin-table-actions">
+                                                        <button
+                                                            onClick={() =>
+                                                                handleToggleVerify(
+                                                                    store._id,
+                                                                    store.isVerified
+                                                                )
+                                                            }
+                                                            className={`admin-action-btn ${store.isVerified ? 'admin-btn-warning' : 'admin-btn-success'}`}
+                                                            title={
+                                                                store.isVerified
+                                                                    ? 'Remove verification'
+                                                                    : 'Verify store'
+                                                            }
+                                                        >
+                                                            {store.isVerified ? (
+                                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                                                    <path d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                                                </svg>
+                                                            ) : (
+                                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                                                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                                                </svg>
+                                                            )}
+                                                        </button>
                                                         <button
                                                             onClick={() =>
                                                                 handleToggleStatus(

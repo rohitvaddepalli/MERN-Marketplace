@@ -1,10 +1,26 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import './About.css';
 
 const About = () => {
     return (
         <div className="about-page">
+            <Helmet>
+                <title>About Us | Marketplace – Empowering Local Sellers</title>
+                <meta
+                    name="description"
+                    content="Learn about Marketplace's mission to connect verified local sellers with buyers worldwide. Discover our story, values, and commitment to community-first commerce."
+                />
+                <link rel="canonical" href="https://market-place01.web.app/about" />
+                <meta property="og:type" content="website" />
+                <meta property="og:title" content="About Us | Marketplace" />
+                <meta
+                    property="og:description"
+                    content="Learn about Marketplace's mission to connect verified local sellers with buyers worldwide."
+                />
+                <meta property="og:url" content="https://market-place01.web.app/about" />
+            </Helmet>
             <section className="about-hero">
                 <div className="container">
                     <h1>About Marketplace</h1>

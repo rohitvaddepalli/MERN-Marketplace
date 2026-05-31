@@ -272,6 +272,34 @@ class AdminController extends BaseController {
         }, 200);
     };
 
+    // @desc    Verify / unverify a store
+    // @route   PUT /api/admin/stores/:id/verify
+    // @access  Private/Admin
+    verifyStore = async (req, res) => {
+        const { isVerified } = req.body;
+
+        const store = await Store.findByIdAndUpdate(
+            req.params.id,
+            { isVerified },
+            { new: true, runValidators: true }
+        );
+
+        if (!store) {
+            return res.status(404).json({
+                success: false,
+                message: 'Store not found',
+            });
+        }
+
+        // Invalidate store caches so the badge appears immediately
+        await cache.delPattern('admin:stores:*');
+
+        this.handleSuccess(res, {
+            message: `Store ${isVerified ? 'verified' : 'unverified'} successfully`,
+            store,
+        }, 200);
+    };
+
     // @desc    Delete user
     // @route   DELETE /api/admin/users/:id
     // @access  Private/Admin

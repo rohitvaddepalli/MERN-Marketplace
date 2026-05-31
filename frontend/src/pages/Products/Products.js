@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { productAPI } from '../../services/api';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
@@ -79,6 +80,21 @@ const Products = () => {
 
     return (
         <div className="page-container">
+            <Helmet>
+                <title>Browse Products | Marketplace – Shop Local Sellers</title>
+                <meta
+                    name="description"
+                    content="Discover thousands of unique products from verified local sellers. Filter by category, brand, price, and ratings. Shop electronics, fashion, home goods, sports & more."
+                />
+                <link rel="canonical" href="https://market-place01.web.app/products" />
+                <meta property="og:type" content="website" />
+                <meta property="og:title" content="Browse Products | Marketplace" />
+                <meta
+                    property="og:description"
+                    content="Discover thousands of unique products from verified local sellers on Marketplace."
+                />
+                <meta property="og:url" content="https://market-place01.web.app/products" />
+            </Helmet>
             <div className="container">
                 <div className="page-header">
                     <h1 className="page-title">All Products</h1>

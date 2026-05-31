@@ -457,6 +457,11 @@ select {
     color: var(--info-dark);
 }
 
+.badge-secondary {
+    background: var(--gray-light);
+    color: var(--gray-dark);
+}
+
 /* Loading Spinner */
 .spinner {
     display: inline-block;

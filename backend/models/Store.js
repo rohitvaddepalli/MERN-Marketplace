@@ -52,6 +52,16 @@ const storeSchema = new mongoose.Schema({
         type: Boolean,
         default: true,
     },
+    isVerified: {
+        type: Boolean,
+        default: false,
+    },
+    businessHours: {
+        type: String,
+        default: '',
+        trim: true,
+        // e.g. "Mon–Fri: 9 AM – 6 PM, Sat: 10 AM – 4 PM"
+    },
     createdAt: {
         type: Date,
         default: Date.now,

@@ -21,6 +21,7 @@ router.delete('/users/:id', asyncHandler(adminController.deleteUser));
 // Store management
 router.get('/stores', asyncHandler(adminController.getAllStores));
 router.put('/stores/:id/status', validateZod(updateStoreStatusSchema), asyncHandler(adminController.updateStoreStatus));
+router.put('/stores/:id/verify', asyncHandler(adminController.verifyStore));
 router.delete('/stores/:id', asyncHandler(adminController.deleteStore));
 
 // Product management

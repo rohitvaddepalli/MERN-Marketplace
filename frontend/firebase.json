@@ -6,6 +6,87 @@
             "**/.*",
             "**/node_modules/**"
         ],
+        "headers": [
+            {
+                "source": "/**",
+                "headers": [
+                    {
+                        "key": "Strict-Transport-Security",
+                        "value": "max-age=31536000; includeSubDomains; preload"
+                    },
+                    {
+                        "key": "X-Frame-Options",
+                        "value": "DENY"
+                    },
+                    {
+                        "key": "X-Content-Type-Options",
+                        "value": "nosniff"
+                    },
+                    {
+                        "key": "Referrer-Policy",
+                        "value": "strict-origin-when-cross-origin"
+                    },
+                    {
+                        "key": "Permissions-Policy",
+                        "value": "camera=(), microphone=(), geolocation=()"
+                    }
+                ]
+            },
+            {
+                "source": "/index.html",
+                "headers": [
+                    {
+                        "key": "Cache-Control",
+                        "value": "no-cache, no-store, must-revalidate"
+                    }
+                ]
+            },
+            {
+                "source": "/robots.txt",
+                "headers": [
+                    {
+                        "key": "Cache-Control",
+                        "value": "no-cache"
+                    }
+                ]
+            },
+            {
+                "source": "/sitemap.xml",
+                "headers": [
+                    {
+                        "key": "Cache-Control",
+                        "value": "public, max-age=86400"
+                    }
+                ]
+            },
+            {
+                "source": "**/*.@(js|mjs|css)",
+                "headers": [
+                    {
+                        "key": "Cache-Control",
+                        "value": "public, max-age=31536000, immutable"
+                    }
+                ]
+            },
+            {
+                "source": "**/*.@(png|jpg|jpeg|gif|svg|ico|webp|avif)",
+                "headers": [
+                    {
+                        "key": "Cache-Control",
+                        "value": "public, max-age=31536000, immutable"
+                    }
+                ]
+            },
+            {
+                "source": "**/*.@(woff|woff2|ttf|eot|otf)",
+                "headers": [
+                    {
+                        "key": "Cache-Control",
+                        "value": "public, max-age=31536000, immutable"
+                    }
+                ]
+            }
+        ],
         "rewrites": [
             {
                 "source": "**",

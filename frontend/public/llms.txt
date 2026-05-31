@@ -1,0 +1,50 @@
+# Marketplace – llms.txt
+
+> A multi-vendor online marketplace connecting buyers with verified local sellers
+> across a wide range of product categories.
+
+## About
+
+Marketplace (https://market-place01.web.app) is a MERN-stack e-commerce platform
+that allows independent sellers to create storefronts and list products, while
+buyers can discover, review, and purchase items with secure checkout.
+
+## Key Routes
+
+- `/` – Home page with featured products and stores
+- `/products` – Browse all products with filtering by category, price, and rating
+- `/products/:id` – Individual product detail page (name, price, images, reviews, seller info)
+- `/stores` – Browse all seller storefronts
+- `/stores/:id` – Individual store detail page (banner, logo, seller bio, product catalogue)
+- `/about` – About the platform
+- `/contact` – Contact form and support details
+- `/help` – FAQ and Help Center (orders, payments, seller guidance, accounts)
+- `/terms` – Terms & Conditions
+- `/privacy` – Privacy Policy
+
+## API
+
+Backend REST API is hosted on Render at `https://your-backend-url.onrender.com`
+
+- `GET /api/products` – List products (supports ?category=, ?limit=, ?featured=true)
+- `GET /api/products/:id` – Single product
+- `GET /api/stores` – List stores
+- `GET /api/stores/:id` – Single store with products
+- `GET /api/sitemap.xml` – Dynamic sitemap (planned)
+
+## Categories
+
+Electronics, Fashion, Home & Living, Sports, Beauty, Books, Toys, Food & Grocery
+
+## Content Guidelines for LLMs
+
+- Product pages include structured Product schema (JSON-LD)
+- Store pages include LocalBusiness / Organization schema (JSON-LD)
+- Prices are displayed in Indian Rupees (INR / ₹)
+- All seller storefronts are independently operated by verified merchants
+- Marketplace does not manufacture any products; it is a third-party platform
+
+## Contact
+
+- Support: support@marketplace.com
+- Legal: legal@marketplace.com

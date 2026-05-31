@@ -1,14 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { productAPI, storeAPI } from '../../services/api';
 import { seedDatabase, clearDatabase } from '../../utils/seeder';
 import { useAuth } from '../../context/AuthContext';
 import { Helmet } from 'react-helmet-async';
-import { Swiper, SwiperSlide } from 'swiper/react';
-import { Autoplay, EffectCards } from 'swiper/modules';
-import 'swiper/css';
-import 'swiper/css/effect-cards';
-import './Home.css';
+import { SwiperSlide } from 'swiper/react';
 import RecentlyViewed from '../../components/Products/RecentlyViewed';
 import ImageWithFallback from '../../components/Common/ImageWithFallback';
 import { SkeletonGrid } from '../../components/Common/Skeleton';
@@ -22,6 +18,10 @@ import {
     DEFAULT_STORE_BANNER,
     DEFAULT_STORE_LOGO,
 } from '../../constants/images';
+import './Home.css';
+
+// HeroSlider is lazy-loaded so the Swiper core + modules are code-split out of the main bundle
+const HeroSlider = lazy(() => import('../../components/HeroSlider/HeroSlider'));
 
 const Home = () => {
     const { user, isAuthenticated, loading: authLoading } = useAuth();
@@ -131,73 +131,62 @@ const Home = () => {
                                 </div>
                             </div>
                             <div className="hero-image">
-                                <Swiper
-                                    effect={'cards'}
-                                    grabCursor={true}
-                                    modules={[Autoplay, EffectCards]}
-                                    autoplay={
-                                        prefersReducedMotion
-                                            ? false
-                                            : {
-                                                  delay: 2500,
-                                                  disableOnInteraction: false,
-                                              }
-                                    }
-                                    className="hero-swiper"
-                                >
-                                    <SwiperSlide>
-                                        <div className="hero-slide-card">
-                                            <ImageWithFallback
-                                                src={PLACEHOLDER_ELECTRONICS}
-                                                alt="Electronics"
-                                                className="hero-slide-img"
-                                            />
-                                            <div className="hero-slide-content">
-                                                <h3>Electronics</h3>
-                                                <p>Latest Gadgets</p>
+                                <Suspense fallback={<div className="hero-swiper" style={{ background: 'var(--bg-secondary)', borderRadius: 'var(--border-radius-lg)' }} />}>
+                                    <HeroSlider prefersReducedMotion={prefersReducedMotion} autoplayDelay={2500}>
+                                        <SwiperSlide>
+                                            <div className="hero-slide-card">
+                                                <ImageWithFallback
+                                                    src={PLACEHOLDER_ELECTRONICS}
+                                                    alt="Electronics"
+                                                    className="hero-slide-img"
+                                                />
+                                                <div className="hero-slide-content">
+                                                    <h3>Electronics</h3>
+                                                    <p>Latest Gadgets</p>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </SwiperSlide>
-                                    <SwiperSlide>
-                                        <div className="hero-slide-card">
-                                            <ImageWithFallback
-                                                src={PLACEHOLDER_FASHION}
-                                                alt="Fashion"
-                                                className="hero-slide-img"
-                                            />
-                                            <div className="hero-slide-content">
-                                                <h3>Fashion</h3>
-                                                <p>Trendy Styles</p>
+                                        </SwiperSlide>
+                                        <SwiperSlide>
+                                            <div className="hero-slide-card">
+                                                <ImageWithFallback
+                                                    src={PLACEHOLDER_FASHION}
+                                                    alt="Fashion"
+                                                    className="hero-slide-img"
+                                                />
+                                                <div className="hero-slide-content">
+                                                    <h3>Fashion</h3>
+                                                    <p>Trendy Styles</p>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </SwiperSlide>
-                                    <SwiperSlide>
-                                        <div className="hero-slide-card">
-                                            <ImageWithFallback
-                                                src={PLACEHOLDER_HOME}
-                                                alt="Home"
-                                                className="hero-slide-img"
-                                            />
-                                            <div className="hero-slide-content">
-                                                <h3>Home & Living</h3>
-                                                <p>Beautiful Decor</p>
+                                        </SwiperSlide>
+                                        <SwiperSlide>
+                                            <div className="hero-slide-card">
+                                                <ImageWithFallback
+                                                    src={PLACEHOLDER_HOME}
+                                                    alt="Home"
+                                                    className="hero-slide-img"
+                                                />
+                                                <div className="hero-slide-content">
+                                                    <h3>Home &amp; Living</h3>
+                                                    <p>Beautiful Decor</p>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </SwiperSlide>
-                                    <SwiperSlide>
-                                        <div className="hero-slide-card">
-                                            <ImageWithFallback
-                                                src={PLACEHOLDER_SPORTS}
-                                                alt="Sports"
-                                                className="hero-slide-img"
-                                            />
-                                            <div className="hero-slide-content">
-                                                <h3>Sports</h3>
-                                                <p>Active Gear</p>
+                                        </SwiperSlide>
+                                        <SwiperSlide>
+                                            <div className="hero-slide-card">
+                                                <ImageWithFallback
+                                                    src={PLACEHOLDER_SPORTS}
+                                                    alt="Sports"
+                                                    className="hero-slide-img"
+                                                />
+                                                <div className="hero-slide-content">
+                                                    <h3>Sports</h3>
+                                                    <p>Active Gear</p>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </SwiperSlide>
-                                </Swiper>
+                                        </SwiperSlide>
+                                    </HeroSlider>
+                                </Suspense>
                             </div>
                         </div>
                     </div>
@@ -234,81 +223,70 @@ const Home = () => {
 
                             <div className="hero-image">
                                 <div className="hero-swiper-wrapper">
-                                    <Swiper
-                                        effect={'cards'}
-                                        grabCursor={true}
-                                        modules={[Autoplay, EffectCards]}
-                                        autoplay={
-                                            prefersReducedMotion
-                                                ? false
-                                                : {
-                                                      delay: 3000,
-                                                      disableOnInteraction: false,
-                                                  }
-                                        }
-                                        className="hero-swiper"
-                                    >
-                                        {featuredProducts.length > 0 ? (
-                                            featuredProducts.slice(0, 5).map((product) => (
-                                                <SwiperSlide key={product._id}>
-                                                    <Link
-                                                        to={`/products/${product._id}`}
-                                                        style={{
-                                                            display: 'block',
-                                                            height: '100%',
-                                                            textDecoration: 'none',
-                                                        }}
-                                                    >
+                                    <Suspense fallback={<div className="hero-swiper" style={{ background: 'var(--bg-secondary)', borderRadius: 'var(--border-radius-lg)' }} />}>
+                                        <HeroSlider prefersReducedMotion={prefersReducedMotion} autoplayDelay={3000}>
+                                            {featuredProducts.length > 0 ? (
+                                                featuredProducts.slice(0, 5).map((product) => (
+                                                    <SwiperSlide key={product._id}>
+                                                        <Link
+                                                            to={`/products/${product._id}`}
+                                                            style={{
+                                                                display: 'block',
+                                                                height: '100%',
+                                                                textDecoration: 'none',
+                                                            }}
+                                                        >
+                                                            <div className="hero-slide-card">
+                                                                <ImageWithFallback
+                                                                    src={product.images?.[0]}
+                                                                    fallbackSrc={DEFAULT_PRODUCT_IMAGE}
+                                                                    alt={product.name}
+                                                                    className="hero-slide-img"
+                                                                />
+                                                                <div className="hero-slide-content">
+                                                                    <h3 className="hero-slide-name">
+                                                                        {product.name}
+                                                                    </h3>
+                                                                    <p className="hero-slide-price">
+                                                                        ₹{product.price}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        </Link>
+                                                    </SwiperSlide>
+                                                ))
+                                            ) : (
+                                                <>
+                                                    <SwiperSlide>
                                                         <div className="hero-slide-card">
                                                             <ImageWithFallback
-                                                                src={product.images?.[0]}
-                                                                fallbackSrc={DEFAULT_PRODUCT_IMAGE}
-                                                                alt={product.name}
+                                                                src={PLACEHOLDER_ELECTRONICS}
+                                                                alt="Electronics"
                                                                 className="hero-slide-img"
                                                             />
                                                             <div className="hero-slide-content">
-                                                                <h3 className="hero-slide-name">
-                                                                    {product.name}
-                                                                </h3>
-                                                                <p className="hero-slide-price">
-                                                                    ₹{product.price}
-                                                                </p>
+                                                                <h3>Electronics</h3>
+                                                                <p>Latest Gadgets</p>
                                                             </div>
                                                         </div>
-                                                    </Link>
-                                                </SwiperSlide>
-                                            ))
-                                        ) : (
-                                            <>
-                                                <SwiperSlide>
-                                                    <div className="hero-slide-card">
-                                                        <ImageWithFallback
-                                                            src={PLACEHOLDER_ELECTRONICS}
-                                                            alt="Electronics"
-                                                            className="hero-slide-img"
-                                                        />
-                                                        <div className="hero-slide-content">
-                                                            <h3>Electronics</h3>
-                                                            <p>Latest Gadgets</p>
+                                                    </SwiperSlide>
+                                                    <SwiperSlide>
+                                                        <div className="hero-slide-card">
+                                                            <ImageWithFallback
+                                                                src={PLACEHOLDER_FASHION}
+                                                                alt="Fashion"
+                                                                className="hero-slide-img"
+                                                            />
+                                                            <div className="hero-slide-content">
+                                                                <h3>Fashion</h3>
+                                                                <p>Trendy Styles</p>
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                </SwiperSlide>
-                                                <SwiperSlide>
-                                                    <div className="hero-slide-card">
-                                                        <ImageWithFallback
-                                                            src={PLACEHOLDER_FASHION}
-                                                            alt="Fashion"
-                                                            className="hero-slide-img"
-                                                        />
-                                                        <div className="hero-slide-content">
-                                                            <h3>Fashion</h3>
-                                                            <p>Trendy Styles</p>
-                                                        </div>
-                                                    </div>
-                                                </SwiperSlide>
-                                            </>
-                                        )}
-                                    </Swiper>
+                                                    </SwiperSlide>
+                                                </>
+                                            )}
+                                        </HeroSlider>
+                                    </Suspense>
                                 </div>
                             </div>
                         </div>
@@ -585,6 +563,7 @@ const Home = () => {
                         <p>&copy; {new Date().getFullYear()} Marketplace. All rights reserved.</p>
                         <div className="footer-bottom-links">
                             <Link to="/terms">Terms of Service</Link>
+                            <Link to="/privacy">Privacy Policy</Link>
                         </div>
                     </div>
                 </div>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Helmet } from 'react-helmet-async';
 import './Help.css';
 
 const Help = () => {
@@ -92,6 +93,21 @@ const Help = () => {
 
     return (
         <div className="help-page">
+            <Helmet>
+                <title>Help Center | Marketplace – FAQs & Support</title>
+                <meta
+                    name="description"
+                    content="Find answers to common questions about orders, payments, returns, seller registration, and accounts on Marketplace. Our support team is here to help."
+                />
+                <link rel="canonical" href="https://market-place01.web.app/help" />
+                <meta property="og:type" content="website" />
+                <meta property="og:title" content="Help Center | Marketplace" />
+                <meta
+                    property="og:description"
+                    content="Find answers to common questions about orders, payments, returns, and more on Marketplace."
+                />
+                <meta property="og:url" content="https://market-place01.web.app/help" />
+            </Helmet>
             <section className="help-hero">
                 <div className="container">
                     <h1>Help Center</h1>

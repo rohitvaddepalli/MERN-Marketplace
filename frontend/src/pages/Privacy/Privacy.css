@@ -1,0 +1,66 @@
+/* Privacy Page Styles – mirrors Terms page structure */
+
+.privacy-page {
+    min-height: 100vh;
+}
+
+.privacy-hero {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #7c3aed 100%);
+    color: white;
+    padding: var(--spacing-4xl) 0 var(--spacing-3xl);
+    text-align: center;
+}
+
+.privacy-hero h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: var(--spacing-md);
+}
+
+.privacy-hero p {
+    font-size: 1rem;
+    opacity: 0.85;
+}
+
+.privacy-content {
+    padding: var(--spacing-3xl) 0;
+}
+
+.privacy-container {
+    max-width: 860px;
+    margin: 0 auto;
+}
+
+.privacy-section {
+    margin-bottom: var(--spacing-2xl);
+    padding-bottom: var(--spacing-2xl);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.privacy-section:last-child {
+    border-bottom: none;
+}
+
+.privacy-section h2 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-md);
+}
+
+.privacy-section p {
+    color: var(--text-secondary);
+    line-height: 1.8;
+    margin-bottom: var(--spacing-md);
+}
+
+.privacy-section ul {
+    color: var(--text-secondary);
+    line-height: 1.8;
+    padding-left: var(--spacing-xl);
+    margin-bottom: var(--spacing-md);
+}
+
+.privacy-section ul li {
+    margin-bottom: var(--spacing-sm);
+}

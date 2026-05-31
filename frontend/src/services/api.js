@@ -1,8 +1,5 @@
 import axios from 'axios';
 
-// Use NODE_ENV (not hostname) to detect environment.
-// Using hostname broke ngrok: non-localhost hosts were treated as "production",
-// causing API calls to go to /api on the React dev server (port 3000) which has no backend.
 const isProduction = process.env.NODE_ENV === 'production';
 
 const API_URL = isProduction
@@ -19,14 +16,9 @@ const api = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
-    // SECURITY: Include credentials (cookies) with every request
-    // This allows HTTP-only cookies to be sent automatically
     withCredentials: true,
 });
 
-// Request interceptor: attach JWT from localStorage as Authorization header.
-// This is a fallback for cross-origin deployments where SameSite cookies may
-// be blocked. The backend accepts both cookie AND Authorization header.
 api.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem('access_token');
@@ -147,6 +139,7 @@ export const adminAPI = {
     // Store management
     getAllStores: (params) => api.get('/admin/stores', { params }),
     updateStoreStatus: (id, data) => api.put(`/admin/stores/${id}/status`, data),
+    verifyStore: (id, data) => api.put(`/admin/stores/${id}/verify`, data),
     deleteStore: (id) => api.delete(`/admin/stores/${id}`),
 
     // Product management
