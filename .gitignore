@@ -54,6 +54,9 @@ Thumbs.db
 .orchids/
 UIs/
 graphify-out/
+brag-output/
+.kilo/
+brag-output-2/
 
 # ── Python ─────────────────────────────────────────────────────────────────────
 *.pyc
