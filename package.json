@@ -36,6 +36,6 @@
         "prettier": "^3.5.3"
     },
     "dependencies": {
-        "nodemailer": "^8.0.7"
+        "nodemailer": "^10.0.10"
     }
 }
