@@ -58,7 +58,6 @@
         "uuid": "^14.0.2",
         "validator": "^13.11.0",
         "winston": "^3.19.0",
-        "xss-clean": "^0.1.4",
         "zod": "^4.4.3"
     },
     "devDependencies": {

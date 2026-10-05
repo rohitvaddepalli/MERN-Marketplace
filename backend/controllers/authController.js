@@ -59,7 +59,8 @@ class AuthController extends BaseController {
         }
 
         // Check for user
-        const user = await User.findOne({ email }).select('+password');
+        // We also need loginAttempts and lockUntil to handle brute-force protection
+        const user = await User.findOne({ email }).select('+password +loginAttempts +lockUntil');
         if (!user) {
             return res.status(401).json({
                 success: false,
@@ -67,13 +68,51 @@ class AuthController extends BaseController {
             });
         }
 
-        // Check if password matches
+        // SECURITY: Check if account is locked
+        if (user.lockUntil && user.lockUntil > Date.now()) {
+            return res.status(403).json({
+                success: false,
+                message: 'Account is temporarily locked due to too many failed login attempts. Please try again later.',
+            });
+        }
+
         const isMatch = await user.comparePassword(password);
         if (!isMatch) {
+            // Atomically reset if lock expired, otherwise increment
+            const expiredUnlock = await User.updateOne(
+                { _id: user._id, lockUntil: { $lte: Date.now() } },
+                { $set: { loginAttempts: 1 }, $unset: { lockUntil: 1 } }
+            );
+
+            if (expiredUnlock.modifiedCount === 0) {
+                // Was not expired (either null or actively locked). Increment attempts.
+                const updatedUser = await User.findOneAndUpdate(
+                    { _id: user._id },
+                    { $inc: { loginAttempts: 1 } },
+                    { new: true }
+                );
+                
+                // Check threshold after increment and apply lock atomically
+                if (updatedUser && updatedUser.loginAttempts >= 5 && !updatedUser.lockUntil) {
+                    await User.updateOne(
+                        { _id: user._id, lockUntil: null }, 
+                        { $set: { lockUntil: Date.now() + 15 * 60 * 1000 } }
+                    );
+                }
+            }
+
             return res.status(401).json({
                 success: false,
                 message: 'Invalid credentials',
             });
+        }
+
+        // Reset login attempts on successful login
+        if (user.loginAttempts > 0 || user.lockUntil) {
+            await User.updateOne(
+                { _id: user._id },
+                { $set: { loginAttempts: 0 }, $unset: { lockUntil: 1 } }
+            );
         }
 
         sendTokenResponse(user, 200, res);
@@ -124,9 +163,10 @@ class AuthController extends BaseController {
 
         const user = await User.findOne({ email });
         if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: 'No user found with this email',
+            // SECURITY: Prevent user enumeration by returning the same success message
+            return res.status(200).json({
+                success: true,
+                message: 'If an account with that email exists, a password reset link has been sent.',
             });
         }
 
@@ -137,18 +177,18 @@ class AuthController extends BaseController {
         // Dispatch password-reset email via service (URL building + SMTP live there)
         try {
             await sendPasswordResetEmail({ email: user.email, resetToken });
-
-            this.handleSuccess(res, { message: 'Password reset link sent to your email' }, 200);
         } catch (err) {
-            user.resetPasswordToken = undefined;
-            user.resetPasswordExpire = undefined;
-            await user.save({ validateBeforeSave: false });
-
-            return res.status(500).json({
-                success: false,
-                message: 'Email could not be sent. Please try again later.',
-            });
+            await User.updateOne(
+                { _id: user._id, resetPasswordToken: user.resetPasswordToken },
+                { $unset: { resetPasswordToken: 1, resetPasswordExpire: 1 } }
+            );
+            // Log error internally if needed, but don't leak it
         }
+
+        return res.status(200).json({
+            success: true,
+            message: 'If an account with that email exists, a password reset link has been sent.',
+        });
     };
 
     // @desc    Reset password

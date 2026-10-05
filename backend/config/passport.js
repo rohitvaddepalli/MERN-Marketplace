@@ -1,6 +1,7 @@
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import User from '../models/User.js';
+import crypto from 'crypto';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -50,7 +51,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
                     user = await User.create({
                         name: profile.displayName,
                         email: profile.emails[0].value,
-                        password: 'social-login-dummy-password-' + Date.now(),
+                        password: crypto.randomBytes(32).toString('hex'),
                         googleId: profile.id,
                         avatar: profile.photos[0].value,
                         role: 'customer',

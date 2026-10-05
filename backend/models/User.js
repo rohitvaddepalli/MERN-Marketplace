@@ -23,7 +23,8 @@ const userSchema = new mongoose.Schema({
     password: {
         type: String,
         required: [true, 'Please provide a password'],
-        minlength: 6,
+        minlength: 8,
+        maxlength: 128,
         select: false,
     },
     role: {
@@ -37,6 +38,14 @@ const userSchema = new mongoose.Schema({
     },
     phone: {
         type: String,
+    },
+    loginAttempts: {
+        type: Number,
+        required: true,
+        default: 0,
+    },
+    lockUntil: {
+        type: Date,
     },
     address: {
         street: String,

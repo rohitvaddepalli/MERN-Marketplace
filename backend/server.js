@@ -24,7 +24,6 @@ import { fileURLToPath } from 'url';
 import session from 'express-session';
 import passport from 'passport';
 import helmet from 'helmet';
-import xss from 'xss-clean';
 import mongoSanitize from 'express-mongo-sanitize';
 import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
@@ -304,8 +303,7 @@ app.use(
 // Request logging - logs method, path, status, duration on every response
 app.use(requestLogger);
 
-// XSS protection - sanitizes user input
-app.use(xss());
+// XSS protection - handled by Helmet CSP and Zod input validation
 
 // NoSQL injection prevention - sanitizes data against query selector injection attacks
 app.use(mongoSanitize());
@@ -461,13 +459,16 @@ app.use('/api', apiV1);
 import swaggerUi from 'swagger-ui-express';
 import { swaggerSpec } from './config/swagger.js';
 
-app.use(
-    '/api/docs',
-    swaggerUi.serve,
-    swaggerUi.setup(swaggerSpec, {
-        customSiteTitle: 'Marketplace API Docs',
-    })
-);
+// SECURITY: Hide full API schema in production to prevent reconnaissance.
+if (process.env.NODE_ENV !== 'production') {
+    app.use(
+        '/api/docs',
+        swaggerUi.serve,
+        swaggerUi.setup(swaggerSpec, {
+            customSiteTitle: 'Marketplace API Docs',
+        })
+    );
+}
 
 // Public settings endpoint
 app.get('/api/settings', async (req, res) => {
@@ -490,17 +491,23 @@ app.get('/api/settings', async (req, res) => {
     }
 });
 
-// Health check route — verifies DB connectivity and reports runtime metrics (#19, #38)
+// Health check route — verifies DB connectivity and reports basic status
 // Uptime monitors (e.g., Better Uptime, Render health checks) should hit this endpoint.
 app.get('/api/health', async (req, res) => {
+    const dbHealthy = mongoose.connection.readyState === 1;
+    res.status(dbHealthy ? 200 : 503).json({ status: dbHealthy ? 'ok' : 'degraded' });
+});
+
+// Admin-only verbose health check
+import { protect, authorize } from './middleware/auth.js';
+app.get('/api/admin/health', protect, authorize('admin'), async (req, res) => {
     const dbState = mongoose.connection.readyState;
-    // 0 = disconnected, 1 = connected, 2 = connecting, 3 = disconnecting
     const dbStateMap = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
     const dbStatus = dbStateMap[dbState] ?? 'unknown';
     const dbHealthy = dbState === 1;
 
     const memoryUsage = process.memoryUsage();
-    const payload = {
+    res.status(dbHealthy ? 200 : 503).json({
         success: dbHealthy,
         message: 'Server is running',
         status: dbHealthy ? 'healthy' : 'degraded',
@@ -519,9 +526,7 @@ app.get('/api/health', async (req, res) => {
             heapUsed: `${Math.round(memoryUsage.heapUsed / 1024 / 1024)}MB`,
             heapTotal: `${Math.round(memoryUsage.heapTotal / 1024 / 1024)}MB`,
         },
-    };
-
-    res.status(dbHealthy ? 200 : 503).json(payload);
+    });
 });
 
 // Cloudinary direct upload signature (avoids proxying file through server)
@@ -543,7 +548,7 @@ app.get('/api/upload/signature', (req, res) => {
     const timestamp = Math.round(Date.now() / 1000);
     const folder = 'marketplace_products';
     const params = `folder=${folder}&timestamp=${timestamp}${apiSecret}`;
-    const signature = crypto.createHash('sha1').update(params).digest('hex');
+    const signature = crypto.createHash('sha256').update(params).digest('hex');
 
     // Return only what the browser needs to upload directly — never the apiKey or apiSecret
     res.status(200).json({
