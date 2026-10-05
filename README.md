@@ -57,10 +57,6 @@ Interactive docs available at `/api/docs` (Swagger UI, dev only).
 
 See [SETUP.md](./SETUP.md) for complete installation, configuration, and test flow instructions.
 
-## Admin Access
-
-See [ADMIN.md](./ADMIN.md) for administrative features, default credentials, and API routes.
-
 ---
 
 [![Deploy](https://img.shields.io/badge/Deploy-Render-blue)](https://render.com)
