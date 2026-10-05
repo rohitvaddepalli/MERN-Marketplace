@@ -495,7 +495,12 @@ app.get('/api/settings', async (req, res) => {
 // Uptime monitors (e.g., Better Uptime, Render health checks) should hit this endpoint.
 app.get('/api/health', async (req, res) => {
     const dbHealthy = mongoose.connection.readyState === 1;
-    res.status(dbHealthy ? 200 : 503).json({ status: dbHealthy ? 'ok' : 'degraded' });
+    res.status(dbHealthy ? 200 : 503).json({ 
+        status: dbHealthy ? 'ok' : 'degraded',
+        success: dbHealthy,
+        message: 'Server is running',
+        timestamp: new Date().toISOString()
+    });
 });
 
 // Admin-only verbose health check
