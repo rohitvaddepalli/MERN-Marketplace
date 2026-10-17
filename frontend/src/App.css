@@ -42,7 +42,7 @@
 }
 
 .breadcrumb a {
-    color: var(--primary-color);
+    color: var(--primary-strong);
 }
 
 .breadcrumb svg {

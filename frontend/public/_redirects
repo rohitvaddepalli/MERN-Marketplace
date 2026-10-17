@@ -1,0 +1,4 @@
+# Cloudflare Pages SPA rewrites — serve index.html for every client route
+# (React Router's BrowserRouter needs this so deep links like /products/:id
+# don't 404 on refresh.)
+/*    /index.html   200

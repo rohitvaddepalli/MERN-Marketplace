@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { productAPI, storeAPI } from '../../services/api';
-import { seedDatabase, clearDatabase } from '../../utils/seeder';
 import { useAuth } from '../../context/AuthContext';
 import { Helmet } from 'react-helmet-async';
 import { SwiperSlide } from 'swiper/react';
@@ -294,49 +293,8 @@ const Home = () => {
                 </section>
             )}
 
-            {/* Seed & Clear Database Buttons - DEVELOPMENT ONLY & ADMIN ONLY */}
-            {process.env.NODE_ENV === 'development' && user?.role === 'admin' && (
-                <div
-                    className="container"
-                    style={{
-                        marginTop: '20px',
-                        textAlign: 'center',
-                        display: 'flex',
-                        gap: '10px',
-                        justifyContent: 'center',
-                    }}
-                >
-                    <button
-                        onClick={async () => {
-                            if (window.confirm('Are you sure you want to seed the database?')) {
-                                const res = await seedDatabase();
-                                alert(res.message);
-                                fetchData();
-                            }
-                        }}
-                        className="btn btn-outline"
-                    >
-                        🌱 Seed Database
-                    </button>
-                    <button
-                        onClick={async () => {
-                            if (
-                                window.confirm(
-                                    'Are you sure you want to DELETE ALL PRODUCTS? This cannot be undone.'
-                                )
-                            ) {
-                                const res = await clearDatabase();
-                                alert(res.message);
-                                fetchData();
-                            }
-                        }}
-                        className="btn btn-outline"
-                        style={{ borderColor: 'red', color: 'red' }}
-                    >
-                        🗑️ Clear Database
-                    </button>
-                </div>
-            )}
+            {/* Seed & Clear Database Buttons removed — seeding now runs
+                server-side against Postgres (backend: npm run seed) */}
 
             {/* Featured Products */}
             <section className="featured-section">

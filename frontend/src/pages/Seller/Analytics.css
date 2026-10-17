@@ -19,12 +19,12 @@
 }
 
 .tab-button:hover {
-    color: var(--primary-color);
+    color: var(--primary-strong);
 }
 
 .tab-button.active {
-    color: var(--primary-color);
-    border-bottom-color: var(--primary-color);
+    color: var(--primary-strong);
+    border-bottom-color: var(--primary-strong);
 }
 
 .analytics-stats {
@@ -193,7 +193,7 @@
 .performance-stats .stat-value {
     font-size: 1.25rem;
     font-weight: 700;
-    color: var(--primary-color);
+    color: var(--primary-strong);
 }
 
 .category-grid {

@@ -1,13 +1,21 @@
 :root {
-    /* Color Palette */
-    --primary-color: #ff6b35;
-    --primary-dark: #e65a2b;
-    --primary-light: #ff8c5a;
-    --secondary-color: #004e89;
-    --secondary-dark: #003d6b;
-    --secondary-light: #1a6ba8;
+    /* Color Palette — minimal "one accent, ink neutrals" system.
+       Primary orange is the single accent; everything else is slate/ink so
+       the UI reads calm and lets product imagery carry the colour. */
+    --primary-color: #f97316;
+    --primary-dark: #ea580c;
+    --primary-light: #fdba74;
+    /* Text/outline orange that passes 4.5:1 on white; CTA fills use these */
+    --primary-strong: #c2410c;
+    --primary-btn: #c2410c;
+    --primary-btn-hover: #9a3412;
+    --secondary-color: #0f172a;
+    --secondary-dark: #020617;
+    --secondary-light: #334155;
 
-    --accent-color: #ffd23f;
+    --accent-color: #fbbf24;
+    /* Accessible amber for text/icons on light surfaces (5:1) */
+    --accent-strong: #b45309;
     --success-color: #06d6a0;
     --success-light: #d1f4e7;
     --success-dark: #007a5a;
@@ -26,39 +34,39 @@
 
     --primary-color-alpha: rgba(255, 107, 53, 0.1);
 
-    /* Neutral Colors */
-    --dark: #1a1a2e;
-    --dark-secondary: #16213e;
-    --gray-dark: #495057;
-    --gray: #6c757d;
-    --gray-light: #e9ecef;
-    --gray-lighter: #f8f9fa;
+    /* Neutral Colors — slate scale */
+    --dark: #0f172a;
+    --dark-secondary: #1e293b;
+    --gray-dark: #334155;
+    --gray: #64748b;
+    --gray-light: #e2e8f0;
+    --gray-lighter: #f8fafc;
     --white: #ffffff;
 
     /* Text Colors */
-    --text-primary: #1a1a2e;
-    --text-secondary: #6c757d;
-    --text-light: #adb5bd;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-light: #94a3b8;
     --text-white: #ffffff;
 
     /* Background Colors */
     --bg-primary: #ffffff;
-    --bg-secondary: #f8f9fa;
-    --bg-dark: #1a1a2e;
+    --bg-secondary: #f8fafc;
+    --bg-dark: #0f172a;
     --bg-card: #ffffff;
 
-    /* Border & Shadow */
-    --border-color: #dee2e6;
+    /* Border & Shadow — hairline borders, barely-there shadows */
+    --border-color: #e2e8f0;
     --border-radius-sm: 6px;
-    --border-radius: 10px;
-    --border-radius-lg: 16px;
-    --border-radius-xl: 24px;
+    --border-radius: 8px;
+    --border-radius-lg: 12px;
+    --border-radius-xl: 16px;
 
-    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
-    --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.12);
-    --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.15);
-    --shadow-hover: 0 12px 32px rgba(0, 0, 0, 0.15);
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+    --shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+    --shadow-md: 0 4px 12px -2px rgba(15, 23, 42, 0.1);
+    --shadow-lg: 0 12px 32px -6px rgba(15, 23, 42, 0.14);
+    --shadow-hover: 0 8px 24px -6px rgba(15, 23, 42, 0.12);
 
     /* Typography */
     --font-primary: 'Inter', 'Noto Sans', sans-serif;
@@ -110,8 +118,9 @@ h4,
 h5,
 h6 {
     font-family: var(--font-secondary);
-    font-weight: 700;
-    line-height: 1.3;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    line-height: 1.25;
     margin-bottom: var(--spacing-md);
     color: var(--text-primary);
 }
@@ -146,13 +155,14 @@ p {
 }
 
 a {
-    color: var(--primary-color);
+    color: var(--primary-strong);
     text-decoration: none;
     transition: color var(--transition-fast);
 }
 
 a:hover {
-    color: var(--primary-dark);
+    color: var(--primary-strong);
+    text-decoration: underline;
 }
 
 img {
@@ -282,7 +292,11 @@ select {
     text-decoration: none;
     position: relative;
     overflow: hidden;
-    transition: none;
+    transition:
+        background-color var(--transition-fast),
+        border-color var(--transition-fast),
+        color var(--transition-fast),
+        box-shadow var(--transition-fast);
 }
 
 .btn:hover {
@@ -290,9 +304,13 @@ select {
 }
 
 .btn-primary {
-    background: var(--primary-color);
+    background: var(--primary-btn);
     color: var(--text-white);
     box-shadow: var(--shadow-sm);
+}
+
+.btn-primary:hover {
+    background: var(--primary-btn-hover);
 }
 
 .btn-secondary {
@@ -301,17 +319,30 @@ select {
     box-shadow: var(--shadow-sm);
 }
 
+.btn-secondary:hover {
+    background: var(--secondary-light);
+}
+
 .btn-outline {
     background: transparent;
-    color: var(--primary-color);
-    border: 2px solid var(--primary-color);
+    color: var(--primary-strong);
+    border: 1.5px solid var(--primary-strong);
     box-shadow: none;
+}
+
+.btn-outline:hover {
+    background: var(--primary-color-alpha);
 }
 
 .btn-ghost {
     background: transparent;
     color: var(--text-primary);
     box-shadow: none;
+}
+
+.btn-ghost:hover {
+    background: var(--gray-lighter);
+    color: var(--text-primary);
 }
 
 .btn-sm {
@@ -334,16 +365,18 @@ select {
     background: var(--bg-card);
     border-radius: var(--border-radius-lg);
     padding: var(--spacing-lg);
-    box-shadow: var(--shadow);
+    box-shadow: var(--shadow-sm);
     transition:
-        transform var(--transition),
-        box-shadow var(--transition);
+        transform var(--transition-fast),
+        box-shadow var(--transition-fast),
+        border-color var(--transition-fast);
     border: 1px solid var(--border-color);
 }
 
 .card:hover {
-    box-shadow: var(--shadow-hover);
-    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+    border-color: #cbd5e1;
+    transform: translateY(-2px);
 }
 
 .card-header {
@@ -381,7 +414,7 @@ select {
     width: 100%;
     padding: 12px 16px;
     font-size: 1rem;
-    border: 2px solid var(--border-color);
+    border: 1.5px solid var(--border-color);
     border-radius: var(--border-radius);
     background-color: var(--bg-primary);
     color: var(--text-primary);
@@ -393,7 +426,7 @@ select {
 .form-input:focus,
 .form-select:focus,
 .form-textarea:focus {
-    border-color: var(--primary-color);
+    border-color: var(--primary-strong);
     box-shadow: 0 0 0 3px var(--primary-color-alpha);
     outline: none;
 }
@@ -401,7 +434,7 @@ select {
 .form-input:focus-visible,
 .form-select:focus-visible,
 .form-textarea:focus-visible {
-    outline: 3px solid var(--primary-color);
+    outline: 3px solid var(--primary-strong);
     outline-offset: 2px;
 }
 
@@ -433,8 +466,8 @@ select {
 }
 
 .badge-primary {
-    background: var(--primary-light);
-    color: var(--primary-dark);
+    background: var(--primary-color-alpha);
+    color: var(--primary-strong);
 }
 
 .badge-success {
@@ -468,7 +501,7 @@ select {
     width: 40px;
     height: 40px;
     border: 4px solid var(--gray-light);
-    border-top-color: var(--primary-color);
+    border-top-color: var(--primary-strong);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
 }
@@ -512,14 +545,15 @@ select {
     background: var(--gray-lighter);
 }
 
-::-webkit-scrollbar-thumb {
-    background: var(--gray);
+::webkit-scrollbar-thumb {
+    background: var(--gray-light);
     border-radius: 5px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: var(--gray-dark);
+    background: var(--gray);
 }
+
 
 /* Responsive Design */
 @media (max-width: 768px) {
@@ -577,12 +611,12 @@ select {
 }
 
 :focus-visible {
-    outline: 3px solid var(--primary-color);
+    outline: 3px solid var(--primary-strong);
     outline-offset: 2px;
 }
 
 .btn:focus-visible {
-    outline: 3px solid var(--primary-dark);
+    outline: 3px solid var(--primary-strong);
     outline-offset: 2px;
 }
 
@@ -611,6 +645,9 @@ select {
 
         --border-color: rgba(255, 255, 255, 0.1);
 
+        --gray-light: rgba(255, 255, 255, 0.1);
+        --gray-lighter: #141414;
+
         --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
         --shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
@@ -626,6 +663,8 @@ select {
         --info-light: rgba(58, 134, 255, 0.15);
         --info-dark: #3a86ff;
         --primary-color-alpha: rgba(255, 107, 53, 0.2);
+        /* Light orange text on dark surfaces (8:1) */
+        --primary-strong: #fb923c;
     }
 }
 

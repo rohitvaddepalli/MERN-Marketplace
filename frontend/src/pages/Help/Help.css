@@ -69,14 +69,14 @@
 }
 
 .category-btn:hover {
-    border-color: var(--primary-color);
+    border-color: var(--primary-strong);
     transform: translateY(-2px);
 }
 
 .category-btn.active {
-    background: var(--primary-color);
+    background: var(--primary-btn);
     color: white;
-    border-color: var(--primary-color);
+    border-color: var(--primary-strong);
 }
 
 .category-icon {

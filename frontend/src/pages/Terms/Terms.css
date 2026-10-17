@@ -69,7 +69,7 @@
 
 .terms-section li::before {
     content: '•';
-    color: var(--primary-color);
+    color: var(--primary-strong);
     font-size: 1.5rem;
     position: absolute;
     left: 0;

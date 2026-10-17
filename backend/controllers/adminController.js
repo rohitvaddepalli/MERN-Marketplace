@@ -1,15 +1,12 @@
-import User from '../models/User.js';
-import Store from '../models/Store.js';
-import Product from '../models/Product.js';
-import Order from '../models/Order.js';
-import Settings from '../models/Settings.js';
+import { query, isUuid } from '../db/index.js';
+import { toUser, toStore, toProduct, toOrder, toSettings } from '../db/mappers.js';
 import cache from '../utils/cache.js';
 import { BaseController } from './BaseController.js';
 import { sanitizeSearchInput } from '../utils/sanitize.js';
 
 // Cache TTLs
-const STATS_TTL = 90;  // 90 s — dashboard aggregate numbers
-const LIST_TTL  = 10;  // 10 s — paginated admin list pages
+const STATS_TTL = 90; // 90 s — dashboard aggregate numbers
+const LIST_TTL = 10; // 10 s — paginated admin list pages
 
 class AdminController extends BaseController {
     // @desc    Get dashboard statistics
@@ -22,62 +19,84 @@ class AdminController extends BaseController {
         if (cached) return this.handleSuccess(res, { stats: cached }, 200);
 
         const [
-            totalUsers,
-            totalStores,
-            totalProducts,
-            totalOrders,
+            counts,
             recentUsers,
             recentOrders,
-            customerCount,
-            sellerCount,
             settings,
             revenueResult,
         ] = await Promise.all([
-            User.countDocuments(),
-            Store.countDocuments(),
-            Product.countDocuments(),
-            Order.countDocuments(),
-            User.find().sort({ createdAt: -1 }).limit(5).select('-password'),
-            Order.find().sort({ createdAt: -1 }).limit(5).populate('customer', 'name email'),
-            User.countDocuments({ role: 'customer' }),
-            User.countDocuments({ role: 'seller' }),
-            Settings.getSettings(),
-            // PERFORMANCE: compute revenue inside MongoDB — no document hydration needed
-            Order.aggregate([
-                {
-                    $match: {
-                        $or: [{ paymentStatus: 'completed' }, { status: 'delivered' }],
-                    },
-                },
-                {
-                    $group: {
-                        _id: null,
-                        totalTax: { $sum: '$taxPrice' },
-                        totalShipping: { $sum: '$shippingPrice' },
-                        orderCount: { $sum: 1 },
-                    },
-                },
-            ]),
+            // One round-trip for all six counters (was six countDocuments calls)
+            query(`
+                SELECT
+                    (SELECT COUNT(*) FROM users)::int    AS total_users,
+                    (SELECT COUNT(*) FROM stores)::int   AS total_stores,
+                    (SELECT COUNT(*) FROM products)::int AS total_products,
+                    (SELECT COUNT(*) FROM orders)::int   AS total_orders,
+                    (SELECT COUNT(*) FROM users WHERE role = 'customer')::int AS customer_count,
+                    (SELECT COUNT(*) FROM users WHERE role = 'seller')::int    AS seller_count
+            `),
+            query(
+                `SELECT * FROM users ORDER BY created_at DESC LIMIT 5`
+            ),
+            query(
+                `SELECT o.*, cu.name AS customer_name, cu.email AS customer_email,
+                        (
+                            SELECT json_agg(json_build_object(
+                                       'line_no', oi.line_no,
+                                       'product', oi.product_id,
+                                       'store',   oi.store_id,
+                                       'seller',  oi.seller_id,
+                                       'name',    oi.name,
+                                       'price',   oi.price,
+                                       'quantity',oi.quantity,
+                                       'image',   oi.image
+                                   ) ORDER BY oi.line_no)
+                            FROM order_items oi WHERE oi.order_id = o.id
+                        ) AS items
+                 FROM orders o LEFT JOIN users cu ON cu.id = o.customer_id
+                 ORDER BY o.created_at DESC LIMIT 5`
+            ),
+            query('SELECT * FROM settings WHERE id = true'),
+            // PERFORMANCE: revenue computed inside the database
+            query(`
+                SELECT COALESCE(SUM(tax_price), 0)::float       AS total_tax,
+                       COALESCE(SUM(shipping_price), 0)::float  AS total_shipping,
+                       COUNT(*)::int                            AS order_count
+                FROM orders
+                WHERE payment_status = 'completed' OR status = 'delivered'
+            `),
         ]);
 
-        // Add platform fixed fee per completed order (not stored on each order doc)
-        const fixedFeePerOrder = settings.fixedFeePerOrder || 0;
-        const revenueData = revenueResult[0] ?? { totalTax: 0, totalShipping: 0, orderCount: 0 };
+        const c = counts.rows[0];
+        const settingsRow = settings.rows[0] ?? null;
+        const fixedFeePerOrder = settingsRow?.fixed_fee_per_order || 0;
+        const revenueData = revenueResult.rows[0] ?? {
+            total_tax: 0,
+            total_shipping: 0,
+            order_count: 0,
+        };
         const totalRevenue =
-            revenueData.totalTax +
-            revenueData.totalShipping +
-            revenueData.orderCount * fixedFeePerOrder;
+            revenueData.total_tax +
+            revenueData.total_shipping +
+            revenueData.order_count * fixedFeePerOrder;
 
         const stats = {
-            totalUsers,
-            totalStores,
-            totalProducts,
-            totalOrders,
+            totalUsers: c.total_users,
+            totalStores: c.total_stores,
+            totalProducts: c.total_products,
+            totalOrders: c.total_orders,
             totalRevenue,
-            customerCount,
-            sellerCount,
-            recentUsers,
-            recentOrders,
+            customerCount: c.customer_count,
+            sellerCount: c.seller_count,
+            recentUsers: recentUsers.rows.map((r) => toUser(r, { lite: true })),
+            recentOrders: recentOrders.rows.map((r) =>
+                toOrder(r, {
+                    items: r.items ?? [],
+                    customer: r.customer_id
+                        ? { _id: r.customer_id, name: r.customer_name, email: r.customer_email }
+                        : null,
+                })
+            ),
         };
 
         await cache.set(CACHE_KEY, stats, STATS_TTL);
@@ -93,30 +112,37 @@ class AdminController extends BaseController {
         const cached = await cache.get(cacheKey);
         if (cached) return this.handleSuccess(res, cached, 200);
 
-        const query = {};
-        if (role) query.role = role;
-        
+        const params = [];
+        const where = [];
+        const add = (value) => {
+            params.push(value);
+            return `$${params.length}`;
+        };
+
+        if (role) where.push(`role = ${add(role)}`);
+
         const safeSearch = sanitizeSearchInput(search);
         if (safeSearch) {
-            query.$or = [
-                { name: { $regex: safeSearch, $options: 'i' } },
-                { email: { $regex: safeSearch, $options: 'i' } },
-            ];
+            const ph = add(safeSearch);
+            where.push(`(name ILIKE '%' || ${ph} || '%' OR email ILIKE '%' || ${ph} || '%')`);
         }
 
-        const [users, count] = await Promise.all([
-            User.find(query)
-                .select('-password')
-                .sort({ createdAt: -1 })
-                .limit(limit * 1)
-                .skip((page - 1) * limit),
-            User.countDocuments(query),
-        ]);
+        const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+        const countPromise = query(`SELECT COUNT(*)::int AS total FROM users ${whereSql}`, params);
+
+        const listParams = [...params, Number(limit), (Number(page) - 1) * Number(limit)];
+        const { rows } = await query(
+            `SELECT * FROM users ${whereSql}
+             ORDER BY created_at DESC, id DESC
+             LIMIT $${listParams.length - 1} OFFSET $${listParams.length}`,
+            listParams
+        );
+        const count = (await countPromise).rows[0].total;
 
         const payload = {
-            users,
+            users: rows.map((r) => toUser(r, { lite: true })),
             totalPages: Math.ceil(count / limit),
-            currentPage: page,
+            currentPage: Number(page),
             total: count,
         };
         await cache.set(cacheKey, payload, LIST_TTL);
@@ -132,31 +158,45 @@ class AdminController extends BaseController {
         const cached = await cache.get(cacheKey);
         if (cached) return this.handleSuccess(res, cached, 200);
 
-        const query = {};
-        if (category) query.category = category;
-        if (isActive !== '') query.isActive = isActive === 'true';
-        
+        const params = [];
+        const where = [];
+        const add = (value) => {
+            params.push(value);
+            return `$${params.length}`;
+        };
+
+        if (category) where.push(`s.category = ${add(category)}`);
+        if (isActive !== '') where.push(`s.is_active = ${add(isActive === 'true')}`);
+
         const safeSearch = sanitizeSearchInput(search);
         if (safeSearch) {
-            query.$or = [
-                { name: { $regex: safeSearch, $options: 'i' } },
-                { description: { $regex: safeSearch, $options: 'i' } },
-            ];
+            const ph = add(safeSearch);
+            where.push(
+                `(s.name ILIKE '%' || ${ph} || '%' OR s.description ILIKE '%' || ${ph} || '%')`
+            );
         }
 
-        const [stores, count] = await Promise.all([
-            Store.find(query)
-                .populate('owner', 'name email')
-                .sort({ createdAt: -1 })
-                .limit(limit * 1)
-                .skip((page - 1) * limit),
-            Store.countDocuments(query),
-        ]);
+        const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+        const countPromise = query(
+            `SELECT COUNT(*)::int AS total FROM stores s ${whereSql}`,
+            params
+        );
+
+        const listParams = [...params, Number(limit), (Number(page) - 1) * Number(limit)];
+        const { rows } = await query(
+            `SELECT s.*, u.name AS owner_name, u.email AS owner_email
+             FROM stores s JOIN users u ON u.id = s.owner_id
+             ${whereSql}
+             ORDER BY s.created_at DESC, s.id DESC
+             LIMIT $${listParams.length - 1} OFFSET $${listParams.length}`,
+            listParams
+        );
+        const count = (await countPromise).rows[0].total;
 
         const payload = {
-            stores,
+            stores: rows.map((r) => toStore(r)),
             totalPages: Math.ceil(count / limit),
-            currentPage: page,
+            currentPage: Number(page),
             total: count,
         };
         await cache.set(cacheKey, payload, LIST_TTL);
@@ -172,30 +212,44 @@ class AdminController extends BaseController {
         const cached = await cache.get(cacheKey);
         if (cached) return this.handleSuccess(res, cached, 200);
 
-        const query = {};
-        if (category) query.category = category;
-        
+        const params = [];
+        const where = [];
+        const add = (value) => {
+            params.push(value);
+            return `$${params.length}`;
+        };
+
+        if (category) where.push(`p.category = ${add(category)}`);
+
         const safeSearch = sanitizeSearchInput(search);
         if (safeSearch) {
-            query.$or = [
-                { name: { $regex: safeSearch, $options: 'i' } },
-                { description: { $regex: safeSearch, $options: 'i' } },
-            ];
+            const ph = add(safeSearch);
+            where.push(
+                `(p.name ILIKE '%' || ${ph} || '%' OR p.description ILIKE '%' || ${ph} || '%')`
+            );
         }
 
-        const [products, count] = await Promise.all([
-            Product.find(query)
-                .populate('store', 'name')
-                .sort({ createdAt: -1 })
-                .limit(limit * 1)
-                .skip((page - 1) * limit),
-            Product.countDocuments(query),
-        ]);
+        const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+        const countPromise = query(
+            `SELECT COUNT(*)::int AS total FROM products p ${whereSql}`,
+            params
+        );
+
+        const listParams = [...params, Number(limit), (Number(page) - 1) * Number(limit)];
+        const { rows } = await query(
+            `SELECT p.*, s.name AS store_name
+             FROM products p LEFT JOIN stores s ON s.id = p.store_id
+             ${whereSql}
+             ORDER BY p.created_at DESC, p.id DESC
+             LIMIT $${listParams.length - 1} OFFSET $${listParams.length}`,
+            listParams
+        );
+        const count = (await countPromise).rows[0].total;
 
         const payload = {
-            products,
+            products: rows.map((r) => toProduct(r)),
             totalPages: Math.ceil(count / limit),
-            currentPage: page,
+            currentPage: Number(page),
             total: count,
         };
         await cache.set(cacheKey, payload, LIST_TTL);
@@ -211,30 +265,93 @@ class AdminController extends BaseController {
         const cached = await cache.get(cacheKey);
         if (cached) return this.handleSuccess(res, cached, 200);
 
-        const query = {};
-        if (status) query.status = status;
-        if (paymentStatus) query.paymentStatus = paymentStatus;
-        
+        const params = [];
+        const where = [];
+        const add = (value) => {
+            params.push(value);
+            return `$${params.length}`;
+        };
+
+        if (status) where.push(`o.status = ${add(status)}`);
+        if (paymentStatus) where.push(`o.payment_status = ${add(paymentStatus)}`);
+
         const safeSearch = sanitizeSearchInput(search);
         if (safeSearch) {
-            query.orderNumber = { $regex: safeSearch, $options: 'i' };
+            where.push(`o.order_number ILIKE '%' || ${add(safeSearch)} || '%'`);
         }
 
-        const [orders, count] = await Promise.all([
-            Order.find(query)
-                .populate('customer', 'name email')
-                .populate('items.product', 'name')
-                .populate('items.store', 'name')
-                .sort({ createdAt: -1 })
-                .limit(limit * 1)
-                .skip((page - 1) * limit),
-            Order.countDocuments(query),
+        const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+        const countPromise = query(
+            `SELECT COUNT(*)::int AS total FROM orders o ${whereSql}`,
+            params
+        );
+
+        const listParams = [...params, Number(limit), (Number(page) - 1) * Number(limit)];
+        const { rows } = await query(
+            `SELECT o.*,
+                    cu.name AS customer_name, cu.email AS customer_email,
+                    (
+                        SELECT json_agg(json_build_object(
+                                   'line_no', oi.line_no,
+                                   'product', oi.product_id,
+                                   'store',   oi.store_id,
+                                   'seller',  oi.seller_id,
+                                   'name',    oi.name,
+                                   'price',   oi.price,
+                                   'quantity',oi.quantity,
+                                   'image',   oi.image
+                               ) ORDER BY oi.line_no)
+                        FROM order_items oi WHERE oi.order_id = o.id
+                    ) AS items
+             FROM orders o
+             LEFT JOIN users cu ON cu.id = o.customer_id
+             ${whereSql}
+             ORDER BY o.created_at DESC, o.id DESC
+             LIMIT $${listParams.length - 1} OFFSET $${listParams.length}`,
+            listParams
+        );
+        const count = (await countPromise).rows[0].total;
+
+        // populate items.product → name (store name too, mirroring the old shape)
+        const productIds = [
+            ...new Set(rows.flatMap((r) => (r.items ?? []).map((i) => i.product)).filter(Boolean)),
+        ];
+        const storeIds = [
+            ...new Set(rows.flatMap((r) => (r.items ?? []).map((i) => i.store)).filter(Boolean)),
+        ];
+        const [productRows, storeRows] = await Promise.all([
+            productIds.length
+                ? query(
+                      `SELECT id, name, images, price, seller_id FROM products
+                       WHERE id = ANY($1::uuid[])`,
+                      [productIds]
+                  )
+                : { rows: [] },
+            storeIds.length
+                ? query(`SELECT id, name FROM stores WHERE id = ANY($1::uuid[])`, [storeIds])
+                : { rows: [] },
         ]);
+        const productInfo = Object.fromEntries(
+            productRows.rows.map((p) => [
+                p.id,
+                { name: p.name, images: p.images, price: p.price, seller_id: p.seller_id },
+            ])
+        );
+        const storeInfo = Object.fromEntries(storeRows.rows.map((s) => [s.id, s.name]));
 
         const payload = {
-            orders,
+            orders: rows.map((r) =>
+                toOrder(r, {
+                    items: r.items ?? [],
+                    customer: r.customer_id
+                        ? { _id: r.customer_id, name: r.customer_name, email: r.customer_email }
+                        : null,
+                    productNames: productInfo,
+                    storeNames: storeInfo,
+                })
+            ),
             totalPages: Math.ceil(count / limit),
-            currentPage: page,
+            currentPage: Number(page),
             total: count,
         };
         await cache.set(cacheKey, payload, LIST_TTL);
@@ -246,30 +363,31 @@ class AdminController extends BaseController {
     // @access  Private/Admin
     updateStoreStatus = async (req, res) => {
         const { isActive } = req.body;
-
-        const store = await Store.findByIdAndUpdate(
-            req.params.id,
-            { isActive },
-            { new: true, runValidators: true }
-        );
-
-        if (!store) {
-            return res.status(404).json({
-                success: false,
-                message: 'Store not found',
-            });
+        if (!isUuid(req.params.id)) {
+            return res.status(404).json({ success: false, message: 'Store not found' });
         }
 
-        // Invalidate store list caches and dashboard stats on status change
+        const { rows } = await query(
+            'UPDATE stores SET is_active = $1 WHERE id = $2 RETURNING *',
+            [isActive, req.params.id]
+        );
+        if (rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Store not found' });
+        }
+
         await Promise.all([
             cache.delPattern('admin:stores:*'),
             cache.del('admin:stats'),
         ]);
 
-        this.handleSuccess(res, {
-            message: `Store ${isActive ? 'activated' : 'deactivated'} successfully`,
-            store,
-        }, 200);
+        this.handleSuccess(
+            res,
+            {
+                message: `Store ${isActive ? 'activated' : 'deactivated'} successfully`,
+                store: toStore(rows[0]),
+            },
+            200
+        );
     };
 
     // @desc    Verify / unverify a store
@@ -277,53 +395,50 @@ class AdminController extends BaseController {
     // @access  Private/Admin
     verifyStore = async (req, res) => {
         const { isVerified } = req.body;
-
-        const store = await Store.findByIdAndUpdate(
-            req.params.id,
-            { isVerified },
-            { new: true, runValidators: true }
-        );
-
-        if (!store) {
-            return res.status(404).json({
-                success: false,
-                message: 'Store not found',
-            });
+        if (!isUuid(req.params.id)) {
+            return res.status(404).json({ success: false, message: 'Store not found' });
         }
 
-        // Invalidate store caches so the badge appears immediately
+        const { rows } = await query(
+            'UPDATE stores SET is_verified = $1 WHERE id = $2 RETURNING *',
+            [isVerified, req.params.id]
+        );
+        if (rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Store not found' });
+        }
+
         await cache.delPattern('admin:stores:*');
 
-        this.handleSuccess(res, {
-            message: `Store ${isVerified ? 'verified' : 'unverified'} successfully`,
-            store,
-        }, 200);
+        this.handleSuccess(
+            res,
+            {
+                message: `Store ${isVerified ? 'verified' : 'unverified'} successfully`,
+                store: toStore(rows[0]),
+            },
+            200
+        );
     };
 
     // @desc    Delete user
     // @route   DELETE /api/admin/users/:id
     // @access  Private/Admin
     deleteUser = async (req, res) => {
-        const user = await User.findById(req.params.id);
-
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: 'User not found',
-            });
+        if (!isUuid(req.params.id)) {
+            return res.status(404).json({ success: false, message: 'User not found' });
         }
 
-        // Prevent deleting admin users
-        if (user.role === 'admin') {
-            return res.status(403).json({
-                success: false,
-                message: 'Cannot delete admin users',
-            });
+        const existing = await query('SELECT role FROM users WHERE id = $1', [req.params.id]);
+        if (existing.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+        if (existing.rows[0].role === 'admin') {
+            return res
+                .status(403)
+                .json({ success: false, message: 'Cannot delete admin users' });
         }
 
-        await user.deleteOne();
+        await query('DELETE FROM users WHERE id = $1', [req.params.id]);
 
-        // Invalidate user list caches and dashboard stats
         await Promise.all([cache.delPattern('admin:users:*'), cache.del('admin:stats')]);
 
         this.handleSuccess(res, { message: 'User deleted successfully' }, 200);
@@ -333,45 +448,47 @@ class AdminController extends BaseController {
     // @route   DELETE /api/admin/stores/:id
     // @access  Private/Admin
     deleteStore = async (req, res) => {
-        const store = await Store.findById(req.params.id);
-
-        if (!store) {
-            return res.status(404).json({
-                success: false,
-                message: 'Store not found',
-            });
+        if (!isUuid(req.params.id)) {
+            return res.status(404).json({ success: false, message: 'Store not found' });
         }
 
-        // Delete all products associated with this store
-        await Product.deleteMany({ store: store._id });
-        await store.deleteOne();
+        const existing = await query('SELECT id FROM stores WHERE id = $1', [req.params.id]);
+        if (existing.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Store not found' });
+        }
 
-        // Invalidate store + product list caches and dashboard stats
+        // products.store_id ON DELETE CASCADE mirrors the explicit
+        // Product.deleteMany() + store.deleteOne() of the Mongo version
+        await query('DELETE FROM stores WHERE id = $1', [req.params.id]);
+
         await Promise.all([
             cache.delPattern('admin:stores:*'),
             cache.delPattern('admin:products:*'),
             cache.del('admin:stats'),
         ]);
 
-        this.handleSuccess(res, { message: 'Store and associated products deleted successfully' }, 200);
+        this.handleSuccess(
+            res,
+            { message: 'Store and associated products deleted successfully' },
+            200
+        );
     };
 
     // @desc    Delete product
     // @route   DELETE /api/admin/products/:id
     // @access  Private/Admin
     deleteProduct = async (req, res) => {
-        const product = await Product.findById(req.params.id);
-
-        if (!product) {
-            return res.status(404).json({
-                success: false,
-                message: 'Product not found',
-            });
+        if (!isUuid(req.params.id)) {
+            return res.status(404).json({ success: false, message: 'Product not found' });
         }
 
-        await product.deleteOne();
+        const { rowCount } = await query('DELETE FROM products WHERE id = $1', [
+            req.params.id,
+        ]);
+        if (rowCount === 0) {
+            return res.status(404).json({ success: false, message: 'Product not found' });
+        }
 
-        // Invalidate product list caches and dashboard stats
         await Promise.all([cache.delPattern('admin:products:*'), cache.del('admin:stats')]);
 
         this.handleSuccess(res, { message: 'Product deleted successfully' }, 200);
@@ -381,18 +498,15 @@ class AdminController extends BaseController {
     // @route   DELETE /api/admin/orders/:id
     // @access  Private/Admin
     deleteOrder = async (req, res) => {
-        const order = await Order.findById(req.params.id);
-
-        if (!order) {
-            return res.status(404).json({
-                success: false,
-                message: 'Order not found',
-            });
+        if (!isUuid(req.params.id)) {
+            return res.status(404).json({ success: false, message: 'Order not found' });
         }
 
-        await order.deleteOne();
+        const { rowCount } = await query('DELETE FROM orders WHERE id = $1', [req.params.id]);
+        if (rowCount === 0) {
+            return res.status(404).json({ success: false, message: 'Order not found' });
+        }
 
-        // Invalidate order list caches and dashboard stats
         await Promise.all([cache.delPattern('admin:orders:*'), cache.del('admin:stats')]);
 
         this.handleSuccess(res, { message: 'Order deleted successfully' }, 200);
@@ -402,8 +516,12 @@ class AdminController extends BaseController {
     // @route   GET /api/admin/settings
     // @access  Private/Admin
     getSettings = async (req, res) => {
-        const settings = await Settings.getSettings();
-        this.handleSuccess(res, { settings }, 200);
+        const { rows } = await query(
+            `INSERT INTO settings (id) VALUES (true)
+             ON CONFLICT (id) DO UPDATE SET id = true
+             RETURNING *`
+        );
+        this.handleSuccess(res, { settings: toSettings(rows[0]) }, 200);
     };
 
     // @desc    Update settings
@@ -412,18 +530,44 @@ class AdminController extends BaseController {
     updateSettings = async (req, res) => {
         const { taxRate, shippingFee, fixedFeePerOrder } = req.body;
 
-        const settings = await Settings.updateSettings(
-            { taxRate, shippingFee, fixedFeePerOrder },
-            req.user._id
+        // Partial updates keep the current value (Mongoose ignored undefined
+        // fields in $set — SQL would otherwise write NULLs).
+        const current = await query('SELECT * FROM settings WHERE id = true');
+        const base = current.rows[0] ?? {
+            tax_rate: 8,
+            shipping_fee: 10,
+            fixed_fee_per_order: 2,
+        };
+
+        const { rows } = await query(
+            `INSERT INTO settings (id, tax_rate, shipping_fee, fixed_fee_per_order, updated_by, updated_at)
+             VALUES (true, $1, $2, $3, $4, now())
+             ON CONFLICT (id) DO UPDATE
+                SET tax_rate = EXCLUDED.tax_rate,
+                    shipping_fee = EXCLUDED.shipping_fee,
+                    fixed_fee_per_order = EXCLUDED.fixed_fee_per_order,
+                    updated_by = EXCLUDED.updated_by,
+                    updated_at = now()
+             RETURNING *`,
+            [
+                taxRate ?? base.tax_rate,
+                shippingFee ?? base.shipping_fee,
+                fixedFeePerOrder ?? base.fixed_fee_per_order,
+                req.user._id,
+            ]
         );
 
         // Settings affect revenue calculation in dashboard stats — invalidate
         await cache.del('admin:stats');
 
-        this.handleSuccess(res, {
-            message: 'Settings updated successfully',
-            settings,
-        }, 200);
+        this.handleSuccess(
+            res,
+            {
+                message: 'Settings updated successfully',
+                settings: toSettings(rows[0]),
+            },
+            200
+        );
     };
 }
 

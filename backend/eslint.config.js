@@ -22,10 +22,7 @@ export default [
       '**/__tests__/**',
       '**/*.test.js',
       'scripts/**',
-      'seedAdmin.js',
       'server.js',
-      'config/passport.js',
-      'firebase-entry.js',
     ],
     languageOptions: {
       ecmaVersion: 2022,
@@ -69,8 +66,16 @@ export default [
     },
     rules: {
       'no-console': 'off',
-      // Test files commonly import models/fixtures for side-effects or future use
-      'no-unused-vars': 'warn',
+      // Test files may import fixtures for side-effects or future use
+      'no-unused-vars': [
+        'warn',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrors: 'all',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
       'prefer-const': 'error',
       // Allow empty catch blocks used to swallow expected errors in test loops
       'no-empty': ['error', { allowEmptyCatch: true }],
@@ -78,7 +83,7 @@ export default [
   },
   {
     // ── CLI scripts & entrypoints — console is the intended output mechanism
-    files: ['scripts/**/*.js', 'seedAdmin.js', 'firebase-entry.js', 'server.js', 'config/passport.js'],
+    files: ['scripts/**/*.js', 'server.js', 'db/seed.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',

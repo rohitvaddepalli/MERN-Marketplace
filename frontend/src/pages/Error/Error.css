@@ -88,7 +88,7 @@
 }
 
 .suggestions-links a {
-    color: var(--primary-color);
+    color: var(--primary-strong);
     text-decoration: none;
     font-weight: 500;
     transition: all 0.2s ease;
@@ -102,7 +102,7 @@
     left: 0;
     width: 0;
     height: 2px;
-    background: var(--primary-color);
+    background: var(--primary-btn);
     transition: width 0.3s ease;
 }
 

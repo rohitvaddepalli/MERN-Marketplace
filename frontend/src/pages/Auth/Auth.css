@@ -241,7 +241,7 @@
 }
 
 .forgot-link {
-    color: var(--primary-color);
+    color: var(--primary-light);
     font-size: 0.9rem;
     font-weight: 500;
     transition: color var(--transition-fast);
@@ -302,13 +302,13 @@
 }
 
 .role-option.active .role-content {
-    border-color: var(--primary-color);
+    border-color: var(--primary-light);
     background: rgba(255, 107, 53, 0.08);
 }
 
 .role-option.active .role-content svg,
 .role-option.active .role-content strong {
-    color: var(--primary-color);
+    color: var(--primary-light);
 }
 
 .role-option:hover .role-content {
@@ -348,7 +348,7 @@
 }
 
 .auth-link {
-    color: var(--primary-color);
+    color: var(--primary-light);
     font-weight: 600;
     transition: color var(--transition-fast);
 }
@@ -418,7 +418,7 @@
 
 .auth-page .form-input:focus,
 .auth-page .form-select:focus {
-    border-color: var(--primary-color);
+    border-color: var(--primary-light);
     box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.25);
     background-color: var(--auth-input-bg);
 }

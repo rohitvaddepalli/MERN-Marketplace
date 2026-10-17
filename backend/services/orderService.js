@@ -1,19 +1,16 @@
 /**
- * orderService.js
- *
- * Business logic for order operations:
+ * orderService.js — business logic for order operations (Postgres):
  *   - Price and stock verification
  *   - Bulk discount calculation
- *   - Status transition helpers
+ *   - Targeted status updates
  *
- * NOTE: Skeleton created as part of the P1 service-layer migration.
- * Business logic is migrated here incrementally from orderController.js.
+ * Exported names/signatures are unchanged from the Mongoose version.
  *
  * Architecture:  Routes → Controllers → Services → (Repositories → DB)
  */
 
-import Product from '../models/Product.js';
-import Order from '../models/Order.js';
+import { query } from '../db/index.js';
+import { toOrder } from '../db/mappers.js';
 
 // ── Price & Stock verification ─────────────────────────────────────────────────
 
@@ -25,21 +22,23 @@ import Order from '../models/Order.js';
  * @returns {Promise<{ verified: Array, errors: Array<string> }>}
  */
 export const verifyOrderItems = async (items) => {
-    const itemIds = items.map((i) => i.product);
-    const products = await Product.find({ _id: { $in: itemIds } });
-    const productMap = new Map(products.map((p) => [p._id.toString(), p]));
+    const ids = items.map((i) => i.product);
+    const { rows } = ids.length
+        ? await query('SELECT * FROM products WHERE id = ANY($1::uuid[])', [ids])
+        : { rows: [] };
+    const productMap = new Map(rows.map((p) => [p.id, p]));
 
     const errors = [];
     const verified = [];
 
     for (const item of items) {
-        const product = productMap.get(item.product.toString());
+        const product = productMap.get(item.product);
 
         if (!product) {
             errors.push(`Product ${item.product} not found`);
             continue;
         }
-        if (!product.isActive) {
+        if (!product.is_active) {
             errors.push(`Product "${product.name}" is no longer available`);
             continue;
         }
@@ -62,14 +61,15 @@ export const verifyOrderItems = async (items) => {
  * Apply the product's bulk discount tiers to a given quantity.
  * Returns the best (largest) applicable discount percentage, or 0.
  *
- * @param {import('../models/Product.js').default} product
+ * @param {{ bulkDiscounts?: Array<{quantity:number, discountPercentage:number}> }} product
  * @param {number} quantity
  * @returns {number} discount percentage (0–100)
  */
 export const getBulkDiscountPercentage = (product, quantity) => {
-    if (!product.bulkDiscounts?.length) return 0;
+    const tiers = product?.bulkDiscounts ?? product?.bulk_discounts ?? [];
+    if (!tiers.length) return 0;
 
-    const applicable = product.bulkDiscounts
+    const applicable = tiers
         .filter((d) => quantity >= d.quantity)
         .sort((a, b) => b.discountPercentage - a.discountPercentage);
 
@@ -79,12 +79,33 @@ export const getBulkDiscountPercentage = (product, quantity) => {
 // ── Targeted status updates ────────────────────────────────────────────────────
 
 /**
- * Update an order's status using a targeted $set — avoids revalidating and
- * re-serialising the full document (P2 fix for cancelOrder / updateOrderStatus).
+ * Update an order's status (and optional fields) with a single UPDATE.
  *
  * @param {string} orderId
  * @param {{ status?: string, deliveredAt?: Date, paymentStatus?: string }} fields
- * @returns {Promise<import('../models/Order.js').default | null>}
+ * @returns {Promise<Object|null>} API-shaped order, or null when not found
  */
-export const updateOrderFields = (orderId, fields) =>
-    Order.findByIdAndUpdate(orderId, { $set: fields }, { new: true });
+export const updateOrderFields = async (orderId, fields) => {
+    const sets = [];
+    const vals = [];
+    const push = (column, value) => {
+        vals.push(value);
+        sets.push(`${column} = $${vals.length}`);
+    };
+
+    if (fields.status !== undefined) push('status', fields.status);
+    if (fields.paymentStatus !== undefined) push('payment_status', fields.paymentStatus);
+    if (fields.deliveredAt !== undefined) push('delivered_at', fields.deliveredAt);
+
+    if (sets.length === 0) {
+        const { rows } = await query('SELECT * FROM orders WHERE id = $1', [orderId]);
+        return rows[0] ? toOrder(rows[0]) : null;
+    }
+
+    vals.push(orderId);
+    const { rows } = await query(
+        `UPDATE orders SET ${sets.join(', ')} WHERE id = $${vals.length} RETURNING *`,
+        vals
+    );
+    return rows[0] ? toOrder(rows[0]) : null;
+};

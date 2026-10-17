@@ -1,13 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { authAPI } from '../../services/api';
+import { useSignIn, useClerk } from '@clerk/react';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import './ResetPassword.css';
 
+/**
+ * Reset password — Clerk custom flow (step 2).
+ *
+ * Expects a pending Clerk sign-in created by /forgot-password with the
+ * `reset_password_email_code` strategy. The user submits the emailed code and
+ * a new password; Clerk verifies the code, then replaces the password.
+ * (The legacy /reset-password/:token route still works — the token, if any,
+ * prefills the code field.)
+ */
 const ResetPassword = () => {
     const { token } = useParams();
     const navigate = useNavigate();
+    const clerk = useClerk();
+    const { signIn, isLoaded } = useSignIn();
     const [formData, setFormData] = useState({
+        code: token || '',
         password: '',
         confirmPassword: '',
     });
@@ -16,7 +28,15 @@ const ResetPassword = () => {
     const [success, setSuccess] = useState(false);
     useDocumentTitle('Reset Password');
 
-    const { password, confirmPassword } = formData;
+    const { code, password, confirmPassword } = formData;
+
+    // No pending reset flow (direct visit / refresh) — send the user back.
+    useEffect(() => {
+        if (!isLoaded) return;
+        if (!signIn || signIn.status === 'needs_identifier') {
+            navigate('/forgot-password', { replace: true });
+        }
+    }, [isLoaded, signIn, navigate]);
 
     const handleChange = (e) => {
         setFormData({
@@ -39,16 +59,41 @@ const ResetPassword = () => {
             return;
         }
 
+        if (!code.trim()) {
+            setError('Enter the code we emailed you');
+            return;
+        }
+
         setLoading(true);
 
         try {
-            await authAPI.resetPassword(token, { password });
-            setSuccess(true);
-            setTimeout(() => {
-                navigate('/login');
-            }, 3000);
+            // 1. Verify the emailed code (moves the sign-in to needs_new_password)
+            const attempt = await signIn.attemptFirstFactor({
+                strategy: 'reset_password_email_code',
+                code: code.trim(),
+            });
+
+            if (attempt.status !== 'needs_new_password') {
+                setError('Incorrect code — please try again.');
+                return;
+            }
+
+            // 2. Set the new password
+            const result = await attempt.resetPassword({ password });
+
+            if (result.status === 'complete' && result.createdSessionId) {
+                await clerk.setActive({ session: result.createdSessionId });
+                setSuccess(true);
+                setTimeout(() => {
+                    navigate('/', { replace: true });
+                }, 2000);
+            }
         } catch (err) {
-            setError(err.response?.data?.message || 'Failed to reset password. Please try again.');
+            setError(
+                err.errors?.[0]?.message ||
+                    err.message ||
+                    'Failed to reset password. Please try again.'
+            );
         } finally {
             setLoading(false);
         }
@@ -62,11 +107,26 @@ const ResetPassword = () => {
                         <>
                             <div className="reset-password-header">
                                 <h1>Reset Password</h1>
-                                <p>Enter your new password below.</p>
+                                <p>Enter the code from your email and your new password below.</p>
                             </div>
 
                             <form onSubmit={handleSubmit} className="reset-password-form">
                                 {error && <div className="error-message">{error}</div>}
+
+                                <div className="form-group">
+                                    <label htmlFor="code">Reset Code</label>
+                                    <input
+                                        type="text"
+                                        id="code"
+                                        name="code"
+                                        value={code}
+                                        onChange={handleChange}
+                                        placeholder="Enter the code we emailed you"
+                                        required
+                                        disabled={loading}
+                                        autoComplete="one-time-code"
+                                    />
+                                </div>
 
                                 <div className="form-group">
                                     <label htmlFor="password">New Password</label>
@@ -140,7 +200,7 @@ const ResetPassword = () => {
                             </div>
                             <h2>Password Reset Successful!</h2>
                             <p>Your password has been successfully reset.</p>
-                            <p className="success-note">Redirecting you to login page...</p>
+                            <p className="success-note">Signing you in…</p>
                         </div>
                     )}
                 </div>

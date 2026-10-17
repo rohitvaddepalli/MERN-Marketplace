@@ -16,26 +16,18 @@ if (process.env.NODE_ENV === 'production' && process.env.SENTRY_DSN) {
 import express from 'express';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
-import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
-import session from 'express-session';
-import passport from 'passport';
 import helmet from 'helmet';
-import mongoSanitize from 'express-mongo-sanitize';
 import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
 import compression from 'compression';
-import jwt from 'jsonwebtoken';
-import fs from 'fs';
-import crypto from 'crypto';
-import MongoStore from 'connect-mongo';
-import User from './models/User.js';
-import './config/passport.js';
+import { clerkMiddleware, clerkClient } from '@clerk/express';
+import { query, closePool } from './db/index.js';
+import { resolveLocalUser } from './middleware/auth.js';
 import logger from './utils/logger.js';
-import cache from './utils/cache.js';
 
 // Load env vars
 dotenv.config();
@@ -43,9 +35,8 @@ dotenv.config();
 // SECURITY: Enforce required environment variables at startup
 // Fail fast if critical secrets are missing to prevent insecure deployments
 const requiredEnvVars = {
-    JWT_SECRET: 'Required for signing authentication tokens',
-    SESSION_SECRET: 'Required for session encryption',
-    MONGODB_URI: 'Required for database connection',
+    DATABASE_URL: 'Required for Neon Postgres connection',
+    CLERK_SECRET_KEY: 'Required for Clerk authentication (server API key)',
 };
 
 const missingVars = [];
@@ -54,13 +45,6 @@ const insecureVars = [];
 for (const [varName, description] of Object.entries(requiredEnvVars)) {
     if (!process.env[varName]) {
         missingVars.push(`${varName} (${description})`);
-    } else if (
-        varName === 'SESSION_SECRET' &&
-        process.env[varName] === 'development-secret-change-in-production'
-    ) {
-        insecureVars.push(`${varName} is using the default development value`);
-    } else if (varName === 'JWT_SECRET' && process.env[varName].length < 32) {
-        insecureVars.push(`${varName} is too short (minimum 32 characters recommended)`);
     }
 }
 
@@ -95,33 +79,20 @@ if (process.env.NODE_ENV === 'production') {
     }
 }
 
-// Warn about optional OAuth credentials
-if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-    logger.warn(
-        '⚠️  WARNING: Google OAuth credentials not configured. Social login will not work.'
-    );
-}
-
-// SECURITY: Validate additional optional vars in production
-if (process.env.NODE_ENV === 'production') {
-    const optionalVars = [
-        { name: 'CLOUDINARY_CLOUD_NAME', desc: 'Required for image uploads' },
-        { name: 'CLOUDINARY_API_KEY', desc: 'Required for image uploads' },
-        { name: 'CLOUDINARY_API_SECRET', desc: 'Required for image uploads' },
-        { name: 'SMTP_EMAIL', desc: 'Required for email sending (password reset)' },
-        { name: 'SMTP_PASSWORD', desc: 'Required for email sending' },
-    ];
-
-    for (const v of optionalVars) {
-        if (!process.env[v.name]) {
-            logger.warn(`⚠️  WARNING: ${v.name} not configured (${v.desc})`);
-        }
-    }
-
-    if (process.env.JWT_SECRET && process.env.JWT_SECRET.length < 48) {
-        logger.warn(
-            '⚠️  WARNING: JWT_SECRET is shorter than 48 characters. Consider using a longer secret.'
-        );
+// Warn about optional integrations that are not configured
+const optionalIntegrations = [
+    { name: 'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY', desc: 'Required by the frontend Clerk SDK' },
+    { name: 'RESEND_API_KEY', desc: 'Required for transactional emails (Resend)' },
+    { name: 'R2_ENDPOINT', desc: 'Required for image uploads (Cloudflare R2)' },
+    { name: 'R2_ACCESS_KEY_ID', desc: 'Required for image uploads (Cloudflare R2)' },
+    { name: 'R2_SECRET_ACCESS_KEY', desc: 'Required for image uploads (Cloudflare R2)' },
+    { name: 'R2_BUCKET', desc: 'Required for image uploads (Cloudflare R2)' },
+    { name: 'R2_PUBLIC_URL', desc: 'Public base URL of the R2 bucket (custom domain or r2.dev)' },
+    { name: 'FRONTEND_URL', desc: 'Cloudflare Pages origin allowed by CORS' },
+];
+for (const v of optionalIntegrations) {
+    if (!process.env[v.name]) {
+        logger.warn(`⚠️  WARNING: ${v.name} not configured (${v.desc})`);
     }
 }
 
@@ -135,26 +106,35 @@ import analyticsRoutes from './routes/analyticsRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import uploadRoutes from './routes/upload.js';
 import chatRoutes from './routes/chat.js';
-import Message from './models/Message.js';
 
 // Import middleware
 import { errorHandler } from './middleware/error.js';
 import { requestLogger } from './middleware/requestLogger.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 const app = express();
 const httpServer = createServer(app);
 
 // ─── Allowed Origins (used by both CORS and Socket.io) ──────────────────────
+// FRONTEND_URL is the Cloudflare Pages production origin; ALLOWED_ORIGINS is a
+// comma-separated list for extra environments (staging, custom domains).
 const allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:3001',
+    'http://localhost:5173',
     process.env.FRONTEND_URL,
-    process.env.RENDER_EXTERNAL_URL,
-    'https://' + process.env.RENDER_EXTERNAL_URL,
+    ...(process.env.ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean),
 ].filter(Boolean);
+
+const isOriginAllowed = (origin) => {
+    if (!origin) return true;
+    if (process.env.NODE_ENV !== 'production') return true;
+    if (allowedOrigins.includes(origin)) return true;
+    // Cloudflare Pages preview deployments: <hash>.<project>.pages.dev
+    if (process.env.ALLOW_PAGES_PREVIEW === 'true' && /^https:\/\/[a-z0-9.-]+\.pages\.dev$/.test(origin)) {
+        return true;
+    }
+    return false;
+};
 
 // ─── Socket.io Setup ─────────────────────────────────────────────────────────
 const io = new SocketIOServer(httpServer, {
@@ -164,28 +144,27 @@ const io = new SocketIOServer(httpServer, {
     },
 });
 
-// Authenticate socket connections via JWT cookie or Authorization header
+// Authenticate socket connections with a Clerk session token obtained by the
+// client via `useAuth().getToken()` (no JWT / localStorage secrets anymore).
 io.use(async (socket, next) => {
     try {
-        const cookieHeader = socket.handshake.headers.cookie || '';
-        const tokenMatch = cookieHeader.match(/access_token=([^;]+)/);
-        const token = tokenMatch ? decodeURIComponent(tokenMatch[1]) : socket.handshake.auth?.token;
-
+        const token = socket.handshake.auth?.token;
         if (!token) return next(new Error('Authentication required'));
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        
-        const cacheKey = `socket:user:${decoded.id}`;
-        let user = await cache.get(cacheKey);
-        
-        if (!user) {
-            user = await User.findById(decoded.id).select('name role store').lean();
-            if (user) await cache.set(cacheKey, user, 60); // Cache for 60 seconds
-        }
-        
-        if (!user) return next(new Error('User not found'));
+        const payload = await clerkClient.verifyToken(token);
+        if (!payload?.sub) return next(new Error('Invalid token'));
 
-        socket.user = user;
+        const profile = await resolveLocalUser(payload.sub);
+        if (!profile) return next(new Error('User not found'));
+
+        // Sellers need their store id to join the store room for order events
+        let storeId = null;
+        if (profile.role === 'seller') {
+            const { rows } = await query('SELECT id FROM stores WHERE owner_id = $1', [profile.id]);
+            storeId = rows[0]?.id ?? null;
+        }
+
+        socket.user = { _id: profile.id, role: profile.role, name: profile.name, store: storeId };
         next();
     } catch {
         next(new Error('Invalid token'));
@@ -219,18 +198,26 @@ io.on('connection', (socket) => {
 
     socket.on('chat:message', async (payload) => {
         try {
-            // Persist to MongoDB
-            const saved = await Message.create({
-                roomId: payload.roomId,
-                sender: user._id,
-                text: payload.text,
-            });
+            if (!payload?.roomId || typeof payload.text !== 'string' || !payload.text.trim()) {
+                return socket.emit('chat:error', { message: 'Invalid message' });
+            }
+            const text = payload.text.trim().slice(0, 500);
+            const roomId = String(payload.roomId).slice(0, 200);
+
+            // Persist to Postgres
+            const { rows } = await query(
+                `INSERT INTO messages (room_id, sender_id, text)
+                 VALUES ($1, $2, $3)
+                 RETURNING id, room_id, text, created_at`,
+                [roomId, user._id, text]
+            );
+            const saved = rows[0];
             const msgOut = {
-                _id: saved._id,
-                roomId: saved.roomId,
+                _id: saved.id,
+                roomId: saved.room_id,
                 text: saved.text,
                 sender: { _id: user._id, name: user.name },
-                createdAt: saved.createdAt.toISOString(),
+                createdAt: new Date(saved.created_at).toISOString(),
             };
             // Broadcast to everyone in the room (including sender)
             io.to(`chat:${payload.roomId}`).emit('chat:message', msgOut);
@@ -252,11 +239,7 @@ app.set('trust proxy', 1);
 app.use(
     cors({
         origin: function (origin, callback) {
-            if (process.env.NODE_ENV !== 'production') {
-                return callback(null, true);
-            }
-            if (!origin) return callback(null, true);
-            if (allowedOrigins.indexOf(origin) === -1) {
+            if (!isOriginAllowed(origin)) {
                 return callback(new Error('CORS policy: origin not allowed'), false);
             }
             return callback(null, true);
@@ -273,6 +256,14 @@ app.use((req, res, next) => {
     next();
 });
 
+const r2PublicHost = (() => {
+    try {
+        return process.env.R2_PUBLIC_URL ? new URL(process.env.R2_PUBLIC_URL).origin : null;
+    } catch {
+        return null;
+    }
+})();
+
 app.use(
     helmet({
         contentSecurityPolicy: {
@@ -285,12 +276,18 @@ app.use(
                 // that inject styles at runtime. Migrate to hashes when possible.
                 styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
                 fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-                imgSrc: ["'self'", 'data:', 'https:', 'blob:', 'res.cloudinary.com'],
+                imgSrc: ["'self'", 'data:', 'https:', 'blob:', r2PublicHost].filter(Boolean),
                 connectSrc: [
                     "'self'",
-                    'https://api.cloudinary.com',
-                    'https://res.cloudinary.com',
+                    'https://api.clerk.com',
+                    'https://*.clerk.accounts.dev',
+                    ...(r2PublicHost ? [r2PublicHost] : []),
+                    // R2 presigned uploads go direct from the browser to the bucket
+                    ...(process.env.R2_ENDPOINT ? [process.env.R2_ENDPOINT] : []),
                 ],
+                // Clerk OAuth flows (Google sign-in redirect/popups)
+                frameSrc: ["'self'", 'https://clerk.accounts.dev', 'https://accounts.google.com'],
+                formAction: ["'self'"],
                 frameAncestors: ["'none'"],
                 objectSrc: ["'none'"],
                 upgradeInsecureRequests: [],
@@ -302,11 +299,6 @@ app.use(
 
 // Request logging - logs method, path, status, duration on every response
 app.use(requestLogger);
-
-// XSS protection - handled by Helmet CSP and Zod input validation
-
-// NoSQL injection prevention - sanitizes data against query selector injection attacks
-app.use(mongoSanitize());
 
 // Rate limiting - general API rate limiter
 const generalLimiter = rateLimit({
@@ -335,7 +327,7 @@ const authLimiter = rateLimit({
 // Apply general rate limiter to all API routes
 app.use('/api', generalLimiter);
 
-// Cookie parser - required for reading HTTP-only auth cookies
+// Cookie parser - required by Clerk for its session cookie
 app.use(cookieParser());
 
 // Body parser middleware
@@ -361,77 +353,27 @@ app.use((req, res, next) => {
     next();
 });
 
-// Skip uploads directory creation on serverless platforms (read-only filesystem)
-const isServerless = !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
-const uploadsDir = isServerless ? '/tmp/uploads' : path.join(__dirname, 'uploads');
-if (!isServerless && !fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-    logger.info('📁 Created uploads directory');
-}
-
-// Static folder for uploads
-app.use('/uploads', express.static(uploadsDir));
-
-// Session middleware - hardened configuration with MongoDB store
-// The SESSION_SECRET validation is now handled by the env var enforcement above
-
-// Configure session with MongoDB store for production persistence
-const sessionConfig = {
-    secret: process.env.SESSION_SECRET || 'development-secret-change-in-production',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        // 'none' is required for cross-origin requests (Firebase frontend → Render backend).
-        // 'none' REQUIRES secure:true which is enforced above.
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    },
-};
-
-// Use MongoDB store in production for session persistence
-// This ensures sessions survive server restarts and work across multiple instances
-if (process.env.MONGODB_URI) {
-    sessionConfig.store = MongoStore.create({
-        mongoUrl: process.env.MONGODB_URI,
-        ttl: 24 * 60 * 60, // Session TTL in seconds (24 hours)
-        autoRemove: 'native', // Use MongoDB's TTL index for cleanup
-        touchAfter: 24 * 3600, // Only update session once per 24 hours unless data changes
-        crypto: {
-            secret: process.env.SESSION_SECRET || 'development-secret-change-in-production',
-        },
-    });
-    logger.info('📦 Using MongoDB session store');
-} else {
-    logger.warn(
-        '⚠️  WARNING: No MONGODB_URI, using in-memory session store (not for production!)'
-    );
-}
-
-app.use(session(sessionConfig));
-
-// Passport middleware
-app.use(passport.initialize());
-app.use(passport.session());
-
-// Connect to MongoDB (only when running directly, not when imported for tests)
-if (process.env.NODE_ENV !== 'test') {
-    mongoose
-        .connect(process.env.MONGODB_URI, {
-            maxPoolSize: parseInt(process.env.MONGO_POOL_SIZE || '10', 10),
-            // RELIABILITY: Fail fast when MongoDB is unreachable instead of hanging
-            // for the full 30s request timeout, which causes thundering-herd on recovery.
-            serverSelectionTimeoutMS: 5000,
-            // Close idle sockets after 45 s to avoid stale connection issues.
-            socketTimeoutMS: 45000,
-        })
-        .then(() => logger.info('✅ MongoDB Connected'))
-        .catch((err) => {
-            logger.error('❌ MongoDB Connection Error:', err.message);
-            process.exit(1);
+// ─── Clerk authentication ────────────────────────────────────────────────────
+// clerkMiddleware verifies the session (cookie on same-origin, Authorization:
+// Bearer <session token> for the cross-origin Cloudflare Pages frontend) and
+// makes getAuth(req) available to protect/authorize middleware.
+const clerkMw = clerkMiddleware();
+app.use((req, res, next) => {
+    try {
+        clerkMw(req, res, (err) => {
+            if (err) {
+                logger.warn(`Clerk middleware error: ${err.message}`);
+                return next(); // unauthenticated requests still reach protect → 401
+            }
+            next();
         });
-}
+    } catch (err) {
+        // Missing configuration (e.g. local dev without Clerk keys) must not
+        // crash the server — protect() will reject with 401 instead.
+        logger.warn(`Clerk middleware unavailable: ${err.message}`);
+        next();
+    }
+});
 
 // ── API Router ─────────────────────────────────────────────────────────────
 // All routes are mounted under both:
@@ -470,16 +412,19 @@ if (process.env.NODE_ENV !== 'production') {
     );
 }
 
-// Public settings endpoint
+// Public settings endpoint (tax rate / shipping fee for checkout display)
 app.get('/api/settings', async (req, res) => {
     try {
-        const Settings = (await import('./models/Settings.js')).default;
-        const settings = await Settings.getSettings();
+        const { rows } = await query(
+            `INSERT INTO settings (id) VALUES (true)
+             ON CONFLICT (id) DO UPDATE SET id = true
+             RETURNING *`
+        );
         res.status(200).json({
             success: true,
             settings: {
-                taxRate: settings.taxRate,
-                shippingFee: settings.shippingFee,
+                taxRate: rows[0].tax_rate,
+                shippingFee: rows[0].shipping_fee,
             },
         });
     } catch (error) {
@@ -494,22 +439,33 @@ app.get('/api/settings', async (req, res) => {
 // Health check route — verifies DB connectivity and reports basic status
 // Uptime monitors (e.g., Better Uptime, Render health checks) should hit this endpoint.
 app.get('/api/health', async (req, res) => {
-    const dbHealthy = mongoose.connection.readyState === 1;
-    res.status(dbHealthy ? 200 : 503).json({ 
+    let dbHealthy = false;
+    try {
+        await query('SELECT 1');
+        dbHealthy = true;
+    } catch {
+        dbHealthy = false;
+    }
+    res.status(dbHealthy ? 200 : 503).json({
         status: dbHealthy ? 'ok' : 'degraded',
         success: dbHealthy,
         message: 'Server is running',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
     });
 });
 
 // Admin-only verbose health check
 import { protect, authorize } from './middleware/auth.js';
 app.get('/api/admin/health', protect, authorize('admin'), async (req, res) => {
-    const dbState = mongoose.connection.readyState;
-    const dbStateMap = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
-    const dbStatus = dbStateMap[dbState] ?? 'unknown';
-    const dbHealthy = dbState === 1;
+    let dbStatus = 'disconnected';
+    let dbHealthy = false;
+    try {
+        await query('SELECT 1');
+        dbStatus = 'connected';
+        dbHealthy = true;
+    } catch {
+        dbStatus = 'error';
+    }
 
     const memoryUsage = process.memoryUsage();
     res.status(dbHealthy ? 200 : 503).json({
@@ -522,8 +478,13 @@ app.get('/api/admin/health', protect, authorize('admin'), async (req, res) => {
         environment: process.env.NODE_ENV || 'development',
         services: {
             database: {
+                provider: 'neon-postgres',
                 status: dbStatus,
                 healthy: dbHealthy,
+            },
+            auth: {
+                provider: 'clerk',
+                status: process.env.CLERK_SECRET_KEY ? 'configured' : 'missing-secret-key',
             },
         },
         memory: {
@@ -534,41 +495,7 @@ app.get('/api/admin/health', protect, authorize('admin'), async (req, res) => {
     });
 });
 
-// Cloudinary direct upload signature (avoids proxying file through server)
-// NOTE: Only cloudName, signature, timestamp, and folder are returned.
-// The apiKey is a server-side credential and must NOT be sent to the client. (#8)
-
-app.get('/api/upload/signature', (req, res) => {
-    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-    const apiKey = process.env.CLOUDINARY_API_KEY;
-    const apiSecret = process.env.CLOUDINARY_API_SECRET;
-
-    if (!cloudName || !apiKey || !apiSecret) {
-        return res.status(400).json({
-            success: false,
-            message: 'Cloudinary not configured',
-        });
-    }
-
-    const timestamp = Math.round(Date.now() / 1000);
-    const folder = 'marketplace_products';
-    const params = `folder=${folder}&timestamp=${timestamp}${apiSecret}`;
-    const signature = crypto.createHash('sha256').update(params).digest('hex');
-
-    // Return only what the browser needs to upload directly — never the apiKey or apiSecret
-    res.status(200).json({
-        success: true,
-        cloudName,
-        // apiKey intentionally omitted — use a signed upload preset in Cloudinary
-        // dashboard and reference it by name from the frontend if key is required.
-        signature,
-        timestamp,
-        folder,
-    });
-});
-
-// The frontend is hosted on Firebase Hosting (market-place01.web.app).
-// This backend only serves API routes — no static frontend files needed.
+// The frontend is hosted on Cloudflare Pages and talks to this API over CORS.
 // Return a JSON 404 for any unmatched routes so the client gets a clear error.
 app.use((req, res) => {
     res.status(404).json({
@@ -585,7 +512,7 @@ if (Sentry) {
 // Error handler middleware (must be last)
 app.use(errorHandler);
 
-// Export app and httpServer for Firebase Functions / tests
+// Export app and httpServer for tests and serverless adapters
 export { app, httpServer };
 export default app;
 
@@ -608,9 +535,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
             logger.info('HTTP server closed');
 
             try {
-                // 2. Close MongoDB connection
-                await mongoose.connection.close();
-                logger.info('MongoDB connection closed');
+                // 2. Close the Postgres pool
+                await closePool();
+                logger.info('Postgres pool closed');
 
                 // 3. Flush Sentry events
                 if (Sentry) {

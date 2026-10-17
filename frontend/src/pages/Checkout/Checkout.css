@@ -54,12 +54,12 @@
 }
 
 .payment-option.active .payment-content {
-    border-color: var(--primary-color);
+    border-color: var(--primary-strong);
     background: rgba(255, 107, 53, 0.05);
 }
 
 .payment-option.active .payment-content svg {
-    color: var(--primary-color);
+    color: var(--primary-strong);
 }
 
 .payment-option:hover .payment-content {

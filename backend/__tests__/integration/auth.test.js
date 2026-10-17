@@ -2,89 +2,122 @@ import request from 'supertest';
 import { app } from '../../server.js';
 import { createTestUser, generateToken, getAuthCookie } from '../helpers.js';
 
+/**
+ * Auth endpoints in the Clerk era:
+ *   - register / login / password reset / Google OAuth → handled by Clerk
+ *     client-side (they no longer exist on the API).
+ *   - GET /me, PUT /updateprofile, POST /logout → local profile endpoints,
+ *     protected by the Clerk session (test seam substitutes the identity).
+ */
 describe('Auth Endpoints', () => {
-    describe('POST /api/auth/register', () => {
-        it('should register a new customer user', async () => {
+    describe('Removed Clerk-owned endpoints', () => {
+        it('no longer exposes POST /api/auth/register', async () => {
             const res = await request(app).post('/api/auth/register').send({
                 name: 'New User',
                 email: 'newuser@example.com',
                 password: 'password123',
             });
 
-            expect(res.status).toBe(201);
-            expect(res.body.success).toBe(true);
-            expect(res.body.token).toBeDefined();
-        });
-
-        it('should reject duplicate email', async () => {
-            await createTestUser({ email: 'dup@example.com' });
-
-            const res = await request(app).post('/api/auth/register').send({
-                name: 'Dup User',
-                email: 'dup@example.com',
-                password: 'password123',
-            });
-
-            expect(res.status).toBe(400);
+            expect(res.status).toBe(404);
             expect(res.body.success).toBe(false);
         });
 
-        it('should reject registration without required fields', async () => {
-            const res = await request(app).post('/api/auth/register').send({ name: 'No Email' });
+        it('no longer exposes POST /api/auth/login', async () => {
+            const res = await request(app)
+                .post('/api/auth/login')
+                .send({ email: 'a@b.com', password: 'password123' });
 
-            expect(res.status).toBe(400);
+            expect(res.status).toBe(404);
             expect(res.body.success).toBe(false);
         });
-    });
 
-    describe('POST /api/auth/login', () => {
-        it('should login with valid credentials', async () => {
-            await createTestUser({
-                email: 'login@example.com',
-                password: 'password123',
-            });
+        it('no longer exposes POST /api/auth/forgotpassword', async () => {
+            const res = await request(app)
+                .post('/api/auth/forgotpassword')
+                .send({ email: 'a@b.com' });
 
-            const res = await request(app).post('/api/auth/login').send({
-                email: 'login@example.com',
-                password: 'password123',
-            });
-
-            expect(res.status).toBe(200);
-            expect(res.body.success).toBe(true);
-        });
-
-        it('should reject invalid password', async () => {
-            await createTestUser({
-                email: 'wrongpass@example.com',
-                password: 'password123',
-            });
-
-            const res = await request(app).post('/api/auth/login').send({
-                email: 'wrongpass@example.com',
-                password: 'wrongpassword',
-            });
-
-            expect(res.status).toBe(401);
-            expect(res.body.success).toBe(false);
+            expect(res.status).toBe(404);
         });
     });
 
     describe('GET /api/auth/me', () => {
-        it('should return current user profile', async () => {
-            const user = await createTestUser();
-            const token = generateToken(user._id, user.role || 'customer');
+        it('rejects unauthenticated requests', async () => {
+            const res = await request(app).get('/api/auth/me');
+            expect(res.status).toBe(401);
+            expect(res.body.success).toBe(false);
+        });
+
+        it('returns the local profile for an authenticated session', async () => {
+            const user = await createTestUser({ email: 'me@example.com', name: 'Me User' });
+            const token = generateToken(user._id, user.role);
 
             const res = await request(app).get('/api/auth/me').set('Cookie', getAuthCookie(token));
 
             expect(res.status).toBe(200);
             expect(res.body.success).toBe(true);
-            expect(res.body.user.email).toBe(user.email);
+            expect(res.body.user.email).toBe('me@example.com');
+            expect(res.body.user.name).toBe('Me User');
+            expect(res.body.user._id).toBe(user._id);
         });
 
-        it('should reject unauthenticated requests', async () => {
-            const res = await request(app).get('/api/auth/me');
+        it('rejects an unknown user id in the token', async () => {
+            const res = await request(app)
+                .get('/api/auth/me')
+                .set('Cookie', getAuthCookie('11111111-1111-4111-8111-111111111111'));
 
             expect(res.status).toBe(401);
+        });
+    });
+
+    describe('PUT /api/auth/updateprofile', () => {
+        it('updates allowed profile fields', async () => {
+            const user = await createTestUser({ email: 'upd@example.com' });
+            const token = generateToken(user._id, user.role);
+
+            const res = await request(app)
+                .put('/api/auth/updateprofile')
+                .set('Cookie', getAuthCookie(token))
+                .send({ name: 'Updated Name', phone: '555-0100' });
+
+            expect(res.status).toBe(200);
+            expect(res.body.success).toBe(true);
+            expect(res.body.user.name).toBe('Updated Name');
+            expect(res.body.user.phone).toBe('555-0100');
+        });
+
+        it('rejects a payload with no valid fields', async () => {
+            const user = await createTestUser({ email: 'nofields@example.com' });
+            const token = generateToken(user._id, user.role);
+
+            const res = await request(app)
+                .put('/api/auth/updateprofile')
+                .set('Cookie', getAuthCookie(token))
+                .send({ role: 'admin' });
+
+            expect(res.status).toBe(400);
+            expect(res.body.success).toBe(false);
+        });
+
+        it('rejects unauthenticated requests', async () => {
+            const res = await request(app)
+                .put('/api/auth/updateprofile')
+                .send({ name: 'Nope' });
+
+            expect(res.status).toBe(401);
+        });
+    });
+
+    describe('POST /api/auth/logout', () => {
+        it('succeeds for an authenticated session', async () => {
+            const user = await createTestUser({ email: 'logout@example.com' });
+            const token = generateToken(user._id, user.role);
+
+            const res = await request(app)
+                .post('/api/auth/logout')
+                .set('Cookie', getAuthCookie(token));
+
+            expect(res.status).toBe(200);
+            expect(res.body.success).toBe(true);
         });
     });
 });

@@ -37,11 +37,11 @@
 }
 
 .review-star-btn.active {
-    color: var(--accent-color);
+    color: var(--accent-strong);
 }
 
 .review-star-btn:hover {
-    color: var(--accent-color);
+    color: var(--accent-strong);
 }
 
 /* No reviews */
@@ -87,7 +87,7 @@
 
 .review-avatar-initial {
     font-weight: 700;
-    color: var(--primary-color);
+    color: var(--primary-strong);
 }
 
 .review-meta {
@@ -107,7 +107,7 @@
 }
 
 .review-stars-filled {
-    color: var(--accent-color);
+    color: var(--accent-strong);
 }
 
 .review-stars-empty {

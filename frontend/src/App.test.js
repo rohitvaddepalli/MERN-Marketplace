@@ -11,12 +11,6 @@
 
 // ── Mocks (BEFORE any imports) ────────────────────────────────────────────
 
-// Firebase — avoid real SDK initialisation in unit tests
-jest.mock('./firebase', () => ({
-    auth: {},
-    db: {},
-}));
-
 // AuthContext — provide a stable unauthenticated state
 jest.mock('./context/AuthContext', () => ({
     AuthProvider: ({ children }) => children,
@@ -40,13 +34,22 @@ jest.mock('./context/SocketContext', () => ({
 }));
 
 // Navbar — lightweight stub so we're not testing Navbar internals here
-jest.mock('./components/Navbar/Navbar', () => () => <nav data-testid="navbar">Navbar</nav>);
+jest.mock('./components/Navbar/Navbar', () => {
+    const NavbarStub = () => <nav data-testid="navbar">Navbar</nav>;
+    return NavbarStub;
+});
 
 // Home page stub
-jest.mock('./pages/Home/Home', () => () => <main data-testid="home-page">Home</main>);
+jest.mock('./pages/Home/Home', () => {
+    const HomeStub = () => <main data-testid="home-page">Home</main>;
+    return HomeStub;
+});
 
 // 404 page stub
-jest.mock('./pages/Error/NotFound', () => () => <div data-testid="not-found-page">404</div>);
+jest.mock('./pages/Error/NotFound', () => {
+    const NotFoundStub = () => <div data-testid="not-found-page">404</div>;
+    return NotFoundStub;
+});
 
 // react-helmet-async
 jest.mock('react-helmet-async', () => ({

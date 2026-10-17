@@ -94,7 +94,7 @@
 }
 
 .order-row:hover {
-    border-color: var(--primary-color);
+    border-color: var(--primary-strong);
     background: rgba(255, 107, 53, 0.02);
 }
 
@@ -118,7 +118,7 @@
 .order-total {
     font-size: 1.125rem;
     font-weight: 700;
-    color: var(--primary-color);
+    color: var(--primary-strong);
 }
 
 @media (max-width: 968px) {

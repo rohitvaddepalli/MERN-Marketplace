@@ -52,11 +52,13 @@ Thumbs.db
 .agent/
 .agents/
 .orchids/
+.freebuff/
 UIs/
 graphify-out/
 brag-output/
 .kilo/
 brag-output-2/
+docs/
 
 # ── Python ─────────────────────────────────────────────────────────────────────
 *.pyc
@@ -88,7 +90,6 @@ FIREBASE_HOSTING_TUTORIAL.md
 backend_tasks.md
 .vercel
 optimize.md
-system-design.md
-caching.md
 SECURITY.md
 Architecture.png
+Security_check.csv

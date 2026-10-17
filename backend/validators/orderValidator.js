@@ -4,7 +4,10 @@ export const orderSchema = z.object({
     body: z.object({
         items: z.array(
             z.object({
-                product: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid product ID'),
+                product: z.string().regex(
+                    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+                    'Invalid product ID'
+                ),
                 store: z.string().optional(),
                 quantity: z.number().int().min(1, 'Quantity must be at least 1'),
             })

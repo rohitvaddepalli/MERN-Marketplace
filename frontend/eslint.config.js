@@ -59,6 +59,10 @@ export default [
       globals: {
         ...globals.browser,
         ...globals.jest,
+        // setupTests.js polyfills Node built-ins for JSDOM
+        ...globals.node,
+        require: 'readonly',
+        global: 'readonly',
         test: 'readonly',
         expect: 'readonly',
         describe: 'readonly',

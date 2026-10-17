@@ -22,7 +22,7 @@
 .sidebar-logo {
     width: 40px;
     height: 40px;
-    background: var(--primary-color);
+    background: var(--primary-btn);
     color: white;
     border-radius: var(--border-radius);
     display: flex;
@@ -60,12 +60,12 @@
 
 .nav-item:hover {
     background: var(--bg-secondary);
-    color: var(--primary-color);
+    color: var(--primary-strong);
 }
 
 .nav-item.active {
     background: rgba(255, 107, 53, 0.1);
-    color: var(--primary-dark);
+    color: var(--primary-strong);
 }
 
 .sidebar-footer {

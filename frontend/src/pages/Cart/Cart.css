@@ -42,7 +42,7 @@
 
 .cart-item-price {
     font-weight: 600;
-    color: var(--primary-color);
+    color: var(--primary-strong);
 }
 
 .cart-item-quantity {
@@ -62,13 +62,13 @@
     border-radius: var(--border-radius-sm);
     font-size: 1.25rem;
     font-weight: 700;
-    color: var(--primary-color);
+    color: var(--primary-strong);
     cursor: pointer;
     transition: all var(--transition-fast);
 }
 
 .quantity-btn:hover:not(:disabled) {
-    background: var(--primary-color);
+    background: var(--primary-btn);
     color: white;
 }
 

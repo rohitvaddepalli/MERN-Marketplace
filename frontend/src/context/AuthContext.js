@@ -1,7 +1,21 @@
 import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
-import { authAPI, API_URL } from '../services/api';
+import { useAuth as useClerkAuth, useSignIn, useSignUp, useClerk } from '@clerk/react';
+import { authAPI, setAuthTokenGetter } from '../services/api';
 import logger from '../utils/logger';
 
+/**
+ * AuthContext — Clerk-backed authentication.
+ *
+ * Clerk owns credentials (sign-in, sign-up, OAuth, MFA, sessions). This
+ * context keeps the exact API the rest of the app already consumes
+ * (user / login / register / logout / role flags) and layers the local
+ * application profile (role, wishlist, etc.) from the backend on top:
+ *
+ *   - `user` is the Postgres profile from GET /auth/me, fetched whenever a
+ *     Clerk session exists. Clerk's session token is attached to every API
+ *     request through setAuthTokenGetter (see services/api.js).
+ *   - roles (customer/seller/admin) live in our database, not in Clerk.
+ */
 const AuthContext = createContext(null);
 
 export const useAuth = () => {
@@ -13,135 +27,166 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
+    const {
+        isLoaded: clerkLoaded,
+        isSignedIn,
+        getToken,
+    } = useClerkAuth();
+    const { signIn, isLoaded: signInLoaded } = useSignIn();
+    const { signUp, isLoaded: signUpLoaded } = useSignUp();
+    const clerk = useClerk();
+
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // Verify session with backend.
-    // KEY RULES:
-    //  1. If there is no token AND no stored user, skip the API call entirely.
-    //  2. On 401: only clear state when there is ALSO no token in localStorage.
-    //     A token present means the user just logged in — a transient 401 from
-    //     a Render cold-start or race condition must NOT wipe their session.
-    //  3. On network/5xx errors: keep existing state — don't log out.
-    const checkAuth = useCallback(async (forceCheck = false) => {
-        const token = localStorage.getItem('access_token');
-        const storedUser = localStorage.getItem('user');
+    // Route every backend request through the Clerk session token.
+    // (Replaces the old localStorage JWT / cookie juggling.)
+    useEffect(() => {
+        setAuthTokenGetter(() => getToken());
+    }, [getToken]);
 
-        // No credentials at all AND not forced (e.g. after Google OAuth cookie set)
-        // → definitely logged out, no need to hit the server
-        if (!token && !storedUser && !forceCheck) {
+    // Fetch the local profile for the signed-in Clerk user
+    const refreshAuth = useCallback(async () => {
+        if (!isSignedIn) {
+            setUser(null);
             setLoading(false);
             return;
         }
-
         try {
             const response = await authAPI.getMe();
             if (response.data.success && response.data.user) {
                 setUser(response.data.user);
-                localStorage.setItem('user', JSON.stringify(response.data.user));
             }
         } catch (error) {
             logger.error('Auth check failed:', error);
-            const statusCode = error.response?.status;
-
-            // Only hard-logout on 401 when there is no token.
-            // If a token IS present, this is a race / cold-start — keep the user.
-            if (statusCode === 401 && !token) {
+            // 401 means the profile could not be resolved — treat as signed out.
+            // Network/5xx errors keep existing state (no cold-start logout).
+            if (error.response?.status === 401) {
                 setUser(null);
-                localStorage.removeItem('user');
-                localStorage.removeItem('access_token');
             }
-            // Any other error (network, 5xx) → keep existing state, don't log out
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [isSignedIn]);
 
-    // On mount: restore user from localStorage immediately (instant UI) then
-    // verify with the server in the background.
+    // Keep local state in sync with Clerk's session state
     useEffect(() => {
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
+        if (!clerkLoaded) return;
+        if (!isSignedIn) {
+            setUser(null);
+            setLoading(false);
+            return;
+        }
+        refreshAuth();
+    }, [clerkLoaded, isSignedIn, refreshAuth]);
+
+    // Login with email and password (Clerk password strategy)
+    const login = useCallback(
+        async (email, password) => {
+            if (!signInLoaded) {
+                return { success: false, message: 'Authentication is not ready yet' };
+            }
             try {
-                setUser(JSON.parse(storedUser));
-            } catch (_e) {
-                localStorage.removeItem('user');
+                const result = await signIn.create({
+                    identifier: email,
+                    password,
+                });
+                if (result.status === 'complete' && result.createdSessionId) {
+                    await clerk.setActive({ session: result.createdSessionId });
+                    return { success: true };
+                }
+                return {
+                    success: false,
+                    message: 'Additional verification is required to complete sign-in',
+                };
+            } catch (error) {
+                logger.error('Login error:', error);
+                const message =
+                    error.errors?.[0]?.message ||
+                    error.message ||
+                    'Login failed';
+                return { success: false, message };
             }
-        }
-        checkAuth();
-    }, [checkAuth]);
+        },
+        [signIn, signInLoaded, clerk]
+    );
 
-    // Login with email and password
-    const login = useCallback(async (email, password) => {
+    // Register with email and password (Clerk sign-up)
+    const register = useCallback(
+        async (data) => {
+            if (!signUpLoaded) {
+                return { success: false, message: 'Authentication is not ready yet' };
+            }
+            const { name, email, password, role, phone } = data;
+            const [firstName, ...rest] = (name || '').trim().split(/\s+/);
+            try {
+                const result = await signUp.create({
+                    firstName: firstName || name || undefined,
+                    lastName: rest.join(' ') || undefined,
+                    emailAddress: email,
+                    password,
+                    // The backend reads this when creating the local profile so
+                    // seller sign-ups keep their role (admin is never client-set).
+                    unsafeMetadata: {
+                        role: role === 'seller' ? 'seller' : 'customer',
+                        phone: phone || '',
+                    },
+                });
+
+                if (result.status === 'complete' && result.createdSessionId) {
+                    await clerk.setActive({ session: result.createdSessionId });
+                    return { success: true, role: role === 'seller' ? 'seller' : 'customer' };
+                }
+                return {
+                    success: false,
+                    message:
+                        'Account created — check your email to verify your account, then sign in.',
+                };
+            } catch (error) {
+                logger.error('Registration error:', error);
+                const message =
+                    error.errors?.[0]?.message ||
+                    error.message ||
+                    'Registration failed';
+                return { success: false, message };
+            }
+        },
+        [signUp, signUpLoaded, clerk]
+    );
+
+    // Login with Google — Clerk OAuth redirect flow; the callback is handled
+    // by <AuthenticateWithRedirectCallback /> at /sso-callback.
+    const loginWithGoogle = useCallback(async () => {
+        if (!signInLoaded) return;
         try {
-            const response = await authAPI.login({ email, password });
-            const { user: userData, token } = response.data;
-
-            // Persist token for cross-origin deployments (Authorization header fallback)
-            if (token) {
-                localStorage.setItem('access_token', token);
-            }
-            setUser(userData);
-            localStorage.setItem('user', JSON.stringify(userData));
-
-            return { success: true, role: userData.role };
+            await signIn.authenticateWithRedirect({
+                strategy: 'oauth_google',
+                redirectUrl: '/sso-callback',
+                redirectUrlComplete: '/',
+            });
         } catch (error) {
-            logger.error('Login error:', error);
-            return {
-                success: false,
-                message: error.response?.data?.message || 'Login failed',
-            };
+            logger.error('Google sign-in error:', error);
         }
-    }, []);
+    }, [signIn, signInLoaded]);
 
-    // Register with email and password
-    const register = useCallback(async (data) => {
-        try {
-            const response = await authAPI.register(data);
-            const { user: userData, token } = response.data;
-
-            // Persist token for cross-origin deployments (Authorization header fallback)
-            if (token) {
-                localStorage.setItem('access_token', token);
-            }
-            setUser(userData);
-            localStorage.setItem('user', JSON.stringify(userData));
-
-            return { success: true, role: userData.role };
-        } catch (error) {
-            logger.error('Registration error:', error);
-            return {
-                success: false,
-                message: error.response?.data?.message || 'Registration failed',
-            };
-        }
-    }, []);
-
-    // Login with Google — full-page redirect to backend OAuth handler
-    // forceCheck is passed to checkAuth so it hits /me even with no localStorage token
-    const refreshAuthForced = useCallback(() => checkAuth(true), [checkAuth]);
-
-    const loginWithGoogle = useCallback(() => {
-        window.location.href = `${API_URL}/auth/google`;
-    }, []);
-
-    // Logout — always clear local credentials even if server call fails
+    // Logout — clear the Clerk session; local profile state resets via the
+    // session-state effect above.
     const logout = useCallback(async () => {
         try {
             await authAPI.logout();
         } catch (error) {
             logger.error('Logout error:', error);
+        }
+        try {
+            await clerk.signOut();
         } finally {
             setUser(null);
-            localStorage.removeItem('user');
-            localStorage.removeItem('access_token');
         }
-    }, []);
+    }, [clerk]);
 
-    // Update user profile
+    // Update user profile (local state only — server is the source of truth)
     const updateUser = useCallback((updatedUser) => {
         setUser(updatedUser);
-        localStorage.setItem('user', JSON.stringify(updatedUser));
     }, []);
 
     const value = useMemo(
@@ -153,13 +198,24 @@ export const AuthProvider = ({ children }) => {
             loginWithGoogle,
             logout,
             updateUser,
-            refreshAuth: refreshAuthForced,
+            refreshAuth,
+            getToken,
             isAuthenticated: !!user,
             isSeller: user?.role === 'seller',
             isCustomer: user?.role === 'customer' || !user?.role,
             isAdmin: user?.role === 'admin',
         }),
-        [user, loading, login, register, loginWithGoogle, logout, updateUser, refreshAuthForced]
+        [
+            user,
+            loading,
+            login,
+            register,
+            loginWithGoogle,
+            logout,
+            updateUser,
+            refreshAuth,
+            getToken,
+        ]
     );
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

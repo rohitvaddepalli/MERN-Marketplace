@@ -1,73 +1,50 @@
 /**
- * analyticsService.js
+ * analyticsService.js — reusable helpers for analytics aggregation (Postgres).
  *
- * Reusable helpers for analytics aggregation pipelines.
- * Both seller and admin analytics controllers import from here.
- *
- * NOTE: Skeleton created as part of the P1 service-layer migration.
- * Full migration of analyticsController.js pipelines is a P2/P3 sprint item.
+ * The Mongo pipeline builders ($lookup / $group) are gone: order_items stores
+ * seller_id directly, so a plain join replaces unwind+lookup. Exported helper
+ * names that controllers/tests rely on are preserved where they still make
+ * sense; the pipeline builder (`sellerItemStages`) became a SQL fragment
+ * constant since no SQL query needs building at runtime any more.
  *
  * Architecture:  Routes → Controllers → Services → (Repositories → DB)
  */
 
-import Order from '../models/Order.js';
-import Product from '../models/Product.js';
-
-// ── Shared pipeline builders ──────────────────────────────────────────────────
+import { query } from '../db/index.js';
 
 /**
- * Build an aggregation pipeline stage array that filters order items to those
- * belonging to a specific seller.
- *
- * Strategy: $lookup on products then $match on seller — no preliminary
- * Product.find() needed.  The result is one document per matching item.
- *
- * @returns {Array<Object>} MongoDB aggregation stages
+ * SQL predicate matching the old `sellerItemStages()` idea: order items that
+ * belong to a specific seller. `order_items.seller_id` makes the old
+ * $unwind → $lookup(products) → $match(seller) chain unnecessary.
  */
-export const sellerItemStages = (sellerId) => [
-    { $unwind: '$items' },
-    {
-        $lookup: {
-            from: 'products',
-            localField: 'items.product',
-            foreignField: '_id',
-            as: '_product',
-        },
-    },
-    { $unwind: { path: '$_product', preserveNullAndEmptyArrays: false } },
-    { $match: { '_product.seller': sellerId } },
-];
+export const SELLER_ITEM_WHERE = 'oi.seller_id = $1';
 
 // ── Sales velocity ────────────────────────────────────────────────────────────
 
 /**
- * Return a map of { productId → totalUnitsSold } for a seller over a date range.
+ * Return a map of { productId → totalUnitsSold } over a date range.
  *
- * @param {string|ObjectId} sellerId
+ * @param {string} sellerId
  * @param {string[]} productIds  - pre-fetched IDs (avoids an extra DB call)
  * @param {Date}    startDate
  * @returns {Promise<Map<string, number>>}
  */
 export const getSalesVelocityMap = async (sellerId, productIds, startDate) => {
-    const rows = await Order.aggregate([
-        {
-            $match: {
-                'items.product': { $in: productIds },
-                createdAt: { $gte: startDate },
-            },
-        },
-        { $unwind: '$items' },
-        { $match: { 'items.product': { $in: productIds } } },
-        {
-            $group: {
-                _id: '$items.product',
-                totalSold: { $sum: '$items.quantity' },
-            },
-        },
-    ]);
+    if (!productIds || productIds.length === 0) return new Map();
+
+    const { rows } = await query(
+        `SELECT oi.product_id, COALESCE(SUM(oi.quantity), 0)::int AS total_sold
+         FROM order_items oi
+         JOIN orders o ON o.id = oi.order_id
+         WHERE oi.seller_id = $1
+           AND oi.product_id = ANY($2::uuid[])
+           AND o.created_at >= $3
+         GROUP BY oi.product_id`,
+        [sellerId, productIds, startDate]
+    );
 
     const map = new Map();
-    rows.forEach(({ _id, totalSold }) => map.set(_id.toString(), totalSold));
+    rows.forEach((r) => map.set(r.product_id, Number(r.total_sold)));
     return map;
 };
 
@@ -75,47 +52,41 @@ export const getSalesVelocityMap = async (sellerId, productIds, startDate) => {
 
 /**
  * Compute total revenue, order count, and per-day breakdown for a date range.
- * Used by both the seller and admin sales analytics endpoints.
  *
- * @param {Object}  matchStage  - Extra $match conditions (e.g. seller filter or status)
- * @param {Date}    startDate
+ * Replaces the old `{ matchStage }` Mongo argument with an equivalent SQL
+ * predicate + bound params (no pipeline stages reach SQL unescaped).
+ *
+ * @param {{ whereSql?: string, params?: unknown[] }} filter
+ * @param {Date} startDate
  * @returns {Promise<Object>} { totalRevenue, totalOrders, averageOrderValue, salesData[] }
  */
-export const getRevenueSummary = async (matchStage, startDate) => {
-    const [result] = await Order.aggregate([
-        { $match: { createdAt: { $gte: startDate }, ...matchStage } },
-        {
-            $group: {
-                _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-                revenue: { $sum: '$totalPrice' },
-                orders: { $sum: 1 },
-            },
-        },
-        { $sort: { _id: 1 } },
-        {
-            $group: {
-                _id: null,
-                salesData: { $push: { date: '$_id', revenue: '$revenue', orders: '$orders' } },
-                totalRevenue: { $sum: '$revenue' },
-                totalOrders: { $sum: '$orders' },
-            },
-        },
-        {
-            $project: {
-                _id: 0,
-                salesData: 1,
-                totalRevenue: 1,
-                totalOrders: 1,
-                averageOrderValue: {
-                    $cond: [
-                        { $gt: ['$totalOrders', 0] },
-                        { $divide: ['$totalRevenue', '$totalOrders'] },
-                        0,
-                    ],
-                },
-            },
-        },
-    ]);
+export const getRevenueSummary = async (filter = {}, startDate) => {
+    const { whereSql = 'true', params = [] } = filter;
+    const bind = [startDate, ...params];
 
-    return result ?? { totalRevenue: 0, totalOrders: 0, averageOrderValue: 0, salesData: [] };
+    const { rows } = await query(
+        `SELECT to_char(created_at, 'YYYY-MM-DD') AS date,
+                COALESCE(SUM(total_price), 0)::float AS revenue,
+                COUNT(*)::int AS orders
+         FROM orders
+         WHERE created_at >= $1 AND ${whereSql}
+         GROUP BY 1
+         ORDER BY 1 ASC`,
+        bind
+    );
+
+    const salesData = rows.map((r) => ({
+        date: r.date,
+        revenue: r.revenue,
+        orders: r.orders,
+    }));
+    const totalRevenue = salesData.reduce((sum, d) => sum + d.revenue, 0);
+    const totalOrders = salesData.reduce((sum, d) => sum + d.orders, 0);
+
+    return {
+        totalRevenue,
+        totalOrders,
+        averageOrderValue: totalOrders > 0 ? totalRevenue / totalOrders : 0,
+        salesData,
+    };
 };

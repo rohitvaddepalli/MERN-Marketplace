@@ -1,8 +1,39 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import Product from '../../models/Product.js';
 import * as productService from '../../services/productService.js';
+import { query } from '../../db/index.js';
 
-vi.mock('../../models/Product.js');
+vi.mock('../../db/index.js', () => ({
+    query: vi.fn(),
+    withTransaction: vi.fn(),
+    isUuid: (v) =>
+        typeof v === 'string' &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v),
+    getPool: vi.fn(),
+    setPool: vi.fn(),
+    closePool: vi.fn(),
+    createPool: vi.fn(),
+}));
+
+const row = (overrides = {}) => ({
+    id: 'prod-1',
+    name: 'Test',
+    description: 'desc',
+    price: 10,
+    category: 'Electronics',
+    images: [],
+    stock: 5,
+    tags: [],
+    specifications: {},
+    variants: [],
+    low_stock_threshold: 10,
+    bulk_discounts: [],
+    is_active: true,
+    store_id: 'store-1',
+    seller_id: 'seller-1',
+    created_at: new Date('2024-01-01'),
+    updated_at: new Date('2024-01-01'),
+    ...overrides,
+});
 
 describe('productService', () => {
     beforeEach(() => {
@@ -10,78 +41,104 @@ describe('productService', () => {
     });
 
     describe('getProductById', () => {
-        it('should call Product.findById', async () => {
-            const mockProduct = { _id: '123', name: 'Test' };
-            Product.findById.mockResolvedValue(mockProduct);
+        it('should SELECT the product and map it to API shape', async () => {
+            query.mockResolvedValue({ rows: [row()] });
 
-            const result = await productService.getProductById('123');
+            const result = await productService.getProductById('prod-1');
 
-            expect(Product.findById).toHaveBeenCalledWith('123');
-            expect(result).toEqual(mockProduct);
+            expect(query).toHaveBeenCalledWith('SELECT * FROM products WHERE id = $1', ['prod-1']);
+            expect(result._id).toBe('prod-1');
+            expect(result.name).toBe('Test');
+        });
+
+        it('should return null when not found', async () => {
+            query.mockResolvedValue({ rows: [] });
+            const result = await productService.getProductById('missing');
+            expect(result).toBeNull();
         });
     });
 
     describe('isProductOwnedBySeller', () => {
         it('should return true if seller owns the product', async () => {
-            Product.findById.mockReturnValue({
-                select: vi.fn().mockResolvedValue({ seller: 'seller123' })
-            });
+            query.mockResolvedValue({ rows: [{ seller_id: 'seller123' }] });
 
             const result = await productService.isProductOwnedBySeller('prod123', 'seller123');
 
+            expect(query).toHaveBeenCalledWith(
+                'SELECT seller_id FROM products WHERE id = $1',
+                ['prod123']
+            );
             expect(result).toBe(true);
-            expect(Product.findById).toHaveBeenCalledWith('prod123');
+        });
+
+        it('should return false for a different seller', async () => {
+            query.mockResolvedValue({ rows: [{ seller_id: 'someone-else' }] });
+            const result = await productService.isProductOwnedBySeller('prod123', 'seller123');
+            expect(result).toBe(false);
         });
 
         it('should return false if product does not exist', async () => {
-            Product.findById.mockReturnValue({
-                select: vi.fn().mockResolvedValue(null)
-            });
-
+            query.mockResolvedValue({ rows: [] });
             const result = await productService.isProductOwnedBySeller('prod123', 'seller123');
-
             expect(result).toBe(false);
         });
     });
 
     describe('createProduct', () => {
-        it('should call Product.create', async () => {
-            const mockData = { name: 'Test' };
-            Product.create.mockResolvedValue(mockData);
+        it('should INSERT and return the mapped product', async () => {
+            query.mockResolvedValue({ rows: [row({ name: 'New' })] });
 
-            const result = await productService.createProduct(mockData);
+            const result = await productService.createProduct({
+                store: 'store-1',
+                seller: 'seller-1',
+                name: 'New',
+                description: 'desc',
+                price: 10,
+                category: 'Electronics',
+            });
 
-            expect(Product.create).toHaveBeenCalledWith(mockData);
-            expect(result).toEqual(mockData);
+            expect(query).toHaveBeenCalledWith(
+                expect.stringContaining('INSERT INTO products'),
+                expect.arrayContaining(['store-1', 'seller-1', 'New'])
+            );
+            expect(result._id).toBe('prod-1');
+            expect(result.name).toBe('New');
         });
     });
 
     describe('updateProductBySeller', () => {
-        it('should call Product.findOneAndUpdate', async () => {
-            const mockData = { name: 'Test Updated' };
-            Product.findOneAndUpdate.mockResolvedValue(mockData);
+        it('should UPDATE only when the seller owns the product', async () => {
+            query.mockResolvedValue({ rows: [row({ name: 'Test Updated' })] });
 
-            const result = await productService.updateProductBySeller('prod1', 'seller1', { name: 'Test Updated' });
+            const result = await productService.updateProductBySeller('prod-1', 'seller-1', {
+                name: 'Test Updated',
+            });
 
-            expect(Product.findOneAndUpdate).toHaveBeenCalledWith(
-                { _id: 'prod1', seller: 'seller1' },
-                { name: 'Test Updated' },
-                { new: true, runValidators: true }
+            expect(query).toHaveBeenCalledWith(
+                expect.stringContaining('UPDATE products SET'),
+                expect.arrayContaining(['Test Updated', 'prod-1', 'seller-1'])
             );
-            expect(result).toEqual(mockData);
+            expect(result.name).toBe('Test Updated');
+        });
+
+        it('should return null when ownership does not match', async () => {
+            query.mockResolvedValue({ rows: [] });
+            const result = await productService.updateProductBySeller('prod-1', 'other', {
+                name: 'X',
+            });
+            expect(result).toBeNull();
         });
     });
 
     describe('deactivateProductBySeller', () => {
-        it('should call Product.findOneAndUpdate to deactivate', async () => {
-            Product.findOneAndUpdate.mockResolvedValue({ isActive: false });
+        it('should soft-delete via is_active = false', async () => {
+            query.mockResolvedValue({ rows: [row({ is_active: false })] });
 
-            const result = await productService.deactivateProductBySeller('prod1', 'seller1');
+            const result = await productService.deactivateProductBySeller('prod-1', 'seller-1');
 
-            expect(Product.findOneAndUpdate).toHaveBeenCalledWith(
-                { _id: 'prod1', seller: 'seller1' },
-                { isActive: false },
-                { new: true }
+            expect(query).toHaveBeenCalledWith(
+                expect.stringContaining('is_active = false'),
+                ['prod-1', 'seller-1']
             );
             expect(result.isActive).toBe(false);
         });

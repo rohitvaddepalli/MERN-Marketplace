@@ -1,10 +1,80 @@
-import mongoose from 'mongoose';
+import crypto from 'crypto';
 import validator from 'validator';
-import Order from '../models/Order.js';
-import Product from '../models/Product.js';
-import Settings from '../models/Settings.js';
+import { query, withTransaction, isUuid } from '../db/index.js';
+import { toOrder } from '../db/mappers.js';
 import cache from '../utils/cache.js';
+import sendEmail from '../utils/sendEmail.js';
 import { BaseController } from './BaseController.js';
+
+// Orders + items with the populated fields the client expects:
+//   customer {_id,name,email}, items[].product {name,images,price,seller},
+//   items[].store {name}
+const ORDERS_SELECT = `
+    o.*,
+    cu.id   AS customer_id_j,
+    cu.name AS customer_name,
+    cu.email AS customer_email,
+    (
+        SELECT json_agg(json_build_object(
+                   'line_no', oi.line_no,
+                   'product', oi.product_id,
+                   'store',   oi.store_id,
+                   'seller',  oi.seller_id,
+                   'name',    oi.name,
+                   'price',   oi.price,
+                   'quantity',oi.quantity,
+                   'image',   oi.image
+               ) ORDER BY oi.line_no)
+        FROM order_items oi
+        WHERE oi.order_id = o.id
+    ) AS items
+`;
+
+/** Load products/stores referenced by a page of orders (the "populate" step). */
+const loadRelations = async (orders) => {
+    const productIds = [
+        ...new Set(orders.flatMap((o) => (o.items ?? []).map((i) => i.product)).filter(Boolean)),
+    ];
+    const storeIds = [
+        ...new Set(orders.flatMap((o) => (o.items ?? []).map((i) => i.store)).filter(Boolean)),
+    ];
+
+    const [products, stores] = await Promise.all([
+        productIds.length
+            ? query(
+                  `SELECT id, name, images, price, stock, seller_id
+                   FROM products WHERE id = ANY($1::uuid[])`,
+                  [productIds]
+              )
+            : { rows: [] },
+        storeIds.length
+            ? query(`SELECT id, name FROM stores WHERE id = ANY($1::uuid[])`, [storeIds])
+            : { rows: [] },
+    ]);
+
+    return {
+        productNames: Object.fromEntries(
+            products.rows.map((p) => [
+                p.id,
+                { name: p.name, images: p.images, price: p.price, seller_id: p.seller_id },
+            ])
+        ),
+        storeNames: Object.fromEntries(stores.rows.map((s) => [s.id, s.name])),
+    };
+};
+
+const orderFromRow = (r, relations = {}) => {
+    const joined = r.customer_id_j
+        ? { _id: r.customer_id_j, name: r.customer_name, email: r.customer_email }
+        : null;
+    return toOrder(r, {
+        items: r.items ?? [],
+        // populated customer object when we joined one, else the raw id (guest)
+        customer: joined ?? r.customer_id,
+        productNames: relations.productNames,
+        storeNames: relations.storeNames,
+    });
+};
 
 class OrderController extends BaseController {
     // @desc    Create new order
@@ -23,10 +93,7 @@ class OrderController extends BaseController {
         } = req.body;
 
         if (!items || items.length === 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'No order items',
-            });
+            return res.status(400).json({ success: false, message: 'No order items' });
         }
 
         const idempotencyKey = req.headers['idempotency-key'];
@@ -34,29 +101,48 @@ class OrderController extends BaseController {
             const cacheKey = `idempotency:order:${req.user._id}:${idempotencyKey}`;
             const existingOrderId = await cache.get(cacheKey);
             if (existingOrderId) {
-                const existingOrder = await Order.findById(existingOrderId);
-                if (existingOrder) {
-                    return res.status(200).json({ success: true, order: existingOrder, cached: true });
+                const existing = await query('SELECT * FROM orders WHERE id = $1', [
+                    existingOrderId,
+                ]);
+                if (existing.rows.length > 0) {
+                    const relations = await loadRelations([existing.rows[0]]);
+                    return res.status(200).json({
+                        success: true,
+                        order: orderFromRow(existing.rows[0], relations),
+                        cached: true,
+                    });
                 }
             }
         }
 
         // Get system settings for tax and shipping
-        const settings = await Settings.getSettings();
-        const TAX_RATE = settings.taxRate / 100;
+        const settingsResult = await query('SELECT * FROM settings WHERE id = true');
+        const settings = settingsResult.rows[0] ?? {
+            tax_rate: 8,
+            shipping_fee: 10,
+            fixed_fee_per_order: 2,
+        };
+        const TAX_RATE = settings.tax_rate / 100;
 
         // SECURITY: Server-side price verification to prevent price tampering
         let serverItemsPrice = 0;
         const verifiedItems = [];
 
-        // Batch-fetch all products in a single query to avoid N+1 round-trips
-        const itemIds = items.map((i) => i.product);
-        const productDocs = await Product.find({ _id: { $in: itemIds } });
-        const productMap = new Map(productDocs.map((p) => [p._id.toString(), p]));
+        const productIds = items.map((i) => i.product).filter(isUuid);
+        if (productIds.length !== items.length) {
+            return res
+                .status(404)
+                .json({ success: false, message: 'Product not found' });
+        }
 
-        // Verify products exist, have sufficient stock, and compute server-side prices
+        const productDocs = await query(
+            `SELECT * FROM products WHERE id = ANY($1::uuid[])`,
+            [productIds]
+        );
+        const productMap = new Map(productDocs.rows.map((p) => [p.id, p]));
+
         for (const item of items) {
-            const product = productMap.get(item.product.toString());
+            const product = productMap.get(item.product);
             if (!product) {
                 return res.status(404).json({
                     success: false,
@@ -70,40 +156,36 @@ class OrderController extends BaseController {
                 });
             }
 
-            // SECURITY: Compute line price from server-side Product.price with bulk discounts
+            // SECURITY: Compute line price from server-side price with bulk discounts
             let price = product.price;
-            if (product.bulkDiscounts && product.bulkDiscounts.length > 0) {
-                const sortedDiscounts = [...product.bulkDiscounts].sort(
-                    (a, b) => b.quantity - a.quantity
-                );
-                const applicableDiscount = sortedDiscounts.find((d) => item.quantity >= d.quantity);
-
-                if (applicableDiscount) {
-                    price = price * (1 - applicableDiscount.discountPercentage / 100);
+            const bulkDiscounts = product.bulk_discounts ?? [];
+            if (bulkDiscounts.length > 0) {
+                const sorted = [...bulkDiscounts].sort((a, b) => b.quantity - a.quantity);
+                const applicable = sorted.find((d) => item.quantity >= d.quantity);
+                if (applicable) {
+                    price = price * (1 - applicable.discountPercentage / 100);
                 }
             }
 
-            const linePrice = price * item.quantity;
-            serverItemsPrice += linePrice;
+            serverItemsPrice += price * item.quantity;
 
             verifiedItems.push({
-                product: item.product,
-                store: item.store,
-                seller: product.seller,
+                product: product.id,
+                store: product.store_id,
+                seller: product.seller_id,
                 quantity: item.quantity,
-                price: price, // Use server-side calculated price
+                price,
             });
         }
 
         // SECURITY: Compute server-side totals
         const serverTaxPrice = parseFloat((serverItemsPrice * TAX_RATE).toFixed(2));
-        const serverShippingPrice = settings.shippingFee || 0;
+        const serverShippingPrice = settings.shipping_fee || 0;
         const serverTotalPrice = parseFloat(
             (serverItemsPrice + serverTaxPrice + serverShippingPrice).toFixed(2)
         );
 
         // SECURITY: Validate client-submitted prices against server-computed prices
-        // Allow small floating-point tolerance (0.01)
         const tolerance = 0.01;
         if (Math.abs(serverItemsPrice - itemsPrice) > tolerance) {
             return res.status(400).json({
@@ -124,59 +206,104 @@ class OrderController extends BaseController {
             });
         }
 
-        const orderData = {
-            items: verifiedItems, // Use server-verified items with server-side prices
-            shippingAddress,
-            paymentMethod,
-            itemsPrice: serverItemsPrice, // Use server-computed prices
-            shippingPrice: serverShippingPrice,
-            taxPrice: serverTaxPrice,
-            totalPrice: serverTotalPrice,
-        };
-
-        if (req.user) {
-            orderData.customer = req.user._id;
-        } else {
-            // SECURITY: Validate guest email format
-            if (!guestInfo || !guestInfo.email) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Guest email is required',
-                });
-            }
-
-            // Validate and normalise guest email (validator is a static import)
-            if (!validator.isEmail(guestInfo.email)) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Invalid email format',
-                });
-            }
-
-            // Normalize email
-            orderData.guestInfo = {
-                ...guestInfo,
-                email: validator.normalizeEmail(guestInfo.email),
-            };
+        const guest = req.user
+            ? null
+            : (() => {
+                  if (!guestInfo || !guestInfo.email) return 'missing';
+                  if (!validator.isEmail(guestInfo.email)) return 'invalid';
+                  return { ...guestInfo, email: validator.normalizeEmail(guestInfo.email) };
+              })();
+        if (guest === 'missing') {
+            return res
+                .status(400)
+                .json({ success: false, message: 'Guest email is required' });
+        }
+        if (guest === 'invalid') {
+            return res.status(400).json({ success: false, message: 'Invalid email format' });
         }
 
-        const order = await Order.create(orderData);
+        // Order + items + stock all commit together. The decrement carries its
+        // own `stock >= qty` guard so concurrent checkouts can never oversell
+        // (the old check-then-write could drive stock negative).
+        let orderRow;
+        try {
+            orderRow = await withTransaction(async (client) => {
+                const orderNumber = `ORD-${Date.now()}-${crypto
+                    .randomBytes(3)
+                    .toString('hex')
+                    .toUpperCase()}`;
+
+                const { rows } = await client.query(
+                    `INSERT INTO orders
+                        (order_number, customer_id, guest_info, shipping_address,
+                         payment_method, items_price, shipping_price, tax_price, total_price)
+                     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+                     RETURNING *`,
+                    [
+                        orderNumber,
+                        req.user ? req.user._id : null,
+                        guest ? JSON.stringify(guest) : '{}',
+                        JSON.stringify(shippingAddress ?? {}),
+                        paymentMethod,
+                        serverItemsPrice,
+                        serverShippingPrice,
+                        serverTaxPrice,
+                        serverTotalPrice,
+                    ]
+                );
+                const order = rows[0];
+
+                for (const [i, item] of verifiedItems.entries()) {
+                    await client.query(
+                        `INSERT INTO order_items
+                            (order_id, line_no, product_id, store_id, seller_id, name, price, quantity, image)
+                         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+                        [
+                            order.id,
+                            i + 1,
+                            item.product,
+                            item.store,
+                            item.seller,
+                            productMap.get(item.product).name,
+                            item.price,
+                            item.quantity,
+                            productMap.get(item.product).images?.[0] ?? null,
+                        ]
+                    );
+
+                    // Atomic conditional decrement — fails the whole transaction
+                    const dec = await client.query(
+                        `UPDATE products SET stock = stock - $1, updated_at = now()
+                         WHERE id = $2 AND stock >= $1
+                         RETURNING id`,
+                        [item.quantity, item.product]
+                    );
+                    if (dec.rows.length === 0) {
+                        throw Object.assign(
+                            new Error(
+                                `Insufficient stock for ${productMap.get(item.product).name}`
+                            ),
+                            { statusCode: 400 }
+                        );
+                    }
+                }
+
+                return order;
+            });
+        } catch (err) {
+            if (err.statusCode === 400) {
+                return res.status(400).json({ success: false, message: err.message });
+            }
+            throw err;
+        }
 
         if (idempotencyKey && req.user) {
             const cacheKey = `idempotency:order:${req.user._id}:${idempotencyKey}`;
-            await cache.set(cacheKey, order._id.toString(), 5 * 60);
+            await cache.set(cacheKey, orderRow.id, 5 * 60);
         }
 
-        // Update product stock
-        if (verifiedItems.length > 0) {
-            const bulkOps = verifiedItems.map((item) => ({
-                updateOne: {
-                    filter: { _id: item.product },
-                    update: { $inc: { stock: -item.quantity } },
-                },
-            }));
-            await Product.bulkWrite(bulkOps);
-        }
+        const relations = await loadRelations([orderRow]);
+        const order = orderFromRow(orderRow, relations);
 
         // Emit real-time notification to seller's store room
         const io = req.app.get('io');
@@ -192,6 +319,23 @@ class OrderController extends BaseController {
             });
         }
 
+        // Transactional confirmation via Resend — best-effort, never blocks checkout
+        const recipient = req.user?.email ?? guest?.email ?? null;
+        if (recipient) {
+            sendEmail({
+                email: recipient,
+                subject: `Order ${order.orderNumber} confirmed`,
+                message: [
+                    `<h1>Thanks for your order, ${order.customer?.name ?? ''}!</h1>`,
+                    `<p>Order <strong>${order.orderNumber}</strong> has been received.</p>`,
+                    `<p>Items: ${verifiedItems.length} · Total: ₹${order.totalPrice}</p>`,
+                    `<p>We'll notify you when it ships.</p>`,
+                ].join(''),
+            }).catch(() => {
+                // Email failures are logged inside sendEmail — checkout already succeeded
+            });
+        }
+
         this.handleSuccess(res, { order }, 201);
     };
 
@@ -201,53 +345,68 @@ class OrderController extends BaseController {
     getMyOrders = async (req, res) => {
         const limit = parseInt(req.query.limit, 10) || 20;
         const cursor = req.query.cursor;
-        const query = { customer: req.user._id };
 
+        const params = [req.user._id];
+        let where = 'o.customer_id = $1';
         if (cursor) {
-            query._id = { $lt: cursor };
+            if (!isUuid(cursor)) {
+                return res.status(400).json({ success: false, message: 'Invalid cursor' });
+            }
+            params.push(cursor);
+            where += ` AND o.id < $${params.length}`;
         }
+        params.push(limit);
 
-        const orders = await Order.find(query)
-            .populate({
-                path: 'items.product',
-                select: 'name images seller',
-                populate: { path: 'seller', select: 'name store' },
-            })
-            .populate('items.store', 'name')
-            .sort('-createdAt')
-            .limit(limit);
+        const { rows } = await query(
+            `SELECT ${ORDERS_SELECT}
+             FROM orders o
+             LEFT JOIN users cu ON cu.id = o.customer_id
+             WHERE ${where}
+             ORDER BY o.created_at DESC, o.id DESC
+             LIMIT $${params.length}`,
+            params
+        );
 
+        const relations = await loadRelations(rows);
+        const orders = rows.map((r) => orderFromRow(r, relations));
         const nextCursor = orders.length === limit ? orders[orders.length - 1]._id : null;
 
-        this.handleSuccess(res, {
-            count: orders.length,
-            nextCursor,
-            orders,
-        }, 200);
+        this.handleSuccess(res, { count: orders.length, nextCursor, orders }, 200);
     };
 
     // @desc    Get single order
     // @route   GET /api/orders/:id
     // @access  Private
     getOrder = async (req, res) => {
-        const order = await Order.findById(req.params.id)
-            .populate('customer', 'name email')
-            .populate('items.product', 'name images price seller') // Added 'seller' to enable seller authorization check
-            .populate('items.store', 'name');
-
-        if (!order) {
-            return res.status(404).json({
-                success: false,
-                message: 'Order not found',
-            });
+        if (!isUuid(req.params.id)) {
+            return res.status(404).json({ success: false, message: 'Order not found' });
         }
 
+        const { rows } = await query(
+            `SELECT ${ORDERS_SELECT}
+             FROM orders o
+             LEFT JOIN users cu ON cu.id = o.customer_id
+             WHERE o.id = $1`,
+            [req.params.id]
+        );
+
+        if (rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Order not found' });
+        }
+
+        const relations = await loadRelations(rows);
+        const order = orderFromRow(rows[0], relations);
+
         // Make sure user is order owner or seller of products in order
-        const isCustomer = order.customer && order.customer._id.toString() === req.user._id.toString();
+        const isCustomer =
+            order.customer &&
+            (order.customer._id ?? order.customer).toString() === req.user._id.toString();
         const isSeller = order.items.some(
             (item) =>
                 (item.seller && item.seller.toString() === req.user._id.toString()) ||
-                (item.product && item.product.seller && item.product.seller.toString() === req.user._id.toString())
+                (item.product &&
+                    item.product.seller &&
+                    item.product.seller.toString() === req.user._id.toString())
         );
 
         if (!isCustomer && !isSeller) {
@@ -266,20 +425,31 @@ class OrderController extends BaseController {
     updateOrderStatus = async (req, res) => {
         const { status } = req.body;
 
-        const order = await Order.findById(req.params.id).populate('items.product');
-
-        if (!order) {
-            return res.status(404).json({
-                success: false,
-                message: 'Order not found',
-            });
+        if (!isUuid(req.params.id)) {
+            return res.status(404).json({ success: false, message: 'Order not found' });
         }
+
+        const { rows } = await query(
+            `SELECT ${ORDERS_SELECT}
+             FROM orders o
+             LEFT JOIN users cu ON cu.id = o.customer_id
+             WHERE o.id = $1`,
+            [req.params.id]
+        );
+        if (rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Order not found' });
+        }
+
+        const relations = await loadRelations(rows);
+        const order = orderFromRow(rows[0], relations);
 
         // Check if seller owns any products in the order
         const hasSellersProduct = order.items.some(
             (item) =>
                 (item.seller && item.seller.toString() === req.user._id.toString()) ||
-                (item.product && item.product.seller && item.product.seller.toString() === req.user._id.toString())
+                (item.product &&
+                    item.product.seller &&
+                    item.product.seller.toString() === req.user._id.toString())
         );
 
         if (!hasSellersProduct) {
@@ -289,15 +459,18 @@ class OrderController extends BaseController {
             });
         }
 
-        const updateDoc = { status };
-        if (status === 'delivered') {
-            updateDoc.deliveredAt = Date.now();
-        }
-
-        await Order.findByIdAndUpdate(req.params.id, { $set: updateDoc }, { new: true });
-        
-        order.status = status;
-        if (updateDoc.deliveredAt) order.deliveredAt = updateDoc.deliveredAt;
+        const { rows: updatedRows } = await query(
+            `UPDATE orders
+             SET status = $1,
+                 delivered_at = CASE WHEN $1 = 'delivered' THEN now() ELSE delivered_at END
+             WHERE id = $2
+             RETURNING *`,
+            [status, req.params.id]
+        );
+        order.status = updatedRows[0].status;
+        order.deliveredAt = updatedRows[0].delivered_at
+            ? new Date(updatedRows[0].delivered_at).toISOString()
+            : order.deliveredAt;
 
         // Emit real-time status update to buyer and order room
         const io = req.app.get('io');
@@ -308,11 +481,12 @@ class OrderController extends BaseController {
                 status: order.status,
                 updatedAt: new Date().toISOString(),
             };
-            // Buyer's personal room
             if (order.customer) {
-                io.to(`user:${order.customer}`).emit('order:status', statusEvent);
+                io.to(`user:${order.customer._id ?? order.customer}`).emit(
+                    'order:status',
+                    statusEvent
+                );
             }
-            // Order tracking room (anyone watching this order)
             io.to(`order:${order._id}`).emit('order:status', statusEvent);
         }
 
@@ -323,19 +497,12 @@ class OrderController extends BaseController {
     // @route   GET /api/orders/seller/orders
     // @access  Private/Seller
     //
-    // ARCHITECTURE: Uses an aggregation pipeline instead of loading every order
-    // into memory and filtering in JavaScript.  The pipeline:
-    //   1. $unwind   — flattens items so we can inspect each item's product
-    //   2. $lookup   — joins Product to get the seller field
-    //   3. $match    — keeps only items belonging to the requesting seller
-    //   4. $lookup   — joins User (customer) for display info
-    //   5. $group    — reassembles per-order documents with only the seller's items
-    //   6. $sort     — newest first
-    //   7. $limit    — honour the caller's page-size
+    // The old Mongo pipeline ($unwind → $lookup → $match → $group) becomes a
+    // join against order_items (which stores seller_id directly) plus a
+    // lateral load of only the seller's line items per order.
     getSellerOrders = async (req, res) => {
         const limit = parseInt(req.query.limit, 10) || 20;
 
-        // Cursor is a createdAt ISO timestamp (must align with the $sort: { createdAt: -1 } stage)
         let cursorDate = null;
         if (req.query.cursor) {
             cursorDate = new Date(req.query.cursor);
@@ -344,106 +511,56 @@ class OrderController extends BaseController {
             }
         }
 
-        const pipeline = [
-            // 1. Only consider orders created before the cursor (keyset pagination on createdAt)
-            ...(cursorDate ? [{ $match: { createdAt: { $lt: cursorDate } } }] : []),
+        const params = [req.user._id];
+        let where = '';
+        if (cursorDate) {
+            params.push(cursorDate);
+            where = `AND o.created_at < $${params.length}`;
+        }
+        params.push(limit);
 
-            // 2. Flatten order items so we can filter by seller
-            { $unwind: '$items' },
+        const { rows } = await query(
+            `SELECT o.*,
+                    cu.id AS customer_id_j, cu.name AS customer_name, cu.email AS customer_email,
+                    (
+                        SELECT json_agg(json_build_object(
+                                   'line_no', oi.line_no,
+                                   'product', oi.product_id,
+                                   'store',   oi.store_id,
+                                   'seller',  oi.seller_id,
+                                   'name',    oi.name,
+                                   'price',   oi.price,
+                                   'quantity',oi.quantity,
+                                   'image',   oi.image
+                               ) ORDER BY oi.line_no)
+                        FROM order_items oi
+                        WHERE oi.order_id = o.id AND oi.seller_id = $1
+                    ) AS items
+             FROM orders o
+             LEFT JOIN users cu ON cu.id = o.customer_id
+             WHERE EXISTS (
+                 SELECT 1 FROM order_items oi2
+                 WHERE oi2.order_id = o.id AND oi2.seller_id = $1
+             )
+             ${where}
+             ORDER BY o.created_at DESC, o.id DESC
+             LIMIT $${params.length}`,
+            params
+        );
 
-            // 3. Join Product to get the seller reference
-            {
-                $lookup: {
-                    from: 'products',
-                    localField: 'items.product',
-                    foreignField: '_id',
-                    as: 'items._productDoc',
-                },
-            },
+        const orders = rows.map((r) => {
+            const joined = r.customer_id_j
+                ? { _id: r.customer_id_j, name: r.customer_name, email: r.customer_email }
+                : null;
+            return toOrder(r, { items: r.items ?? [], customer: joined ?? r.customer_id });
+        });
 
-            // 4. Keep only items that belong to this seller
-            {
-                $match: {
-                    'items._productDoc.seller': req.user._id,
-                },
-            },
-
-            // 5. Join the customer User document
-            {
-                $lookup: {
-                    from: 'users',
-                    localField: 'customer',
-                    foreignField: '_id',
-                    as: '_customerDoc',
-                },
-            },
-
-            // 6. Reassemble one document per order; collapse the seller's items back
-            {
-                $group: {
-                    _id: '$_id',
-                    orderNumber: { $first: '$orderNumber' },
-                    status: { $first: '$status' },
-                    paymentStatus: { $first: '$paymentStatus' },
-                    paymentMethod: { $first: '$paymentMethod' },
-                    shippingAddress: { $first: '$shippingAddress' },
-                    itemsPrice: { $first: '$itemsPrice' },
-                    shippingPrice: { $first: '$shippingPrice' },
-                    taxPrice: { $first: '$taxPrice' },
-                    totalPrice: { $first: '$totalPrice' },
-                    createdAt: { $first: '$createdAt' },
-                    deliveredAt: { $first: '$deliveredAt' },
-                    customer: { $first: { $arrayElemAt: ['$_customerDoc', 0] } },
-                    items: {
-                        $push: {
-                            product: '$items.product',
-                            name: '$items.name',
-                            price: '$items.price',
-                            quantity: '$items.quantity',
-                            image: '$items.image',
-                            store: '$items.store',
-                        },
-                    },
-                },
-            },
-
-            // 7. Clean up customer projection (hide password)
-            {
-                $project: {
-                    orderNumber: 1,
-                    status: 1,
-                    paymentStatus: 1,
-                    paymentMethod: 1,
-                    shippingAddress: 1,
-                    itemsPrice: 1,
-                    shippingPrice: 1,
-                    taxPrice: 1,
-                    totalPrice: 1,
-                    createdAt: 1,
-                    deliveredAt: 1,
-                    items: 1,
-                    'customer._id': 1,
-                    'customer.name': 1,
-                    'customer.email': 1,
-                },
-            },
-
-            { $sort: { createdAt: -1 } },
-            { $limit: limit },
-        ];
-
-        const sellerOrders = await Order.aggregate(pipeline);
-        // Return createdAt as the next cursor so the client can pass it back
         const nextCursor =
-            sellerOrders.length === limit
-                ? sellerOrders[sellerOrders.length - 1].createdAt
+            orders.length === limit
+                ? new Date(rows[rows.length - 1].created_at).toISOString()
                 : null;
 
-        this.handleSuccess(res, {
-            count: sellerOrders.length,
-            nextCursor,
-            orders: sellerOrders,
-        }, 200);
+        this.handleSuccess(res, { count: orders.length, nextCursor, orders }, 200);
     };
 
     // @desc    Get all orders (Admin)
@@ -452,42 +569,59 @@ class OrderController extends BaseController {
     getAllOrders = async (req, res) => {
         const limit = parseInt(req.query.limit, 10) || 20;
         const cursor = req.query.cursor;
-        const query = {};
 
+        const params = [];
+        let where = 'true';
         if (cursor) {
-            query._id = { $lt: cursor };
+            if (!isUuid(cursor)) {
+                return res.status(400).json({ success: false, message: 'Invalid cursor' });
+            }
+            params.push(cursor);
+            where = `o.id < $${params.length}`;
         }
+        params.push(limit);
 
-        const orders = await Order.find(query)
-            .populate('customer', 'name email')
-            .populate('items.product', 'name')
-            .sort('-createdAt')
-            .limit(limit);
+        const { rows } = await query(
+            `SELECT ${ORDERS_SELECT}
+             FROM orders o
+             LEFT JOIN users cu ON cu.id = o.customer_id
+             WHERE ${where}
+             ORDER BY o.created_at DESC, o.id DESC
+             LIMIT $${params.length}`,
+            params
+        );
 
+        const relations = await loadRelations(rows);
+        const orders = rows.map((r) => orderFromRow(r, relations));
         const nextCursor = orders.length === limit ? orders[orders.length - 1]._id : null;
 
-        this.handleSuccess(res, {
-            count: orders.length,
-            nextCursor,
-            orders,
-        }, 200);
+        this.handleSuccess(res, { count: orders.length, nextCursor, orders }, 200);
     };
 
     // @desc    Cancel order
     // @route   PUT /api/orders/:id/cancel
     // @access  Private/Customer
     cancelOrder = async (req, res) => {
-        const order = await Order.findById(req.params.id);
-
-        if (!order) {
-            return res.status(404).json({
-                success: false,
-                message: 'Order not found',
-            });
+        if (!isUuid(req.params.id)) {
+            return res.status(404).json({ success: false, message: 'Order not found' });
         }
 
+        const { rows } = await query(
+            `SELECT ${ORDERS_SELECT}
+             FROM orders o
+             LEFT JOIN users cu ON cu.id = o.customer_id
+             WHERE o.id = $1`,
+            [req.params.id]
+        );
+        if (rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Order not found' });
+        }
+
+        const relations = await loadRelations(rows);
+        const order = orderFromRow(rows[0], relations);
+
         // Ensure user is the customer who placed the order
-        if (order.customer.toString() !== req.user._id.toString()) {
+        if ((order.customer?._id ?? order.customer)?.toString() !== req.user._id.toString()) {
             return res.status(403).json({
                 success: false,
                 message: 'Not authorized to cancel this order',
@@ -502,19 +636,23 @@ class OrderController extends BaseController {
             });
         }
 
-        await Order.findByIdAndUpdate(req.params.id, { $set: { status: 'cancelled' } }, { new: true });
-        order.status = 'cancelled';
+        const { rows: updatedRows } = await query(
+            `UPDATE orders SET status = 'cancelled' WHERE id = $1 RETURNING *`,
+            [req.params.id]
+        );
+        order.status = updatedRows[0].status;
 
-        // Restore stock
-        const itemsWithProduct = order.items.filter((item) => item.product);
+        // Restore stock for items that still reference a product
+        const itemsWithProduct = (order.items ?? []).filter((i) => i.product);
         if (itemsWithProduct.length > 0) {
-            const bulkOps = itemsWithProduct.map((item) => ({
-                updateOne: {
-                    filter: { _id: item.product },
-                    update: { $inc: { stock: item.quantity } },
-                },
-            }));
-            await Product.bulkWrite(bulkOps);
+            await withTransaction(async (client) => {
+                for (const item of itemsWithProduct) {
+                    await client.query(
+                        'UPDATE products SET stock = stock + $1, updated_at = now() WHERE id = $2',
+                        [item.quantity, item.product]
+                    );
+                }
+            });
         }
 
         // Emit real-time cancellation notifications
@@ -526,16 +664,14 @@ class OrderController extends BaseController {
                 status: 'cancelled',
                 updatedAt: new Date().toISOString(),
             };
-
-            // Buyer's personal room (confirms their cancellation)
             if (order.customer) {
-                io.to(`user:${order.customer}`).emit('order:cancelled', cancelEvent);
+                io.to(`user:${order.customer._id ?? order.customer}`).emit(
+                    'order:cancelled',
+                    cancelEvent
+                );
             }
-
-            // Order tracking room (anyone watching this order)
             io.to(`order:${order._id}`).emit('order:cancelled', cancelEvent);
 
-            // Notify each seller's store room so dashboards update without polling
             const storeIds = [
                 ...new Set(itemsWithProduct.map((i) => i.store).filter(Boolean)),
             ];

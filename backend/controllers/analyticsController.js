@@ -1,10 +1,13 @@
-import Order from '../models/Order.js';
-import Product from '../models/Product.js';
+import { query } from '../db/index.js';
 import cache from '../utils/cache.js';
 import { BaseController } from './BaseController.js';
 
 const CACHE_TTL = 5 * 60; // 5 minutes
 
+/**
+ * The Mongo pipelines ($unwind + $lookup + $group) map to plain SQL joins over
+ * order_items, which now stores seller_id directly — no unwind required.
+ */
 class AnalyticsController extends BaseController {
     // ── Seller analytics ──────────────────────────────────────────────────────────
 
@@ -23,64 +26,32 @@ class AnalyticsController extends BaseController {
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - days);
 
-        // PERF: Single-query approach — $lookup resolves seller's products inside
-        // the aggregation pipeline so no preliminary Product.find() is needed.
-        const [result] = await Order.aggregate([
-            // Pre-filter by date before the expensive $unwind
-            { $match: { createdAt: { $gte: startDate } } },
-            { $unwind: '$items' },
-            // Join product to check seller ownership
-            {
-                $lookup: {
-                    from: 'products',
-                    localField: 'items.product',
-                    foreignField: '_id',
-                    as: '_product',
-                },
-            },
-            { $unwind: { path: '$_product', preserveNullAndEmptyArrays: false } },
-            // Keep only items belonging to this seller
-            { $match: { '_product.seller': sellerId } },
-            {
-                $group: {
-                    _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-                    revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
-                    orders: { $sum: 1 },
-                },
-            },
-            { $sort: { _id: 1 } },
-            {
-                $group: {
-                    _id: null,
-                    salesData: {
-                        $push: { date: '$_id', revenue: '$revenue', orders: '$orders' },
-                    },
-                    totalRevenue: { $sum: '$revenue' },
-                    totalOrders: { $sum: '$orders' },
-                },
-            },
-            {
-                $project: {
-                    _id: 0,
-                    salesData: 1,
-                    totalRevenue: 1,
-                    totalOrders: 1,
-                    averageOrderValue: {
-                        $cond: [
-                            { $gt: ['$totalOrders', 0] },
-                            { $divide: ['$totalRevenue', '$totalOrders'] },
-                            0,
-                        ],
-                    },
-                },
-            },
-        ]);
+        const { rows } = await query(
+            `SELECT to_char(o.created_at, 'YYYY-MM-DD') AS date,
+                    COALESCE(SUM(oi.price * oi.quantity), 0)::float AS revenue,
+                    COUNT(*)::int AS orders
+             FROM orders o
+             JOIN order_items oi ON oi.order_id = o.id
+             WHERE o.created_at >= $1
+               AND oi.seller_id = $2
+             GROUP BY 1
+             ORDER BY 1 ASC`,
+            [startDate, sellerId]
+        );
 
-        const analytics = result ?? {
-            totalRevenue: 0,
-            totalOrders: 0,
-            averageOrderValue: 0,
-            salesData: [],
+        const salesData = rows.map((r) => ({
+            date: r.date,
+            revenue: r.revenue,
+            orders: r.orders,
+        }));
+        const totalRevenue = salesData.reduce((sum, d) => sum + d.revenue, 0);
+        const totalOrders = salesData.reduce((sum, d) => sum + d.orders, 0);
+
+        const analytics = {
+            totalRevenue,
+            totalOrders,
+            averageOrderValue: totalOrders > 0 ? totalRevenue / totalOrders : 0,
+            salesData,
         };
         await cache.set(cacheKey, { analytics }, CACHE_TTL);
 
@@ -97,49 +68,27 @@ class AnalyticsController extends BaseController {
         const cached = await cache.get(cacheKey);
         if (cached) return this.handleSuccess(res, { analytics: cached.analytics }, 200);
 
-        // PERF: Aggregation-only — $lookup replaces the preliminary Product.find()
-        const customers = await Order.aggregate([
-            { $unwind: '$items' },
-            // Join product to determine seller ownership
-            {
-                $lookup: {
-                    from: 'products',
-                    localField: 'items.product',
-                    foreignField: '_id',
-                    as: '_product',
-                },
-            },
-            { $unwind: { path: '$_product', preserveNullAndEmptyArrays: false } },
-            { $match: { '_product.seller': sellerId } },
-            {
-                $group: {
-                    _id: '$customer',
-                    totalOrders: { $addToSet: '$_id' },
-                    totalSpent: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
-                    lastOrderDate: { $max: '$createdAt' },
-                },
-            },
-            {
-                $lookup: {
-                    from: 'users',
-                    localField: '_id',
-                    foreignField: '_id',
-                    as: 'customerInfo',
-                },
-            },
-            { $unwind: { path: '$customerInfo', preserveNullAndEmptyArrays: false } },
-            {
-                $project: {
-                    _id: 0,
-                    name: '$customerInfo.name',
-                    email: '$customerInfo.email',
-                    totalOrders: { $size: '$totalOrders' },
-                    totalSpent: 1,
-                    lastOrderDate: 1,
-                },
-            },
-            { $sort: { totalSpent: -1 } },
-        ]);
+        const { rows } = await query(
+            `SELECT u.name, u.email,
+                    COUNT(DISTINCT o.id)::int AS total_orders,
+                    COALESCE(SUM(oi.price * oi.quantity), 0)::float AS total_spent,
+                    MAX(o.created_at) AS last_order_date
+             FROM orders o
+             JOIN order_items oi ON oi.order_id = o.id
+             JOIN users u ON u.id = o.customer_id
+             WHERE oi.seller_id = $1 AND o.customer_id IS NOT NULL
+             GROUP BY u.id, u.name, u.email
+             ORDER BY total_spent DESC`,
+            [sellerId]
+        );
+
+        const customers = rows.map((r) => ({
+            name: r.name,
+            email: r.email,
+            totalOrders: r.total_orders,
+            totalSpent: r.total_spent,
+            lastOrderDate: r.last_order_date,
+        }));
 
         const totalCustomers = customers.length;
         const topCustomers = customers.slice(0, 10);
@@ -169,50 +118,39 @@ class AnalyticsController extends BaseController {
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - forecastDays);
 
-        // PERF: Fetch seller products ONCE — reuse the list for both the
-        // aggregation $match and the subsequent forecast calculation loop.
-        const products = await Product.find({ seller: sellerId }).select(
-            'name stock lowStockThreshold'
+        // Products + sales velocity in one round-trip (was Product.find + aggregate)
+        const { rows } = await query(
+            `SELECT p.name, p.stock, p.low_stock_threshold,
+                    COALESCE(sold.total_sold, 0)::int AS total_sold
+             FROM products p
+             LEFT JOIN LATERAL (
+                 SELECT SUM(oi.quantity) AS total_sold
+                 FROM order_items oi
+                 JOIN orders o ON o.id = oi.order_id
+                 WHERE oi.product_id = p.id
+                   AND oi.seller_id = $1
+                   AND o.created_at >= $2
+             ) sold ON true
+             WHERE p.seller_id = $1
+             ORDER BY p.stock ASC`,
+            [sellerId, startDate]
         );
-        const productIds = products.map((p) => p._id);
 
-        // Sales velocity per product via aggregation
-        const salesVelocity = await Order.aggregate([
-            {
-                $match: {
-                    'items.product': { $in: productIds },
-                    createdAt: { $gte: startDate },
-                },
-            },
-            { $unwind: '$items' },
-            // Filter unwound items to only this seller's products
-            { $match: { 'items.product': { $in: productIds } } },
-            {
-                $group: {
-                    _id: '$items.product',
-                    totalSold: { $sum: '$items.quantity' },
-                },
-            },
-        ]);
-
-        const velocityMap = {};
-        salesVelocity.forEach(({ _id, totalSold }) => {
-            velocityMap[_id.toString()] = totalSold;
-        });
-        const forecast = products
+        const forecast = rows
             .map((p) => {
-                const totalSold = velocityMap[p._id.toString()] || 0;
+                const totalSold = Number(p.total_sold) || 0;
                 const averageDailySales = totalSold / forecastDays;
                 const daysUntilStockout =
                     averageDailySales > 0 ? Math.floor(p.stock / averageDailySales) : Infinity;
                 return {
                     name: p.name,
                     currentStock: p.stock,
-                    lowStockThreshold: p.lowStockThreshold,
+                    lowStockThreshold: p.low_stock_threshold,
                     totalSold,
-                    averageDailySales: +averageDailySales.toFixed(2),
+                    averageDailySales: Number(averageDailySales.toFixed(2)),
                     daysUntilStockout: isFinite(daysUntilStockout) ? daysUntilStockout : null,
-                    reorderRecommended: daysUntilStockout < 14 || p.stock <= p.lowStockThreshold,
+                    reorderRecommended:
+                        daysUntilStockout < 14 || p.stock <= p.low_stock_threshold,
                 };
             })
             .sort((a, b) => (a.daysUntilStockout ?? Infinity) - (b.daysUntilStockout ?? Infinity));
@@ -231,45 +169,27 @@ class AnalyticsController extends BaseController {
         const cached = await cache.get(cacheKey);
         if (cached) return this.handleSuccess(res, { analytics: cached.analytics }, 200);
 
-        // PERF: Aggregation-only — $lookup replaces the preliminary Product.find()
-        const productPerformance = await Order.aggregate([
-            { $unwind: '$items' },
-            {
-                $lookup: {
-                    from: 'products',
-                    localField: 'items.product',
-                    foreignField: '_id',
-                    as: '_product',
-                },
-            },
-            { $unwind: { path: '$_product', preserveNullAndEmptyArrays: false } },
-            // Keep only items belonging to this seller
-            { $match: { '_product.seller': sellerId } },
-            {
-                $group: {
-                    _id: '$items.product',
-                    totalSold: { $sum: '$items.quantity' },
-                    revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
-                    // Carry product metadata through the group stage using $first
-                    name: { $first: '$_product.name' },
-                    category: { $first: '$_product.category' },
-                    price: { $first: '$_product.price' },
-                    stock: { $first: '$_product.stock' },
-                },
-            },
-            {
-                $project: {
-                    _id: 0,
-                    name: 1,
-                    category: 1,
-                    price: 1,
-                    stock: 1,
-                    totalSold: 1,
-                    revenue: 1,
-                },
-            },
-            { $sort: { revenue: -1 } },
-        ]);
+        const { rows } = await query(
+            `SELECT p.name, p.category, p.price, p.stock,
+                    COALESCE(SUM(oi.quantity), 0)::int AS total_sold,
+                    COALESCE(SUM(oi.price * oi.quantity), 0)::float AS revenue
+             FROM order_items oi
+             JOIN orders o ON o.id = oi.order_id
+             JOIN products p ON p.id = oi.product_id
+             WHERE oi.seller_id = $1
+             GROUP BY p.id, p.name, p.category, p.price, p.stock
+             ORDER BY revenue DESC`,
+            [sellerId]
+        );
+
+        const productPerformance = rows.map((r) => ({
+            name: r.name,
+            category: r.category,
+            price: r.price,
+            stock: r.stock,
+            totalSold: r.total_sold,
+            revenue: r.revenue,
+        }));
 
         const topProducts = productPerformance.slice(0, 10);
 
@@ -302,64 +222,33 @@ class AnalyticsController extends BaseController {
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - days);
 
-        const [result] = await Order.aggregate([
-            {
-                $match: {
-                    $or: [{ paymentStatus: 'completed' }, { status: 'delivered' }],
-                    createdAt: { $gte: startDate },
-                },
-            },
-            {
-                $project: {
-                    orderDate: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-                    // Platform revenue = tax + shipping + $2 fixed fee
-                    platformRevenue: {
-                        $add: [
-                            { $ifNull: ['$taxPrice', 0] },
-                            { $ifNull: ['$shippingPrice', 0] },
-                            2,
-                        ],
-                    },
-                },
-            },
-            {
-                $group: {
-                    _id: '$orderDate',
-                    revenue: { $sum: '$platformRevenue' },
-                    orders: { $sum: 1 },
-                },
-            },
-            { $sort: { _id: 1 } },
-            {
-                $group: {
-                    _id: null,
-                    salesData: { $push: { date: '$_id', revenue: '$revenue', orders: '$orders' } },
-                    totalRevenue: { $sum: '$revenue' },
-                    totalOrders: { $sum: '$orders' },
-                },
-            },
-            {
-                $project: {
-                    _id: 0,
-                    salesData: 1,
-                    totalRevenue: 1,
-                    totalOrders: 1,
-                    averageOrderValue: {
-                        $cond: [
-                            { $gt: ['$totalOrders', 0] },
-                            { $divide: ['$totalRevenue', '$totalOrders'] },
-                            0,
-                        ],
-                    },
-                },
-            },
-        ]);
+        // Platform revenue per day = tax + shipping + fixed fee (the old
+        // pipeline hardcoded +2 here; kept identical on purpose)
+        const { rows } = await query(
+            `SELECT to_char(created_at, 'YYYY-MM-DD') AS date,
+                    SUM(COALESCE(tax_price, 0) + COALESCE(shipping_price, 0) + 2)::float AS revenue,
+                    COUNT(*)::int AS orders
+             FROM orders
+             WHERE (payment_status = 'completed' OR status = 'delivered')
+               AND created_at >= $1
+             GROUP BY 1
+             ORDER BY 1 ASC`,
+            [startDate]
+        );
 
-        const analytics = result ?? {
-            totalRevenue: 0,
-            totalOrders: 0,
-            averageOrderValue: 0,
-            salesData: [],
+        const salesData = rows.map((r) => ({
+            date: r.date,
+            revenue: r.revenue,
+            orders: r.orders,
+        }));
+        const totalRevenue = salesData.reduce((sum, d) => sum + d.revenue, 0);
+        const totalOrders = salesData.reduce((sum, d) => sum + d.orders, 0);
+
+        const analytics = {
+            totalRevenue,
+            totalOrders,
+            averageOrderValue: totalOrders > 0 ? totalRevenue / totalOrders : 0,
+            salesData,
         };
         await cache.set(cacheKey, { analytics }, CACHE_TTL);
 
@@ -374,69 +263,41 @@ class AnalyticsController extends BaseController {
         const cached = await cache.get(cacheKey);
         if (cached) return this.handleSuccess(res, { analytics: cached.analytics }, 200);
 
-        const [result] = await Order.aggregate([
-            {
-                $group: {
-                    _id: '$customer',
-                    orderIds: { $addToSet: '$_id' },
-                    totalSpent: { $sum: '$totalPrice' },
-                    lastOrderDate: { $max: '$createdAt' },
-                },
-            },
-            {
-                $project: {
-                    totalSpent: 1,
-                    lastOrderDate: 1,
-                    totalOrders: { $size: '$orderIds' },
-                },
-            },
-            {
-                $facet: {
-                    topCustomers: [
-                        { $sort: { totalSpent: -1 } },
-                        { $limit: 10 },
-                        {
-                            $lookup: {
-                                from: 'users',
-                                localField: '_id',
-                                foreignField: '_id',
-                                as: 'customerInfo',
-                            },
-                        },
-                        { $unwind: { path: '$customerInfo', preserveNullAndEmptyArrays: false } },
-                        {
-                            $project: {
-                                _id: 0,
-                                name: '$customerInfo.name',
-                                email: '$customerInfo.email',
-                                totalOrders: 1,
-                                totalSpent: 1,
-                                lastOrderDate: 1,
-                            },
-                        },
-                    ],
-                    stats: [
-                        {
-                            $group: {
-                                _id: null,
-                                totalCustomers: { $sum: 1 },
-                                repeatCustomers: {
-                                    $sum: {
-                                        $cond: [{ $gt: ['$totalOrders', 1] }, 1, 0],
-                                    },
-                                },
-                            },
-                        },
-                    ],
-                },
-            },
-        ]);
+        const { rows: topRows } = await query(
+            `SELECT u.name, u.email,
+                    COUNT(o.id)::int AS total_orders,
+                    COALESCE(SUM(o.total_price), 0)::float AS total_spent,
+                    MAX(o.created_at) AS last_order_date
+             FROM orders o
+             JOIN users u ON u.id = o.customer_id
+             WHERE o.customer_id IS NOT NULL
+             GROUP BY u.id, u.name, u.email
+             ORDER BY total_spent DESC
+             LIMIT 10`
+        );
 
-        const topCustomers = result?.topCustomers || [];
-        const stats = result?.stats?.[0] || { totalCustomers: 0, repeatCustomers: 0 };
-        const totalCustomers = stats.totalCustomers;
+        const { rows: statsRows } = await query(
+            `SELECT COUNT(*)::int AS total_customers,
+                    COUNT(*) FILTER (WHERE cnt > 1)::int AS repeat_customers
+             FROM (
+                 SELECT customer_id, COUNT(*) AS cnt
+                 FROM orders
+                 WHERE customer_id IS NOT NULL
+                 GROUP BY customer_id
+             ) per_customer`
+        );
+
+        const topCustomers = topRows.map((r) => ({
+            name: r.name,
+            email: r.email,
+            totalOrders: r.total_orders,
+            totalSpent: r.total_spent,
+            lastOrderDate: r.last_order_date,
+        }));
+        const stats = statsRows[0] ?? { total_customers: 0, repeat_customers: 0 };
+        const totalCustomers = stats.total_customers;
         const repeatCustomerRate =
-            totalCustomers > 0 ? (stats.repeatCustomers / totalCustomers) * 100 : 0;
+            totalCustomers > 0 ? (stats.repeat_customers / totalCustomers) * 100 : 0;
 
         const analytics = { totalCustomers, topCustomers, repeatCustomerRate };
         await cache.set(cacheKey, { analytics }, CACHE_TTL);
@@ -452,44 +313,26 @@ class AnalyticsController extends BaseController {
         const cached = await cache.get(cacheKey);
         if (cached) return this.handleSuccess(res, { analytics: cached.analytics }, 200);
 
-        const productPerformance = await Order.aggregate([
-            // PERF: Filter completed orders BEFORE the expensive $unwind so MongoDB
-            // only processes a fraction of the collection.
-            {
-                $match: {
-                    paymentStatus: 'completed',
-                },
-            },
-            { $unwind: '$items' },
-            {
-                $group: {
-                    _id: '$items.product',
-                    totalSold: { $sum: '$items.quantity' },
-                    revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
-                },
-            },
-            {
-                $lookup: {
-                    from: 'products',
-                    localField: '_id',
-                    foreignField: '_id',
-                    as: 'product',
-                },
-            },
-            { $unwind: { path: '$product', preserveNullAndEmptyArrays: false } },
-            {
-                $project: {
-                    _id: 0,
-                    name: '$product.name',
-                    category: '$product.category',
-                    price: '$product.price',
-                    stock: '$product.stock',
-                    totalSold: 1,
-                    revenue: 1,
-                },
-            },
-            { $sort: { revenue: -1 } },
-        ]);
+        const { rows } = await query(
+            `SELECT p.name, p.category, p.price, p.stock,
+                    COALESCE(SUM(oi.quantity), 0)::int AS total_sold,
+                    COALESCE(SUM(oi.price * oi.quantity), 0)::float AS revenue
+             FROM order_items oi
+             JOIN orders o ON o.id = oi.order_id
+             JOIN products p ON p.id = oi.product_id
+             WHERE o.payment_status = 'completed'
+             GROUP BY p.id, p.name, p.category, p.price, p.stock
+             ORDER BY revenue DESC`
+        );
+
+        const productPerformance = rows.map((r) => ({
+            name: r.name,
+            category: r.category,
+            price: r.price,
+            stock: r.stock,
+            totalSold: r.total_sold,
+            revenue: r.revenue,
+        }));
 
         const topProducts = productPerformance.slice(0, 10);
         const categoryPerformance = productPerformance.reduce((acc, p) => {

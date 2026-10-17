@@ -133,7 +133,7 @@
 }
 
 .admin-search-input:focus {
-    border-color: var(--primary-color);
+    border-color: var(--primary-strong);
     box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
     outline: none;
 }
@@ -223,7 +223,7 @@
 
 .admin-price {
     font-weight: 700;
-    color: var(--primary-color);
+    color: var(--primary-strong);
     font-size: 1rem;
 }
 
@@ -325,8 +325,8 @@
 }
 
 .admin-pagination-btn:hover:not(:disabled) {
-    border-color: var(--primary-color);
-    color: var(--primary-color);
+    border-color: var(--primary-strong);
+    color: var(--primary-strong);
     transform: translateY(-2px);
 }
 
@@ -337,7 +337,7 @@
 
 .admin-pagination-btn.active {
     background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-    border-color: var(--primary-color);
+    border-color: var(--primary-strong);
     color: white;
     box-shadow: var(--shadow-sm);
 }

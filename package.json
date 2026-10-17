@@ -1,7 +1,7 @@
 {
     "name": "marketplace",
     "version": "1.0.0",
-    "description": "Full MERN Stack Marketplace Application",
+    "description": "Full-stack Marketplace Application (React + Express + PostgreSQL)",
     "main": "server.js",
     "scripts": {
         "server": "cd backend && npm run dev",
@@ -10,11 +10,9 @@
         "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install",
         "build": "cd frontend && npm install && npm run build && cd ../backend && npm install",
         "start": "cd backend && node server.js",
-        "serve": "firebase serve",
-        "deploy": "npm run build && firebase deploy",
-        "deploy:hosting": "npm run build && firebase deploy --only hosting",
-        "deploy:functions": "firebase deploy --only functions",
-        "deploy:rules": "firebase deploy --only firestore:rules",
+        "deploy:pages": "npm run build --prefix frontend && echo 'Deploy frontend/build to Cloudflare Pages (direct upload or git integration)'",
+        "migrate": "npm run migrate --prefix backend",
+        "seed": "npm run seed --prefix backend",
         "lint": "npm run lint --prefix backend && npm run lint --prefix frontend",
         "lint:fix": "npm run lint:fix --prefix backend && npm run lint:fix --prefix frontend",
         "format": "prettier --write .",
@@ -25,17 +23,14 @@
     },
     "keywords": [
         "marketplace",
-        "mern",
         "react",
-        "mongodb"
+        "postgres",
+        "cloudflare"
     ],
     "author": "",
     "license": "ISC",
     "devDependencies": {
         "concurrently": "^8.2.2",
         "prettier": "^3.5.3"
-    },
-    "dependencies": {
-        "nodemailer": "^10.0.10"
     }
 }

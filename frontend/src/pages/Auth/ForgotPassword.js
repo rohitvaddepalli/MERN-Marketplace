@@ -1,27 +1,43 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { authAPI } from '../../services/api';
+import { Link, useNavigate } from 'react-router-dom';
+import { useSignIn } from '@clerk/react';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import './ForgotPassword.css';
 
+/**
+ * Forgot password — Clerk custom flow (step 1).
+ *
+ * Starts a Clerk sign-in with the `reset_password_email_code` strategy, which
+ * emails the account holder a one-time code. Step 2 (code + new password)
+ * lives on /reset-password.
+ */
 const ForgotPassword = () => {
     const [email, setEmail] = useState('');
     const [submitted, setSubmitted] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const { signIn, isLoaded } = useSignIn();
+    const navigate = useNavigate();
     useDocumentTitle('Forgot Password');
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!isLoaded || !signIn) return;
         setLoading(true);
         setError('');
 
         try {
-            await authAPI.forgotPassword({ email });
+            await signIn.create({
+                strategy: 'reset_password_email_code',
+                identifier: email,
+            });
             setSubmitted(true);
         } catch (err) {
+            // Clerk returns user-facing messages (unknown account, rate limit, …)
             setError(
-                err.response?.data?.message || 'Failed to send reset email. Please try again.'
+                err.errors?.[0]?.message ||
+                    err.message ||
+                    'Failed to send reset email. Please try again.'
             );
         } finally {
             setLoading(false);
@@ -37,7 +53,7 @@ const ForgotPassword = () => {
                             <div className="forgot-password-header">
                                 <h1>Forgot Password?</h1>
                                 <p>
-                                    Enter your email address and we'll send you a link to reset your
+                                    Enter your email address and we'll send you a code to reset your
                                     password.
                                 </p>
                             </div>
@@ -63,7 +79,7 @@ const ForgotPassword = () => {
                                     className="btn btn-primary btn-lg btn-block"
                                     disabled={loading}
                                 >
-                                    {loading ? 'Sending...' : 'Send Reset Link'}
+                                    {loading ? 'Sending...' : 'Send Reset Code'}
                                 </button>
 
                                 <div className="forgot-password-footer">
@@ -100,15 +116,18 @@ const ForgotPassword = () => {
                             </div>
                             <h2>Check Your Email</h2>
                             <p>
-                                We've sent a password reset link to <strong>{email}</strong>
+                                We've sent a reset code to <strong>{email}</strong>
                             </p>
                             <p className="success-note">
                                 If you don't see the email, check your spam folder or try again.
                             </p>
                             <div className="success-actions">
-                                <Link to="/login" className="btn btn-primary btn-lg">
-                                    Back to Login
-                                </Link>
+                                <button
+                                    onClick={() => navigate('/reset-password')}
+                                    className="btn btn-primary btn-lg"
+                                >
+                                    Enter Reset Code
+                                </button>
                                 <button
                                     onClick={() => {
                                         setSubmitted(false);

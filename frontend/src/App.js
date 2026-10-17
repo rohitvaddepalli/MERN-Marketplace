@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthenticateWithRedirectCallback } from '@clerk/react';
 import { Toaster } from 'react-hot-toast';
 import { HelmetProvider } from 'react-helmet-async';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -79,7 +80,7 @@ const ProtectedRoute = ({ children, requireRole }) => {
     }
 
     // If a specific role is required, wait for user data to be fully loaded
-    // This prevents redirecting sellers/admins before their role is fetched from Firestore
+    // This prevents redirecting sellers/admins before their role is fetched from the API
     if (requireRole && !user?.role) {
         return (
             <div className="loading-page">
@@ -135,8 +136,19 @@ function App() {
                                                 element={<ForgotPassword />}
                                             />
                                             <Route
-                                                path="/reset-password/:token"
+                                                path="/reset-password/:token?"
                                                 element={<ResetPassword />}
+                                            />
+                                            {/* Clerk OAuth return — finishes the
+                                                authenticateWithRedirect flow started
+                                                by loginWithGoogle() */}
+                                            <Route
+                                                path="/sso-callback"
+                                                element={
+                                                    <AuthenticateWithRedirectCallback
+                                                        signInFallbackRedirectUrl="/"
+                                                    />
+                                                }
                                             />
                                             <Route path="/products" element={<Products />} />
                                             <Route

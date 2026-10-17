@@ -19,11 +19,24 @@ const api = axios.create({
     withCredentials: true,
 });
 
+// Clerk session token provider — AuthContext registers a getter that resolves
+// `useAuth().getToken()`, so every request carries a short-lived Bearer token.
+let authTokenGetter = null;
+export const setAuthTokenGetter = (getter) => {
+    authTokenGetter = getter;
+};
+
 api.interceptors.request.use(
-    (config) => {
-        const token = localStorage.getItem('access_token');
-        if (token) {
-            config.headers['Authorization'] = `Bearer ${token}`;
+    async (config) => {
+        if (authTokenGetter) {
+            try {
+                const token = await authTokenGetter();
+                if (token) {
+                    config.headers['Authorization'] = `Bearer ${token}`;
+                }
+            } catch (_e) {
+                // No active session — request goes out unauthenticated
+            }
         }
         return config;
     },
@@ -33,38 +46,29 @@ api.interceptors.request.use(
 
 // Handle response errors
 api.interceptors.response.use(
-    (response) => {
-        // If the response contains a JWT token, persist it to localStorage
-        // so the Authorization header interceptor can attach it on future requests.
-        // This handles cross-origin deployments where cookies may be blocked.
-        if (response.data?.token) {
-            localStorage.setItem('access_token', response.data.token);
-        }
-        return response;
-    },
+    (response) => response,
     (error) => {
         if (error.response?.status === 401) {
-            // Don't redirect if this is just an auth check
+            // Don't redirect if this is just an auth check — the AuthContext
+            // handles signed-out state on its own.
             if (error.config?.url?.includes('/auth/me')) {
                 return Promise.reject(error);
             }
-            // Clear stored credentials and redirect to login
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('user');
-            window.location.href = '/login';
+            // Session expired — send the user to the Clerk-backed login page
+            if (window.location.pathname !== '/login') {
+                window.location.href = '/login';
+            }
         }
         return Promise.reject(error);
     }
 );
 
 export const authAPI = {
-    register: (data) => api.post('/auth/register', data),
-    login: (data) => api.post('/auth/login', data),
-    logout: () => api.post('/auth/logout'), // NEW: Server-side logout clears HTTP-only cookie
+    // Register/login/password-reset live in Clerk now; only the local
+    // profile endpoints remain on the backend.
     getMe: () => api.get('/auth/me'),
     updateProfile: (data) => api.put('/auth/updateprofile', data),
-    forgotPassword: (data) => api.post('/auth/forgotpassword', data),
-    resetPassword: (token, data) => api.put(`/auth/resetpassword/${token}`, data),
+    logout: () => api.post('/auth/logout'),
 };
 
 // Store API
@@ -165,7 +169,7 @@ export const chatAPI = {
     getMessages: (roomId) => api.get(`/chat/${roomId}`),
 };
 
-// Upload API
+// Upload API — Cloudflare R2
 export const uploadAPI = {
     uploadImages: (formData) =>
         api.post('/upload', formData, {
@@ -173,26 +177,27 @@ export const uploadAPI = {
                 'Content-Type': 'multipart/form-data',
             },
         }),
-    getUploadSignature: () => api.get('/upload/signature'),
+    getUploadSignature: (type) => api.get('/upload/signature', { params: { type } }),
+    // Direct browser → R2 upload via a presigned PUT URL (keeps large files
+    // off the API server, same idea as the old Cloudinary direct upload).
     uploadDirect: async (file) => {
-        const sigRes = await api.get('/upload/signature');
-        const { cloudName, apiKey, signature, timestamp, folder } = sigRes.data;
-
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('api_key', apiKey);
-        formData.append('timestamp', timestamp);
-        formData.append('signature', signature);
-        formData.append('folder', folder);
-
-        const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-            method: 'POST',
-            body: formData,
+        const contentType = file.type || 'application/octet-stream';
+        const sigRes = await api.get('/upload/signature', {
+            params: { type: contentType },
         });
-        const data = await uploadRes.json();
+        const { uploadUrl, key, publicUrl } = sigRes.data;
+
+        const uploadRes = await fetch(uploadUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': contentType },
+            body: file,
+        });
+        if (!uploadRes.ok) {
+            throw new Error(`R2 upload failed (${uploadRes.status})`);
+        }
         return {
-            url: data.secure_url || data.url,
-            publicId: data.public_id,
+            url: publicUrl,
+            publicId: key,
         };
     },
 };
