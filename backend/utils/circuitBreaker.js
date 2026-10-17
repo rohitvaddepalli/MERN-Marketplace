@@ -27,7 +27,7 @@ export const handleWithBreaker = async (breaker, ...args) => {
     try {
         return await breaker.fire(...args);
     } catch (err) {
-        if (err.name === 'CircuitBreakerError' || err.name === 'OpenError') {
+        if (err.name === 'CircuitBreakerError' || err.name === 'OpenError' || err.code === 'EOPENBREAKER') {
             const serviceError = new Error(`Service ${breaker.name} is unavailable`);
             serviceError.statusCode = 503;
             serviceError.service = breaker.name;

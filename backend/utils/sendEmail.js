@@ -1,5 +1,5 @@
 import { Resend } from 'resend';
-import { createCircuitBreaker } from './circuitBreaker.js';
+import { createCircuitBreaker, handleWithBreaker } from './circuitBreaker.js';
 import logger from './logger.js';
 
 /**
@@ -29,17 +29,28 @@ const sendEmailFn = async (options) => {
         html: options.message,
     });
     if (error) {
-        throw Object.assign(new Error(error.message || 'Resend send failed'), {
-            statusCode: 503,
-        });
+        const statusCode =
+            error.statusCode ||
+            error.status ||
+            (error.name === 'validation_error' ||
+            error.name === 'invalid_parameter' ||
+            error.name === 'missing_required_field'
+                ? 400
+                : 503);
+        const err = error instanceof Error ? error : new Error(error.message || 'Resend send failed');
+        throw Object.assign(err, error, { statusCode });
     }
 };
 
-const emailBreaker = createCircuitBreaker(sendEmailFn, 'sendEmail');
+const emailBreaker = createCircuitBreaker(sendEmailFn, 'sendEmail', {
+    errorFilter: (err) =>
+        (err.statusCode && err.statusCode < 500) ||
+        err.message?.includes('RESEND_API_KEY not configured'),
+});
 
 const sendEmail = async (options) => {
     try {
-        return await emailBreaker.fire(options);
+        return await handleWithBreaker(emailBreaker, options);
     } catch (err) {
         if (err.statusCode === 503) {
             logger.warn(
@@ -51,4 +62,5 @@ const sendEmail = async (options) => {
     }
 };
 
+export { emailBreaker, sendEmailFn };
 export default sendEmail;
