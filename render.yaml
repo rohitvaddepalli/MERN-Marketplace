@@ -1,47 +1,43 @@
 services:
-  - type: web
-    name: marketplace-backend
-    runtime: node
-    region: oregon
-    plan: free
-    rootDir: backend
-    buildCommand: npm install
-    startCommand: node server.js
-    healthCheckPath: /api/health
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: PORT
-        value: 10000
-      - key: FRONTEND_URL
-        value: https://market-place01.web.app
-      - key: BACKEND_URL
-        value: https://mern-marketplace-backend-29yc.onrender.com
-      - key: GOOGLE_CALLBACK_URL
-        value: https://mern-marketplace-backend-29yc.onrender.com/api/auth/google/callback
-      - key: MONGODB_URI
-        sync: false   # set in Render Dashboard → Environment
-      - key: JWT_SECRET
-        sync: false
-      - key: JWT_EXPIRE
-        value: 30d
-      - key: SESSION_SECRET
-        sync: false
-      - key: COOKIE_SECRET
-        sync: false
-      - key: GOOGLE_CLIENT_ID
-        sync: false
-      - key: GOOGLE_CLIENT_SECRET
-        sync: false
-      - key: CLOUDINARY_CLOUD_NAME
-        sync: false
-      - key: CLOUDINARY_API_KEY
-        sync: false
-      - key: CLOUDINARY_API_SECRET
-        sync: false
-      - key: SMTP_EMAIL
-        sync: false
-      - key: SMTP_PASSWORD
-        sync: false
-      - key: SENTRY_DSN
-        sync: false
+    - type: web
+      name: marketplace-backend
+      runtime: node
+      region: oregon
+      plan: free
+      rootDir: backend
+      buildCommand: npm install
+      startCommand: node server.js
+      healthCheckPath: /api/health
+      envVars:
+          - key: NODE_ENV
+            value: production
+          - key: PORT
+            value: 10000
+          - key: FRONTEND_URL
+            sync: false
+          - key: BACKEND_URL
+            sync: false
+          - key: DATABASE_URL
+            sync: false
+          - key: CLERK_SECRET_KEY
+            sync: false
+          - key: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+            sync: false
+          - key: R2_ENDPOINT
+            sync: false
+          - key: R2_ACCESS_KEY_ID
+            sync: false
+          - key: R2_SECRET_ACCESS_KEY
+            sync: false
+          - key: R2_BUCKET
+            sync: false
+          - key: R2_PUBLIC_URL
+            sync: false
+          - key: RESEND_API_KEY
+            sync: false
+          - key: RESEND_FROM
+            sync: false
+          - key: REDIS_URL
+            sync: false
+          - key: SENTRY_DSN
+            sync: false
