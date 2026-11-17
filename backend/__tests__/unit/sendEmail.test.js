@@ -49,6 +49,20 @@ describe('sendEmail utility', () => {
         ).rejects.toThrow('RESEND_API_KEY not configured');
     });
 
+    it('should throw error in production when RESEND_FROM is missing', async () => {
+        process.env.NODE_ENV = 'production';
+        delete process.env.RESEND_FROM;
+        const { default: sendEmail } = await import('../../utils/sendEmail.js');
+
+        await expect(
+            sendEmail({
+                email: 'test@example.com',
+                subject: 'Test',
+                message: '<p>Hi</p>',
+            })
+        ).rejects.toThrow('RESEND_FROM must be configured in production');
+    });
+
     it('should send email successfully', async () => {
         mockSend.mockResolvedValueOnce({
             data: { id: 'email_123' },

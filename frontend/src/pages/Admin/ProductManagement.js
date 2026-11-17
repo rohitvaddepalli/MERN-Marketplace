@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { adminAPI } from '../../services/api';
 import AdminSidebar from '../../components/AdminSidebar/AdminSidebar';
+import AdminPagination from '../../components/Admin/AdminPagination';
 import useDocumentTitle from '../../hooks/useDocumentTitle';
 import toast from 'react-hot-toast';
 import './AdminManagement.css';
@@ -210,40 +211,11 @@ const ProductManagement = () => {
                                 </table>
                             </div>
 
-                            {pagination.totalPages > 1 && (
-                                <div className="admin-pagination">
-                                    <button
-                                        onClick={() => handlePageChange(filters.page - 1)}
-                                        disabled={filters.page === 1}
-                                        className="admin-pagination-btn"
-                                    >
-                                        Previous
-                                    </button>
-
-                                    <div className="admin-pagination-pages">
-                                        {Array.from(
-                                            { length: pagination.totalPages },
-                                            (_, i) => i + 1
-                                        ).map((page) => (
-                                            <button
-                                                key={page}
-                                                onClick={() => handlePageChange(page)}
-                                                className={`admin-pagination-btn ${filters.page === page ? 'active' : ''}`}
-                                            >
-                                                {page}
-                                            </button>
-                                        ))}
-                                    </div>
-
-                                    <button
-                                        onClick={() => handlePageChange(filters.page + 1)}
-                                        disabled={filters.page === pagination.totalPages}
-                                        className="admin-pagination-btn"
-                                    >
-                                        Next
-                                    </button>
-                                </div>
-                            )}
+                            <AdminPagination
+                                currentPage={filters.page}
+                                totalPages={pagination.totalPages}
+                                onPageChange={handlePageChange}
+                            />
                         </>
                     )}
                 </div>

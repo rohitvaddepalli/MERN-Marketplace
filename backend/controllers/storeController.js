@@ -1,4 +1,4 @@
-import { query, isUuid } from '../db/index.js';
+import { query, isUuid, createBinder } from '../db/index.js';
 import { toStore, toProduct } from '../db/mappers.js';
 import { BaseController } from './BaseController.js';
 import { sanitizeSearchInput } from '../utils/sanitize.js';
@@ -68,10 +68,7 @@ class StoreController extends BaseController {
 
         const params = [];
         const where = ['s.is_active = true'];
-        const add = (value) => {
-            params.push(value);
-            return `$${params.length}`;
-        };
+        const add = createBinder(params);
 
         if (category) where.push(`s.category = ${add(category)}`);
 

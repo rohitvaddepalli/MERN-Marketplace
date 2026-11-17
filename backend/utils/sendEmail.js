@@ -2,13 +2,6 @@ import { Resend } from 'resend';
 import { createCircuitBreaker, handleWithBreaker } from './circuitBreaker.js';
 import logger from './logger.js';
 
-/**
- * sendEmail.js — transactional email via Resend (replaces nodemailer/SMTP).
- *
- * Same options shape as before: { email, subject, message(html) }.
- * Env: RESEND_API_KEY (required), RESEND_FROM (sender, e.g.
- * "Marketplace <orders@example.com>"; defaults to Resend's test sender).
- */
 let resendClient;
 const getClient = () => {
     if (!process.env.RESEND_API_KEY) {
@@ -19,8 +12,10 @@ const getClient = () => {
 };
 
 const sendEmailFn = async (options) => {
-    const from =
-        process.env.RESEND_FROM || 'Marketplace <onboarding@resend.dev>';
+    if (process.env.NODE_ENV === 'production' && !process.env.RESEND_FROM) {
+        throw Object.assign(new Error('RESEND_FROM must be configured in production.'), { statusCode: 500 });
+    }
+    const from = process.env.RESEND_FROM || 'Marketplace <onboarding@resend.dev>';
 
     const { error } = await getClient().emails.send({
         from,
@@ -45,7 +40,8 @@ const sendEmailFn = async (options) => {
 const emailBreaker = createCircuitBreaker(sendEmailFn, 'sendEmail', {
     errorFilter: (err) =>
         (err.statusCode && err.statusCode < 500) ||
-        err.message?.includes('RESEND_API_KEY not configured'),
+        err.message?.includes('RESEND_API_KEY not configured') ||
+        err.message?.includes('RESEND_FROM must be configured'),
 });
 
 const sendEmail = async (options) => {
@@ -53,9 +49,7 @@ const sendEmail = async (options) => {
         return await handleWithBreaker(emailBreaker, options);
     } catch (err) {
         if (err.statusCode === 503) {
-            logger.warn(
-                `[Email] Service unavailable, email to ${options.email} not sent: ${err.message}`
-            );
+            logger.warn(`[Email] Service unavailable, email to ${options.email} not sent: ${err.message}`);
             return;
         }
         throw err;

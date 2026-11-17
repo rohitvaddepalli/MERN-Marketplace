@@ -1,4 +1,4 @@
-import { query, isUuid } from '../db/index.js';
+import { query, isUuid, createBinder } from '../db/index.js';
 import { toUser, toStore, toProduct, toSettings } from '../db/mappers.js';
 import { ORDERS_SELECT, loadRelations, orderFromRow } from '../services/orderService.js';
 import cache from '../utils/cache.js';
@@ -88,10 +88,7 @@ class AdminController extends BaseController {
 
         const params = [];
         const where = [];
-        const add = (value) => {
-            params.push(value);
-            return `$${params.length}`;
-        };
+        const add = createBinder(params);
 
         if (role) where.push(`role = ${add(role)}`);
 
@@ -130,10 +127,7 @@ class AdminController extends BaseController {
 
         const params = [];
         const where = [];
-        const add = (value) => {
-            params.push(value);
-            return `$${params.length}`;
-        };
+        const add = createBinder(params);
 
         if (category) where.push(`s.category = ${add(category)}`);
         if (isActive !== '') where.push(`s.is_active = ${add(isActive === 'true')}`);
@@ -180,10 +174,7 @@ class AdminController extends BaseController {
 
         const params = [];
         const where = [];
-        const add = (value) => {
-            params.push(value);
-            return `$${params.length}`;
-        };
+        const add = createBinder(params);
 
         if (category) where.push(`p.category = ${add(category)}`);
 
@@ -229,10 +220,7 @@ class AdminController extends BaseController {
 
         const params = [];
         const where = [];
-        const add = (value) => {
-            params.push(value);
-            return `$${params.length}`;
-        };
+        const add = createBinder(params);
 
         if (status) where.push(`o.status = ${add(status)}`);
         if (paymentStatus) where.push(`o.payment_status = ${add(paymentStatus)}`);

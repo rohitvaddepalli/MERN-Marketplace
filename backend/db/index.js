@@ -86,6 +86,11 @@ export const closePool = async () => {
  * cast error (500); the old Mongo code answered 404/400 for bad ObjectIds, so
  * controllers guard id params with this before touching SQL.
  */
+export const createBinder = (params = []) => (val) => {
+    params.push(val);
+    return `$${params.length}`;
+};
+
 export const isUuid = (value) =>
     typeof value === 'string' &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);

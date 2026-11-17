@@ -1,4 +1,4 @@
-import { query, withTransaction } from '../db/index.js';
+import { query, withTransaction, createBinder } from '../db/index.js';
 import { toProduct } from '../db/mappers.js';
 import cache from '../utils/cache.js';
 import { BaseController } from './BaseController.js';
@@ -135,13 +135,8 @@ class ProductController extends BaseController {
             size,
         } = req.query;
 
-        // Every bound value goes through add() so placeholder numbering can
-        // never drift from the params array.
         const params = [];
-        const add = (value) => {
-            params.push(value);
-            return `$${params.length}`;
-        };
+        const add = createBinder(params);
         const where = ['p.is_active = true'];
 
         if (category) where.push(`p.category = ${add(category)}`);
