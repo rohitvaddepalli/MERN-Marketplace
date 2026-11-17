@@ -65,11 +65,11 @@ export const getRevenueSummary = async (filter = {}, startDate) => {
     const bind = [startDate, ...params];
 
     const { rows } = await query(
-        `SELECT to_char(created_at, 'YYYY-MM-DD') AS date,
-                COALESCE(SUM(total_price), 0)::float AS revenue,
+        `SELECT to_char(o.created_at, 'YYYY-MM-DD') AS date,
+                COALESCE(SUM(o.total_price), 0)::float AS revenue,
                 COUNT(*)::int AS orders
-         FROM orders
-         WHERE created_at >= $1 AND ${whereSql}
+         FROM orders o
+         WHERE o.created_at >= $1 AND ${whereSql}
          GROUP BY 1
          ORDER BY 1 ASC`,
         bind

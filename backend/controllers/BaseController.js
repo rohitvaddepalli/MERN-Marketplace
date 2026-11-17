@@ -2,7 +2,21 @@ import * as Sentry from '@sentry/node';
 import logger from '../utils/logger.js';
 import config from '../config/unifiedConfig.js';
 
+export const pickAllowedFields = (source = {}, allowedFields = []) => {
+    const result = {};
+    for (const field of allowedFields) {
+        if (source[field] !== undefined) {
+            result[field] = source[field];
+        }
+    }
+    return result;
+};
+
 export class BaseController {
+    pickAllowedFields(source, allowedFields) {
+        return pickAllowedFields(source, allowedFields);
+    }
+
     handleSuccess(res, data = {}, status = 200) {
         return res.status(status).json({
             success: true,

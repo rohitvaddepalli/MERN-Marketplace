@@ -149,13 +149,58 @@ describe('orderService', () => {
                 customer_name: 'Alice',
                 customer_email: 'alice@example.com',
                 items: [
-                    { product: 'p1', store: 's1', seller: 'sel1', name: 'Widget', price: 50, quantity: 2 },
+                    {
+                        product: 'p1',
+                        store: 's1',
+                        seller: 'sel1',
+                        name: 'Widget',
+                        price: 50,
+                        quantity: 2,
+                    },
                 ],
             };
             const mapped = orderService.orderFromRow(row);
             expect(mapped._id).toBe('ord-123');
-            expect(mapped.customer).toEqual({ _id: 'cust-1', name: 'Alice', email: 'alice@example.com' });
+            expect(mapped.customer).toEqual({
+                _id: 'cust-1',
+                name: 'Alice',
+                email: 'alice@example.com',
+            });
             expect(mapped.items[0].product).toBe('p1');
+        });
+
+        it('should populate product object when relations are provided, with _id fallback', () => {
+            const row = {
+                id: 'ord-123',
+                order_number: 'ORD-100',
+                customer_id: 'cust-1',
+                items: [
+                    {
+                        product: 'p1',
+                        store: 's1',
+                        seller: 'sel1',
+                        name: 'Widget',
+                        price: 50,
+                        quantity: 2,
+                    },
+                ],
+            };
+            const relations = {
+                productNames: {
+                    p1: { name: 'Widget', images: [], price: 50, seller_id: 'sel1' },
+                },
+            };
+            const mapped = orderService.orderFromRow(row, relations);
+            expect(mapped.items[0].product).toEqual({
+                _id: 'p1',
+                name: 'Widget',
+                images: [],
+                price: 50,
+                seller: 'sel1',
+            });
+            // Resolves ID for stock restoration query parameter
+            const stockRestorationId = mapped.items[0].product?._id ?? mapped.items[0].product;
+            expect(stockRestorationId).toBe('p1');
         });
     });
 });

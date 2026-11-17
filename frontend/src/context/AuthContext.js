@@ -27,11 +27,7 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-    const {
-        isLoaded: clerkLoaded,
-        isSignedIn,
-        getToken,
-    } = useClerkAuth();
+    const { isLoaded: clerkLoaded, isSignedIn, getToken } = useClerkAuth();
     const { signIn, isLoaded: signInLoaded } = useSignIn();
     const { signUp, isLoaded: signUpLoaded } = useSignUp();
     const clerk = useClerk();
@@ -52,6 +48,7 @@ export const AuthProvider = ({ children }) => {
             setLoading(false);
             return;
         }
+        setLoading(true);
         try {
             const response = await authAPI.getMe();
             if (response.data.success && response.data.user) {
@@ -101,10 +98,7 @@ export const AuthProvider = ({ children }) => {
                 };
             } catch (error) {
                 logger.error('Login error:', error);
-                const message =
-                    error.errors?.[0]?.message ||
-                    error.message ||
-                    'Login failed';
+                const message = error.errors?.[0]?.message || error.message || 'Login failed';
                 return { success: false, message };
             }
         },
@@ -145,9 +139,7 @@ export const AuthProvider = ({ children }) => {
             } catch (error) {
                 logger.error('Registration error:', error);
                 const message =
-                    error.errors?.[0]?.message ||
-                    error.message ||
-                    'Registration failed';
+                    error.errors?.[0]?.message || error.message || 'Registration failed';
                 return { success: false, message };
             }
         },
@@ -205,17 +197,7 @@ export const AuthProvider = ({ children }) => {
             isCustomer: user?.role === 'customer' || !user?.role,
             isAdmin: user?.role === 'admin',
         }),
-        [
-            user,
-            loading,
-            login,
-            register,
-            loginWithGoogle,
-            logout,
-            updateUser,
-            refreshAuth,
-            getToken,
-        ]
+        [user, loading, login, register, loginWithGoogle, logout, updateUser, refreshAuth, getToken]
     );
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

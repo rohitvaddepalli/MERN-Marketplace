@@ -299,10 +299,6 @@ select {
         box-shadow var(--transition-fast);
 }
 
-.btn:hover {
-    color: inherit;
-}
-
 .btn-primary {
     background: var(--primary-btn);
     color: var(--text-white);
@@ -311,6 +307,7 @@ select {
 
 .btn-primary:hover {
     background: var(--primary-btn-hover);
+    color: var(--text-white);
 }
 
 .btn-secondary {
@@ -321,6 +318,7 @@ select {
 
 .btn-secondary:hover {
     background: var(--secondary-light);
+    color: var(--text-white);
 }
 
 .btn-outline {
@@ -545,7 +543,7 @@ select {
     background: var(--gray-lighter);
 }
 
-::webkit-scrollbar-thumb {
+::-webkit-scrollbar-thumb {
     background: var(--gray-light);
     border-radius: 5px;
 }
@@ -553,7 +551,6 @@ select {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--gray);
 }
-
 
 /* Responsive Design */
 @media (max-width: 768px) {

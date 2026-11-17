@@ -1,6 +1,4 @@
-# Cloudflare Pages response headers (ported from the old firebase.json)
-
-/
+/*
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   X-XSS-Protection: 1; mode=block
@@ -17,23 +15,5 @@
 /sitemap.xml
   Cache-Control: public, max-age=86400
 
-/*.js
-/*.css
-  Cache-Control: public, max-age=31536000, immutable
-
-/*.png
-/*.jpg
-/*.jpeg
-/*.gif
-/*.svg
-/*.ico
-/*.webp
-/*.avif
-  Cache-Control: public, max-age=31536000, immutable
-
-/*.woff
-/*.woff2
-/*.ttf
-/*.eot
-/*.otf
+/static/*
   Cache-Control: public, max-age=31536000, immutable

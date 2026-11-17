@@ -24,8 +24,10 @@ export const createPool = (connectionStrings) =>
         max: parseInt(process.env.PG_POOL_SIZE || '10', 10),
         idleTimeoutMillis: 30_000,
         connectionTimeoutMillis: 10_000,
-        // Neon requires TLS; reject unauthorized is fine with Neon's certs
-        ssl: process.env.PG_SSL === 'false' ? false : { rejectUnauthorized: false },
+        ssl:
+            process.env.PG_SSL === 'false'
+                ? false
+                : { rejectUnauthorized: process.env.PG_SSL_REJECT_UNAUTHORIZED !== 'false' },
     });
 
 export const setPool = (newPool) => {
@@ -86,10 +88,12 @@ export const closePool = async () => {
  * cast error (500); the old Mongo code answered 404/400 for bad ObjectIds, so
  * controllers guard id params with this before touching SQL.
  */
-export const createBinder = (params = []) => (val) => {
-    params.push(val);
-    return `$${params.length}`;
-};
+export const createBinder =
+    (params = []) =>
+    (val) => {
+        params.push(val);
+        return `$${params.length}`;
+    };
 
 export const isUuid = (value) =>
     typeof value === 'string' &&

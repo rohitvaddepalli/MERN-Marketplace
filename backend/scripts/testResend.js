@@ -3,16 +3,24 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// We are reading the API key from the .env file
+const recipient = process.env.TEST_EMAIL_RECIPIENT || process.argv[2];
+if (!recipient) {
+    console.error('ERROR: specify a recipient via TEST_EMAIL_RECIPIENT env var or CLI argument.');
+    process.exit(1);
+}
+
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-resend.emails.send({
-  from: 'onboarding@resend.dev',
-  to: 'ironman79809@gmail.com',
-  subject: 'Hello World',
-  html: '<p>Congrats on sending your <strong>first email</strong>!</p>'
-}).then((data) => {
-  console.log('Email sent successfully:', data);
-}).catch((error) => {
-  console.error('Error sending email:', error);
-});
+resend.emails
+    .send({
+        from: process.env.RESEND_FROM || 'Marketplace <onboarding@resend.dev>',
+        to: recipient,
+        subject: 'Hello World',
+        html: '<p>Congrats on sending your <strong>first email</strong>!</p>',
+    })
+    .then((data) => {
+        console.log('Email sent successfully:', data);
+    })
+    .catch((error) => {
+        console.error('Error sending email:', error);
+    });

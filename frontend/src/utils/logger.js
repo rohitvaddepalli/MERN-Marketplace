@@ -5,7 +5,6 @@ const logger = {
         if (!isProduction) {
             console.error(message, ...args);
         }
-        // TODO: Integrate with error reporting service (e.g., Sentry) in production
     },
     warn: (message, ...args) => {
         if (!isProduction) {

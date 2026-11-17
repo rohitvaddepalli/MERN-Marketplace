@@ -66,7 +66,7 @@ const SAMPLE_PRODUCTS = [
     },
 ];
 
-const ensureUser = async (pool, { email, name, role }) => {
+const ensureUser = async (pool, { email, name, role, clerkUserId = null }) => {
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
     if (existing.rows.length > 0) return existing.rows[0].id;
 
@@ -74,7 +74,7 @@ const ensureUser = async (pool, { email, name, role }) => {
         `INSERT INTO users (clerk_user_id, name, email, role)
          VALUES ($1, $2, $3, $4)
          RETURNING id`,
-        [process.env.CLERK_SEED_USER_ID || null, name, email, role]
+        [clerkUserId, name, email, role]
     );
     console.log(`  + ${role}: ${email}`);
     return rows[0].id;
@@ -87,12 +87,14 @@ export const seed = async (pool) => {
         email: process.env.ADMIN_EMAIL || 'admin@marketplace.dev',
         name: 'Platform Admin',
         role: 'admin',
+        clerkUserId: process.env.CLERK_ADMIN_USER_ID || process.env.CLERK_SEED_USER_ID || null,
     });
 
     const sellerId = await ensureUser(pool, {
         email: process.env.SELLER_EMAIL || 'seller@marketplace.dev',
         name: 'Demo Seller',
         role: 'seller',
+        clerkUserId: process.env.CLERK_SELLER_USER_ID || null,
     });
 
     // Seller's store (one per seller — enforced by UNIQUE(owner_id))

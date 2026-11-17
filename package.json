@@ -10,7 +10,7 @@
         "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install",
         "build": "cd frontend && npm install && npm run build && cd ../backend && npm install",
         "start": "cd backend && node server.js",
-        "deploy:pages": "npm run build --prefix frontend && echo 'Deploy frontend/build to Cloudflare Pages (direct upload or git integration)'",
+        "deploy:pages": "npm run build --prefix frontend && npx wrangler pages deploy frontend/build",
         "migrate": "npm run migrate --prefix backend",
         "seed": "npm run seed --prefix backend",
         "lint": "npm run lint --prefix backend && npm run lint --prefix frontend",

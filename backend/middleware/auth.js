@@ -19,17 +19,22 @@ const resolveLocalUser = async (clerkUserId) => {
     const clerkUser = await clerkClient.users.getUser(clerkUserId);
     // Only use an email address verified by Clerk to prevent account takeover
     const primary = clerkUser.emailAddresses?.find((e) => e.id === clerkUser.primaryEmailAddressId);
-    const verifiedObj = (primary?.verification?.status === 'verified')
-        ? primary
-        : clerkUser.emailAddresses?.find((e) => e.verification?.status === 'verified');
+    const verifiedObj =
+        primary?.verification?.status === 'verified'
+            ? primary
+            : clerkUser.emailAddresses?.find((e) => e.verification?.status === 'verified');
     const email = verifiedObj?.emailAddress;
 
     if (!email) {
-        throw Object.assign(new Error('Clerk user has no verified email address'), { statusCode: 401 });
+        throw Object.assign(new Error('Clerk user has no verified email address'), {
+            statusCode: 401,
+        });
     }
     const name = clerkUser.fullName || clerkUser.firstName || email;
+    const requestedRole = clerkUser.unsafeMetadata?.role === 'seller' ? 'seller' : 'customer';
+    const phone =
+        clerkUser.unsafeMetadata?.phone || clerkUser.phoneNumbers?.[0]?.phoneNumber || null;
 
-    // Link pre-existing account by verified email or insert new customer profile
     const linked = await query(
         `UPDATE users SET clerk_user_id = $1
          WHERE lower(email) = lower($2) AND clerk_user_id IS NULL
@@ -39,18 +44,17 @@ const resolveLocalUser = async (clerkUserId) => {
     if (linked.rows.length > 0) return linked.rows[0];
 
     const inserted = await query(
-        `INSERT INTO users (clerk_user_id, name, email, role)
-         VALUES ($1, $2, $3, 'customer')
+        `INSERT INTO users (clerk_user_id, name, email, role, phone)
+         VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT (clerk_user_id) DO NOTHING
          RETURNING id, name, email, role`,
-        [clerkUserId, name, email]
+        [clerkUserId, name, email, requestedRole, phone]
     );
     if (inserted.rows.length > 0) return inserted.rows[0];
 
-    const after = await query(
-        'SELECT id, name, email, role FROM users WHERE clerk_user_id = $1',
-        [clerkUserId]
-    );
+    const after = await query('SELECT id, name, email, role FROM users WHERE clerk_user_id = $1', [
+        clerkUserId,
+    ]);
     return after.rows[0] ?? null;
 };
 
@@ -82,7 +86,9 @@ export const protect = async (req, res, next) => {
         next();
     } catch (error) {
         if (error.statusCode === 401) {
-            return res.status(401).json({ success: false, message: 'Not authorized to access this route' });
+            return res
+                .status(401)
+                .json({ success: false, message: 'Not authorized to access this route' });
         }
         next(error);
     }

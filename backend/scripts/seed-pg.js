@@ -32,7 +32,10 @@ if (process.argv[1] && process.argv[1].endsWith('seed-pg.js')) {
     }
     const pool = new pg.Pool({
         connectionString: connection,
-        ssl: process.env.PG_SSL === 'false' ? false : { rejectUnauthorized: false },
+        ssl:
+            process.env.PG_SSL === 'false'
+                ? false
+                : { rejectUnauthorized: process.env.PG_SSL_REJECT_UNAUTHORIZED !== 'false' },
     });
     try {
         await seed(pool);

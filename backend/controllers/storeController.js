@@ -1,10 +1,8 @@
 import { query, isUuid, createBinder } from '../db/index.js';
 import { toStore, toProduct } from '../db/mappers.js';
-import { BaseController } from './BaseController.js';
+import { BaseController, pickAllowedFields } from './BaseController.js';
 import { sanitizeSearchInput } from '../utils/sanitize.js';
 
-// SECURITY: Whitelist of fields allowed for store update
-// Prevents mass assignment attacks that could modify owner, isActive, etc.
 const ALLOWED_STORE_UPDATE_FIELDS = [
     'name',
     'description',
@@ -14,16 +12,6 @@ const ALLOWED_STORE_UPDATE_FIELDS = [
     'logo',
     'banner',
 ];
-
-const pickAllowedFields = (source, allowedFields) => {
-    const result = {};
-    for (const field of allowedFields) {
-        if (source[field] !== undefined) {
-            result[field] = source[field];
-        }
-    }
-    return result;
-};
 
 class StoreController extends BaseController {
     createStore = async (req, res) => {
@@ -146,9 +134,7 @@ class StoreController extends BaseController {
             return res.status(404).json({ success: false, message: 'Store not found' });
         }
 
-        const existing = await query('SELECT owner_id FROM stores WHERE id = $1', [
-            req.params.id,
-        ]);
+        const existing = await query('SELECT owner_id FROM stores WHERE id = $1', [req.params.id]);
         if (existing.rows.length === 0) {
             return res.status(404).json({ success: false, message: 'Store not found' });
         }
@@ -164,16 +150,12 @@ class StoreController extends BaseController {
         const sets = [];
         const vals = [];
         for (const [field, value] of Object.entries(updates)) {
-            vals.push(
-                ['address', 'contact'].includes(field) ? JSON.stringify(value ?? {}) : value
-            );
+            vals.push(['address', 'contact'].includes(field) ? JSON.stringify(value ?? {}) : value);
             sets.push(`${field} = $${vals.length}`);
         }
 
         if (sets.length === 0) {
-            const { rows } = await query('SELECT * FROM stores WHERE id = $1', [
-                req.params.id,
-            ]);
+            const { rows } = await query('SELECT * FROM stores WHERE id = $1', [req.params.id]);
             return this.handleSuccess(res, { store: toStore(rows[0]) }, 200);
         }
 
@@ -190,9 +172,7 @@ class StoreController extends BaseController {
             return res.status(404).json({ success: false, message: 'Store not found' });
         }
 
-        const existing = await query('SELECT owner_id FROM stores WHERE id = $1', [
-            req.params.id,
-        ]);
+        const existing = await query('SELECT owner_id FROM stores WHERE id = $1', [req.params.id]);
         if (existing.rows.length === 0) {
             return res.status(404).json({ success: false, message: 'Store not found' });
         }
@@ -210,13 +190,9 @@ class StoreController extends BaseController {
         this.handleSuccess(res, { message: 'Store deleted successfully' }, 200);
     };
     getMyStore = async (req, res) => {
-        const { rows } = await query('SELECT * FROM stores WHERE owner_id = $1', [
-            req.user._id,
-        ]);
+        const { rows } = await query('SELECT * FROM stores WHERE owner_id = $1', [req.user._id]);
         if (rows.length === 0) {
-            return res
-                .status(404)
-                .json({ success: false, message: 'You do not have a store yet' });
+            return res.status(404).json({ success: false, message: 'You do not have a store yet' });
         }
 
         const countResult = await query(

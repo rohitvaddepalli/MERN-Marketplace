@@ -122,16 +122,36 @@ const allowedOrigins = [
     'http://localhost:3001',
     'http://localhost:5173',
     process.env.FRONTEND_URL,
-    ...(process.env.ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean),
+    ...(process.env.ALLOWED_ORIGINS || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
 ].filter(Boolean);
+
+const pagesProject =
+    process.env.CF_PAGES_PROJECT ||
+    (() => {
+        try {
+            const u = new URL(process.env.FRONTEND_URL || '');
+            const host = u.hostname;
+            if (host.endsWith('.pages.dev')) {
+                return host.replace(/\.pages\.dev$/, '');
+            }
+        } catch {
+            // ignore
+        }
+        return null;
+    })();
 
 const isOriginAllowed = (origin) => {
     if (!origin) return true;
     if (process.env.NODE_ENV !== 'production') return true;
     if (allowedOrigins.includes(origin)) return true;
-    // Cloudflare Pages preview deployments: <hash>.<project>.pages.dev
-    if (process.env.ALLOW_PAGES_PREVIEW === 'true' && /^https:\/\/[a-z0-9.-]+\.pages\.dev$/.test(origin)) {
-        return true;
+    if (process.env.ALLOW_PAGES_PREVIEW === 'true' && pagesProject) {
+        const previewRegex = new RegExp(
+            `^https:\\/\\/[a-z0-9.-]+--${pagesProject}\\.pages\\.dev$|^https:\\/\\/[a-z0-9.-]+\\.${pagesProject}\\.pages\\.dev$`
+        );
+        if (previewRegex.test(origin)) return true;
     }
     return false;
 };
@@ -152,7 +172,10 @@ if (process.env.REDIS_URL) {
         const subClient = pubClient.duplicate();
         io.adapter(createAdapter(pubClient, subClient));
     } catch (err) {
-        logger.warn({ err: err.message }, 'Redis adapter initialization failed — using in-memory adapter');
+        logger.warn(
+            { err: err.message },
+            'Redis adapter initialization failed — using in-memory adapter'
+        );
     }
 }
 
@@ -229,8 +252,12 @@ io.on('connection', (socket) => {
             if (!payload?.roomId || typeof payload.text !== 'string' || !payload.text.trim()) {
                 return socket.emit('chat:error', { message: 'Invalid message' });
             }
-            const text = payload.text.trim().slice(0, 500);
             const roomId = String(payload.roomId).slice(0, 200);
+            const parts = roomId.split('_');
+            if (parts.length !== 2 || !parts.every((p) => isUuid(p)) || !parts.includes(user._id)) {
+                return socket.emit('chat:error', { message: 'Access denied' });
+            }
+            const text = payload.text.trim().slice(0, 500);
 
             // Persist to Postgres
             const { rows } = await query(
@@ -360,8 +387,8 @@ app.use(cookieParser());
 
 // Body parser middleware
 // NOTE: Stricter per-route limits can be configured on specific routes
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 const REQUEST_TIMEOUT_MS = parseInt(process.env.REQUEST_TIMEOUT_MS || '30000', 10);
 app.use((req, res, next) => {

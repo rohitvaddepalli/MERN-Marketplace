@@ -63,15 +63,12 @@ class OrderController extends BaseController {
 
         const productIds = items.map((i) => i.product).filter(isUuid);
         if (productIds.length !== items.length) {
-            return res
-                .status(404)
-                .json({ success: false, message: 'Product not found' });
+            return res.status(404).json({ success: false, message: 'Product not found' });
         }
 
-        const productDocs = await query(
-            `SELECT * FROM products WHERE id = ANY($1::uuid[])`,
-            [productIds]
-        );
+        const productDocs = await query(`SELECT * FROM products WHERE id = ANY($1::uuid[])`, [
+            productIds,
+        ]);
         const productMap = new Map(productDocs.rows.map((p) => [p.id, p]));
 
         for (const item of items) {
@@ -142,9 +139,7 @@ class OrderController extends BaseController {
                   return { ...guestInfo, email: validator.normalizeEmail(guestInfo.email) };
               })();
         if (guest === 'missing') {
-            return res
-                .status(400)
-                .json({ success: false, message: 'Guest email is required' });
+            return res.status(400).json({ success: false, message: 'Guest email is required' });
         }
         if (guest === 'invalid') {
             return res.status(400).json({ success: false, message: 'Invalid email format' });
@@ -464,12 +459,7 @@ class OrderController extends BaseController {
             params
         );
 
-        const orders = rows.map((r) => {
-            const joined = r.customer_id_j
-                ? { _id: r.customer_id_j, name: r.customer_name, email: r.customer_email }
-                : null;
-            return toOrder(r, { items: r.items ?? [], customer: joined ?? r.customer_id });
-        });
+        const orders = rows.map((r) => orderFromRow(r));
 
         const nextCursor =
             orders.length === limit
@@ -546,9 +536,10 @@ class OrderController extends BaseController {
             );
             if (rows.length === 0) return null;
             for (const item of itemsWithProduct) {
+                const productId = item.product?._id ?? item.product;
                 await client.query(
                     'UPDATE products SET stock = stock + $1, updated_at = now() WHERE id = $2',
-                    [item.quantity, item.product]
+                    [item.quantity, productId]
                 );
             }
             return rows[0];
@@ -561,7 +552,6 @@ class OrderController extends BaseController {
         }
         order.status = 'cancelled';
 
-        // Emit real-time cancellation notifications
         const io = req.app.get('io');
         if (io) {
             const cancelEvent = {
@@ -579,7 +569,7 @@ class OrderController extends BaseController {
             io.to(`order:${order._id}`).emit('order:cancelled', cancelEvent);
 
             const storeIds = [
-                ...new Set(itemsWithProduct.map((i) => i.store).filter(Boolean)),
+                ...new Set(itemsWithProduct.map((i) => i.store?._id ?? i.store).filter(Boolean)),
             ];
             storeIds.forEach((storeId) => {
                 io.to(`store:${storeId}`).emit('order:cancelled', cancelEvent);

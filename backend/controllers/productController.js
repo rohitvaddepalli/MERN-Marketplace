@@ -1,7 +1,7 @@
-import { query, withTransaction, createBinder } from '../db/index.js';
+import { query, withTransaction, isUuid, createBinder } from '../db/index.js';
 import { toProduct } from '../db/mappers.js';
 import cache from '../utils/cache.js';
-import { BaseController } from './BaseController.js';
+import { BaseController, pickAllowedFields } from './BaseController.js';
 import { sanitizeSearchInput } from '../utils/sanitize.js';
 
 const PRODUCT_LIST_TTL = 60; // 60 seconds for filtered listings
@@ -64,18 +64,14 @@ const buildFieldSets = (source, allowedFields) => {
         const column = COLUMN_FOR_FIELD[field];
         if (!column || source[field] === undefined) continue;
         cols.push(column);
-        vals.push(source[field]);
+        let value = source[field];
+        if (JSON_FIELDS.has(column))
+            value = JSON.stringify(value ?? (column === 'variants' ? [] : {}));
+        if (ARRAY_FIELDS.has(column)) value = value ?? [];
+        vals.push(value);
         placeholders.push(`$${idx++}`);
     }
     return { cols, vals, placeholders };
-};
-
-const pickAllowedFields = (source, allowedFields) => {
-    const result = {};
-    for (const field of allowedFields) {
-        if (source[field] !== undefined) result[field] = source[field];
-    }
-    return result;
 };
 
 // Shared projection for listings: product + store/seller display info
@@ -141,7 +137,12 @@ class ProductController extends BaseController {
 
         if (category) where.push(`p.category = ${add(category)}`);
         if (subcategory) where.push(`p.subcategory = ${add(subcategory)}`);
-        if (store) where.push(`p.store_id = ${add(store)}`);
+        if (store) {
+            if (!isUuid(store)) {
+                return res.status(400).json({ success: false, message: 'Invalid store ID' });
+            }
+            where.push(`p.store_id = ${add(store)}`);
+        }
         if (brand) where.push(`p.brand = ${add(brand)}`);
 
         if (minPrice) where.push(`p.price >= ${add(Number(minPrice))}`);
@@ -221,10 +222,12 @@ class ProductController extends BaseController {
         // Cursor = the id of the last row the client already holds. Resolve its
         // sort key, then continue strictly after (sortKey, id) in ORDER BY order.
         if (cursor) {
-            const cursorRow = await query(
-                `SELECT id, ${sortColumn} FROM products WHERE id = $1`,
-                [cursor]
-            );
+            if (!isUuid(cursor)) {
+                return res.status(400).json({ success: false, message: 'Invalid cursor' });
+            }
+            const cursorRow = await query(`SELECT id, ${sortColumn} FROM products WHERE id = $1`, [
+                cursor,
+            ]);
             if (cursorRow.rows.length === 0) {
                 return res.status(400).json({ success: false, message: 'Invalid cursor' });
             }
@@ -263,8 +266,7 @@ class ProductController extends BaseController {
 
         const products = listResult.rows.map((r) => toProduct(r));
         const total = countResult.rows[0].total;
-        const nextCursor =
-            products.length === limit && cursor ? products[products.length - 1]._id : null;
+        const nextCursor = products.length === limit ? products[products.length - 1]._id : null;
 
         const payload = {
             count: products.length,
@@ -280,6 +282,10 @@ class ProductController extends BaseController {
         this.handleSuccess(res, payload, 200);
     };
     getProduct = async (req, res) => {
+        if (!isUuid(req.params.id)) {
+            return res.status(404).json({ success: false, message: 'Product not found' });
+        }
+
         const { rows } = await query(
             `SELECT p.*,
                     s.name AS store_name, s.logo AS store_logo,
@@ -310,10 +316,12 @@ class ProductController extends BaseController {
         this.handleSuccess(res, { product }, 200);
     };
     updateProduct = async (req, res) => {
+        if (!isUuid(req.params.id)) {
+            return res.status(404).json({ success: false, message: 'Product not found' });
+        }
+
         const updates = pickAllowedFields(req.body, ALLOWED_PRODUCT_FIELDS);
-        const entries = Object.entries(updates).filter(
-            ([field]) => COLUMN_FOR_FIELD[field]
-        );
+        const entries = Object.entries(updates).filter(([field]) => COLUMN_FOR_FIELD[field]);
 
         if (entries.length === 0) {
             // Nothing to update — mirror findOneAndUpdate returning the doc
@@ -362,10 +370,13 @@ class ProductController extends BaseController {
         this.handleSuccess(res, { product: toProduct(rows[0]) }, 200);
     };
     deleteProduct = async (req, res) => {
-        const { rows } = await query(
-            'SELECT seller_id FROM products WHERE id = $1',
-            [req.params.id]
-        );
+        if (!isUuid(req.params.id)) {
+            return res.status(404).json({ success: false, message: 'Product not found' });
+        }
+
+        const { rows } = await query('SELECT seller_id FROM products WHERE id = $1', [
+            req.params.id,
+        ]);
         if (rows.length === 0) {
             return res.status(404).json({ success: false, message: 'Product not found' });
         }
@@ -392,10 +403,12 @@ class ProductController extends BaseController {
         const params = [req.user._id];
 
         if (cursor) {
-            const cursorRow = await query(
-                'SELECT id, created_at FROM products WHERE id = $1',
-                [cursor]
-            );
+            if (!isUuid(cursor)) {
+                return res.status(400).json({ success: false, message: 'Invalid cursor' });
+            }
+            const cursorRow = await query('SELECT id, created_at FROM products WHERE id = $1', [
+                cursor,
+            ]);
             if (cursorRow.rows.length === 0) {
                 return res.status(400).json({ success: false, message: 'Invalid cursor' });
             }
@@ -425,10 +438,7 @@ class ProductController extends BaseController {
             sql += ` OFFSET $${listParams.length}`;
         }
 
-        const [listResult, countResult] = await Promise.all([
-            query(sql, listParams),
-            countPromise,
-        ]);
+        const [listResult, countResult] = await Promise.all([query(sql, listParams), countPromise]);
 
         const products = listResult.rows.map((r) =>
             toProduct(r, {
@@ -436,8 +446,7 @@ class ProductController extends BaseController {
             })
         );
         const total = countResult.rows[0].total;
-        const nextCursor =
-            products.length === limit && cursor ? products[products.length - 1]._id : null;
+        const nextCursor = products.length === limit ? products[products.length - 1]._id : null;
 
         this.handleSuccess(
             res,

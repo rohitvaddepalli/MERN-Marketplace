@@ -17,19 +17,19 @@ import pg from 'pg';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS_DIR = path.join(__dirname, '..', 'migrations');
 
-const connection =
-    process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL;
+const connection = process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL;
 
 if (!connection) {
-    console.error(
-        'ERROR: set DATABASE_URL (or DATABASE_URL_UNPOOLED) before running migrations.'
-    );
+    console.error('ERROR: set DATABASE_URL (or DATABASE_URL_UNPOOLED) before running migrations.');
     process.exit(1);
 }
 
 const pool = new pg.Pool({
     connectionString: connection,
-    ssl: process.env.PG_SSL === 'false' ? false : { rejectUnauthorized: false },
+    ssl:
+        process.env.PG_SSL === 'false'
+            ? false
+            : { rejectUnauthorized: process.env.PG_SSL_REJECT_UNAUTHORIZED !== 'false' },
 });
 
 const ensureMigrationsTable = async () => {

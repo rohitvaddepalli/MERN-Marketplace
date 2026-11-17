@@ -25,7 +25,7 @@ class AnalyticsController extends BaseController {
         const { rows } = await query(
             `SELECT to_char(o.created_at, 'YYYY-MM-DD') AS date,
                     COALESCE(SUM(oi.price * oi.quantity), 0)::float AS revenue,
-                    COUNT(*)::int AS orders
+                    COUNT(DISTINCT o.id)::int AS orders
              FROM orders o
              JOIN order_items oi ON oi.order_id = o.id
              WHERE o.created_at >= $1
@@ -137,8 +137,7 @@ class AnalyticsController extends BaseController {
                     totalSold,
                     averageDailySales: Number(averageDailySales.toFixed(2)),
                     daysUntilStockout: isFinite(daysUntilStockout) ? daysUntilStockout : null,
-                    reorderRecommended:
-                        daysUntilStockout < 14 || p.stock <= p.low_stock_threshold,
+                    reorderRecommended: daysUntilStockout < 14 || p.stock <= p.low_stock_threshold,
                 };
             })
             .sort((a, b) => (a.daysUntilStockout ?? Infinity) - (b.daysUntilStockout ?? Infinity));

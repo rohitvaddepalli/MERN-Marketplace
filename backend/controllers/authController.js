@@ -1,5 +1,5 @@
 import { query } from '../db/index.js';
-import { BaseController } from './BaseController.js';
+import { BaseController, pickAllowedFields } from './BaseController.js';
 
 const PUBLIC_USER_COLUMNS = `id, name, email, role, avatar, phone, address, wishlist,
                              recently_viewed, created_at`;
@@ -19,10 +19,9 @@ const toPublicUser = (row) => ({
 
 class AuthController extends BaseController {
     getMe = async (req, res) => {
-        const { rows } = await query(
-            `SELECT ${PUBLIC_USER_COLUMNS} FROM users WHERE id = $1`,
-            [req.user._id]
-        );
+        const { rows } = await query(`SELECT ${PUBLIC_USER_COLUMNS} FROM users WHERE id = $1`, [
+            req.user._id,
+        ]);
 
         if (rows.length === 0) {
             return res.status(401).json({
@@ -35,11 +34,7 @@ class AuthController extends BaseController {
     };
 
     updateProfile = async (req, res) => {
-        const allowed = ['name', 'phone', 'address'];
-        const updates = {};
-        for (const field of allowed) {
-            if (req.body[field] !== undefined) updates[field] = req.body[field];
-        }
+        const updates = pickAllowedFields(req.body, ['name', 'phone', 'address']);
         if (Object.keys(updates).length === 0) {
             return res.status(400).json({
                 success: false,
