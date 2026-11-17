@@ -14,7 +14,7 @@ export const useSocket = () => {
 const SOCKET_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 export const SocketProvider = ({ children }) => {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, getToken } = useAuth();
     const socketRef = useRef(null);
     // Expose the socket instance as reactive state so ChatBox can re-subscribe
     const [socketInstance, setSocketInstance] = useState(null);
@@ -38,10 +38,11 @@ export const SocketProvider = ({ children }) => {
             return;
         }
 
-        // Create socket — cookies are sent automatically (withCredentials)
+        // Create socket — auth token sent via handshake so the backend middleware can verify it
         const socket = io(SOCKET_URL, {
             withCredentials: true,
             transports: ['websocket', 'polling'],
+            auth: async (cb) => cb({ token: await getToken() }),
         });
 
         socketRef.current = socket;
@@ -82,7 +83,7 @@ export const SocketProvider = ({ children }) => {
             setSocketInstance(null);
             setConnected(false);
         };
-    }, [isAuthenticated, pushNotification]);
+    }, [isAuthenticated, getToken, pushNotification]);
 
     // ── Helpers exposed to consumers ───────────────────────────────────────────
 

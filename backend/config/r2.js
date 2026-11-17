@@ -14,7 +14,7 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import crypto from 'crypto';
 
-const REQUIRED = ['R2_ENDPOINT', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET'];
+const REQUIRED = ['R2_ENDPOINT', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET', 'R2_PUBLIC_URL'];
 
 export const isR2Configured = () => REQUIRED.every((k) => !!process.env[k]);
 
@@ -33,7 +33,7 @@ const getClient = () => {
     return client;
 };
 
-const EXT_BY_TYPE = {
+export const EXT_BY_TYPE = {
     'image/jpeg': 'jpg',
     'image/png': 'png',
     'image/webp': 'webp',

@@ -101,9 +101,10 @@ class OrderController extends BaseController {
             const cacheKey = `idempotency:order:${req.user._id}:${idempotencyKey}`;
             const existingOrderId = await cache.get(cacheKey);
             if (existingOrderId) {
-                const existing = await query('SELECT * FROM orders WHERE id = $1', [
-                    existingOrderId,
-                ]);
+                const existing = await query(
+                    `SELECT ${ORDERS_SELECT} FROM orders o LEFT JOIN users cu ON cu.id = o.customer_id WHERE o.id = $1`,
+                    [existingOrderId]
+                );
                 if (existing.rows.length > 0) {
                     const relations = await loadRelations([existing.rows[0]]);
                     return res.status(200).json({
@@ -302,8 +303,12 @@ class OrderController extends BaseController {
             await cache.set(cacheKey, orderRow.id, 5 * 60);
         }
 
-        const relations = await loadRelations([orderRow]);
-        const order = orderFromRow(orderRow, relations);
+        const { rows: fullRows } = await query(
+            `SELECT ${ORDERS_SELECT} FROM orders o LEFT JOIN users cu ON cu.id = o.customer_id WHERE o.id = $1`,
+            [orderRow.id]
+        );
+        const relations = await loadRelations(fullRows);
+        const order = orderFromRow(fullRows[0], relations);
 
         // Emit real-time notification to seller's store room
         const io = req.app.get('io');
@@ -628,32 +633,30 @@ class OrderController extends BaseController {
             });
         }
 
-        // Only allow cancellation if order is pending or processing
-        if (order.status !== 'pending' && order.status !== 'processing') {
+        // Only allow cancellation if order is pending or processing.
+        // Atomic update guards against concurrent cancel requests (race condition).
+        const itemsWithProduct = (order.items ?? []).filter((i) => i.product);
+        const updated = await withTransaction(async (client) => {
+            const { rows } = await client.query(
+                `UPDATE orders SET status = 'cancelled' WHERE id = $1 AND status IN ('pending', 'processing') RETURNING id`,
+                [req.params.id]
+            );
+            if (rows.length === 0) return null;
+            for (const item of itemsWithProduct) {
+                await client.query(
+                    'UPDATE products SET stock = stock + $1, updated_at = now() WHERE id = $2',
+                    [item.quantity, item.product]
+                );
+            }
+            return rows[0];
+        });
+        if (!updated) {
             return res.status(400).json({
                 success: false,
                 message: `Cannot cancel order in ${order.status} status`,
             });
         }
-
-        const { rows: updatedRows } = await query(
-            `UPDATE orders SET status = 'cancelled' WHERE id = $1 RETURNING *`,
-            [req.params.id]
-        );
-        order.status = updatedRows[0].status;
-
-        // Restore stock for items that still reference a product
-        const itemsWithProduct = (order.items ?? []).filter((i) => i.product);
-        if (itemsWithProduct.length > 0) {
-            await withTransaction(async (client) => {
-                for (const item of itemsWithProduct) {
-                    await client.query(
-                        'UPDATE products SET stock = stock + $1, updated_at = now() WHERE id = $2',
-                        [item.quantity, item.product]
-                    );
-                }
-            });
-        }
+        order.status = 'cancelled';
 
         // Emit real-time cancellation notifications
         const io = req.app.get('io');

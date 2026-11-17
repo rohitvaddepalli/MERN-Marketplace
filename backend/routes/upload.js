@@ -2,7 +2,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import multer from 'multer';
 import { protect } from '../middleware/auth.js';
-import { isR2Configured, buildObjectKey, uploadBuffer, presignPut } from '../config/r2.js';
+import { isR2Configured, buildObjectKey, uploadBuffer, presignPut, EXT_BY_TYPE } from '../config/r2.js';
 
 const router = express.Router();
 
@@ -105,9 +105,12 @@ router.post('/', protect, uploadLimiter, requireR2, upload.array('images', 5), a
 // Direct-to-R2 upload (frontend PUTs the file to uploadUrl with its own
 // Content-Type) — keeps large files off the API server, like the old
 // Cloudinary signature flow.
-router.get('/signature', protect, requireR2, async (req, res) => {
+router.get('/signature', protect, uploadLimiter, requireR2, async (req, res) => {
     try {
         const contentType = req.query.type || 'application/octet-stream';
+        if (!EXT_BY_TYPE[contentType]) {
+            return res.status(400).json({ success: false, message: 'Unsupported file type' });
+        }
         const key = buildObjectKey(contentType);
         const result = await presignPut({ key, contentType });
         res.status(200).json({ success: true, ...result });

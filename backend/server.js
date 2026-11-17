@@ -25,7 +25,7 @@ import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
 import compression from 'compression';
 import { clerkMiddleware, clerkClient } from '@clerk/express';
-import { query, closePool } from './db/index.js';
+import { query, closePool, isUuid } from './db/index.js';
 import { resolveLocalUser } from './middleware/auth.js';
 import logger from './utils/logger.js';
 
@@ -183,8 +183,19 @@ io.on('connection', (socket) => {
     }
 
     // Client requests to join an order room (buyer tracking their order)
-    socket.on('join:order', (orderId) => {
-        socket.join(`order:${orderId}`);
+    socket.on('join:order', async (orderId) => {
+        if (!orderId || typeof orderId !== 'string') return;
+        const { rows } = await query(
+            `SELECT o.customer_id, oi.seller_id
+             FROM orders o
+             LEFT JOIN order_items oi ON oi.order_id = o.id
+             WHERE o.id = $1`,
+            [orderId]
+        ).catch(() => ({ rows: [] }));
+        if (rows.length === 0) return;
+        const isCustomer = rows[0].customer_id === user._id;
+        const isSeller = rows.some((r) => r.seller_id === user._id);
+        if (isCustomer || isSeller) socket.join(`order:${orderId}`);
     });
 
     socket.on('leave:order', (orderId) => {
@@ -193,6 +204,11 @@ io.on('connection', (socket) => {
 
     // Direct chat: join a conversation room keyed by sorted user IDs
     socket.on('join:chat', (roomId) => {
+        if (!roomId || typeof roomId !== 'string') return;
+        // roomId must be two UUIDs joined by '_'; user must be one of them
+        const parts = roomId.split('_');
+        if (parts.length !== 2 || !parts.every((p) => isUuid(p))) return;
+        if (!parts.includes(user._id)) return;
         socket.join(`chat:${roomId}`);
     });
 

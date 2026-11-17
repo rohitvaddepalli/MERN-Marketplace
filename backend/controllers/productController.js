@@ -436,8 +436,8 @@ class ProductController extends BaseController {
 
         const whereSql = where.join(' AND ');
         const countPromise = query(
-            `SELECT COUNT(*)::int AS total FROM products p WHERE ${whereSql}`,
-            params.slice(0, cursor ? 2 : 1)
+            `SELECT COUNT(*)::int AS total FROM products p WHERE p.seller_id = $1`,
+            [req.user._id]
         );
 
         const listParams = [...params, limit];

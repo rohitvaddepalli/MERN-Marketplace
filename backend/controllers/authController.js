@@ -57,10 +57,6 @@ class AuthController extends BaseController {
         for (const field of allowed) {
             if (req.body[field] !== undefined) updates[field] = req.body[field];
         }
-        // Email is a display/lookup field here; changing it locally does not
-        // affect the Clerk login identity, so keep accepting it for parity.
-        if (req.body.email !== undefined) updates.email = req.body.email;
-
         if (Object.keys(updates).length === 0) {
             return res.status(400).json({
                 success: false,

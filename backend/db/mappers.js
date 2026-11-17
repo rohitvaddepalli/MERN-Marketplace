@@ -113,13 +113,13 @@ export const toProduct = (r, { store, seller, select } = {}) => {
 
 /** Order line item (already snapshotted) → API shape. */
 export const toItem = (r) => ({
-    product: r.product_id,
+    product: r.product_id ?? r.product,
     name: r.name,
     price: r.price,
     quantity: r.quantity,
     image: r.image ?? undefined,
-    store: r.store_id,
-    seller: r.seller_id,
+    store: r.store_id ?? r.store,
+    seller: r.seller_id ?? r.seller,
 });
 
 /**
@@ -145,17 +145,19 @@ export const toOrder = (r, { items = [], customer, productNames, storeNames } = 
         createdAt: iso(r.created_at),
         items: items.map((item) => {
             const shaped = toItem(item);
-            if (productNames && item.product_id && productNames[item.product_id]) {
+            if (productNames && (item.product_id ?? item.product) && productNames[item.product_id ?? item.product]) {
+                const pid = item.product_id ?? item.product;
                 shaped.product = {
-                    _id: item.product_id,
-                    name: productNames[item.product_id].name,
-                    images: productNames[item.product_id].images,
-                    price: productNames[item.product_id].price,
-                    seller: productNames[item.product_id].seller_id,
+                    _id: pid,
+                    name: productNames[pid].name,
+                    images: productNames[pid].images,
+                    price: productNames[pid].price,
+                    seller: productNames[pid].seller_id,
                 };
             }
-            if (storeNames && item.store_id && storeNames[item.store_id]) {
-                shaped.store = { _id: item.store_id, name: storeNames[item.store_id] };
+            if (storeNames && (item.store_id ?? item.store) && storeNames[item.store_id ?? item.store]) {
+                const sid = item.store_id ?? item.store;
+                shaped.store = { _id: sid, name: storeNames[sid] };
             }
             return shaped;
         }),
