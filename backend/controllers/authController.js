@@ -1,15 +1,6 @@
 import { query } from '../db/index.js';
 import { BaseController } from './BaseController.js';
 
-/**
- * authController.js
- *
- * Clerk owns credentials (sign-up, sign-in, password reset, OAuth, MFA).
- * This controller only serves the local application profile that lives in
- * Postgres: reading it (GET /me), updating display fields (PUT /updateprofile)
- * and providing a logout endpoint kept for client compatibility — the actual
- * session teardown happens client-side via Clerk's signOut().
- */
 const PUBLIC_USER_COLUMNS = `id, name, email, role, avatar, phone, address, wishlist,
                              recently_viewed, created_at`;
 
@@ -27,11 +18,7 @@ const toPublicUser = (row) => ({
 });
 
 class AuthController extends BaseController {
-    // @desc    Get current signed-in user's local profile
-    // @route   GET /api/auth/me
-    // @access  Private (Clerk session required)
     getMe = async (req, res) => {
-        // Re-fetch from DB here — this is the one route that needs fresh user data.
         const { rows } = await query(
             `SELECT ${PUBLIC_USER_COLUMNS} FROM users WHERE id = $1`,
             [req.user._id]
@@ -47,10 +34,6 @@ class AuthController extends BaseController {
         this.handleSuccess(res, { user: toPublicUser(rows[0]) }, 200);
     };
 
-    // @desc    Update user profile (display fields only — email/password
-    //          changes go through Clerk's user profile)
-    // @route   PUT /api/auth/updateprofile
-    // @access  Private
     updateProfile = async (req, res) => {
         const allowed = ['name', 'phone', 'address'];
         const updates = {};
@@ -78,10 +61,6 @@ class AuthController extends BaseController {
         this.handleSuccess(res, { user: toPublicUser(rows[0]) }, 200);
     };
 
-    // @desc    Logout — client clears the Clerk session; this endpoint remains
-    //          for backward compatibility with older clients
-    // @route   POST /api/auth/logout
-    // @access  Private
     logout = (req, res) => {
         this.handleSuccess(res, { message: 'Logged out successfully' }, 200);
     };

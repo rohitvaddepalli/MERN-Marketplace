@@ -87,9 +87,6 @@ const LIST_SELECT = `
 `;
 
 class ProductController extends BaseController {
-    // @desc    Create product
-    // @route   POST /api/products
-    // @access  Private/Seller
     createProduct = async (req, res) => {
         const storeResult = await query('SELECT id FROM stores WHERE owner_id = $1', [
             req.user._id,
@@ -124,10 +121,6 @@ class ProductController extends BaseController {
 
         this.handleSuccess(res, { product: toProduct(rows[0]) }, 201);
     };
-
-    // @desc    Get all products
-    // @route   GET /api/products
-    // @access  Public
     getProducts = async (req, res) => {
         const {
             category,
@@ -291,10 +284,6 @@ class ProductController extends BaseController {
 
         this.handleSuccess(res, payload, 200);
     };
-
-    // @desc    Get single product
-    // @route   GET /api/products/:id
-    // @access  Public
     getProduct = async (req, res) => {
         const { rows } = await query(
             `SELECT p.*,
@@ -325,10 +314,6 @@ class ProductController extends BaseController {
 
         this.handleSuccess(res, { product }, 200);
     };
-
-    // @desc    Update product
-    // @route   PUT /api/products/:id
-    // @access  Private/Seller
     updateProduct = async (req, res) => {
         const updates = pickAllowedFields(req.body, ALLOWED_PRODUCT_FIELDS);
         const entries = Object.entries(updates).filter(
@@ -381,10 +366,6 @@ class ProductController extends BaseController {
 
         this.handleSuccess(res, { product: toProduct(rows[0]) }, 200);
     };
-
-    // @desc    Delete product
-    // @route   DELETE /api/products/:id
-    // @access  Private/Seller
     deleteProduct = async (req, res) => {
         const { rows } = await query(
             'SELECT seller_id FROM products WHERE id = $1',
@@ -407,10 +388,6 @@ class ProductController extends BaseController {
 
         this.handleSuccess(res, { message: 'Product deleted successfully' }, 200);
     };
-
-    // @desc    Get seller's products
-    // @route   GET /api/products/my/products
-    // @access  Private/Seller
     getMyProducts = async (req, res) => {
         const limit = parseInt(req.query.limit, 10) || 50;
         const cursor = req.query.cursor;
@@ -480,10 +457,6 @@ class ProductController extends BaseController {
             200
         );
     };
-
-    // @desc    Get featured products
-    // @route   GET /api/products/featured
-    // @access  Public
     getFeaturedProducts = async (req, res) => {
         const cacheKey = 'products:featured';
         const hit = await cache.get(cacheKey);
@@ -504,10 +477,6 @@ class ProductController extends BaseController {
 
         this.handleSuccess(res, { products }, 200);
     };
-
-    // @desc    Get low stock products
-    // @route   GET /api/products/low-stock
-    // @access  Private/Seller
     getLowStockProducts = async (req, res) => {
         const { rows } = await query(
             `SELECT ${LIST_SELECT}
@@ -522,10 +491,6 @@ class ProductController extends BaseController {
 
         this.handleSuccess(res, { count: products.length, products }, 200);
     };
-
-    // @desc    Bulk import products
-    // @route   POST /api/products/bulk-import
-    // @access  Private/Seller
     bulkImportProducts = async (req, res) => {
         const { products } = req.body;
 
@@ -570,10 +535,6 @@ class ProductController extends BaseController {
             201
         );
     };
-
-    // @desc    Export products to CSV
-    // @route   GET /api/products/export
-    // @access  Private/Seller
     exportProducts = async (req, res) => {
         res.setHeader('Content-Type', 'text/csv');
         res.setHeader('Content-Disposition', 'attachment; filename="products.csv"');

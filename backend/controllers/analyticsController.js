@@ -10,10 +10,6 @@ const CACHE_TTL = 5 * 60; // 5 minutes
  */
 class AnalyticsController extends BaseController {
     // ── Seller analytics ──────────────────────────────────────────────────────────
-
-    // @desc    Get sales analytics
-    // @route   GET /api/analytics/sales
-    // @access  Private/Seller
     getSalesAnalytics = async (req, res) => {
         const { period = '30' } = req.query;
         const days = Math.min(parseInt(period) || 30, 365); // cap at 1 year
@@ -57,10 +53,6 @@ class AnalyticsController extends BaseController {
 
         this.handleSuccess(res, { analytics }, 200);
     };
-
-    // @desc    Get customer behavior analytics
-    // @route   GET /api/analytics/customers
-    // @access  Private/Seller
     getCustomerAnalytics = async (req, res) => {
         const sellerId = req.user._id;
         const cacheKey = `analytics:customers:${sellerId}`;
@@ -102,10 +94,6 @@ class AnalyticsController extends BaseController {
 
         this.handleSuccess(res, { analytics }, 200);
     };
-
-    // @desc    Get inventory forecasting
-    // @route   GET /api/analytics/inventory-forecast
-    // @access  Private/Seller
     getInventoryForecast = async (req, res) => {
         const { days = 30 } = req.query;
         const forecastDays = Math.min(parseInt(days) || 30, 365);
@@ -158,10 +146,6 @@ class AnalyticsController extends BaseController {
         await cache.set(cacheKey, { forecast }, CACHE_TTL);
         this.handleSuccess(res, { forecast }, 200);
     };
-
-    // @desc    Get product performance analytics
-    // @route   GET /api/analytics/products
-    // @access  Private/Seller
     getProductAnalytics = async (req, res) => {
         const sellerId = req.user._id;
         const cacheKey = `analytics:products:${sellerId}`;
@@ -207,10 +191,6 @@ class AnalyticsController extends BaseController {
     };
 
     // ── Admin analytics ───────────────────────────────────────────────────────────
-
-    // @desc    Get system-wide sales analytics (Admin)
-    // @route   GET /api/analytics/admin/sales
-    // @access  Private/Admin
     getAdminSalesAnalytics = async (req, res) => {
         const { period = '30' } = req.query;
         const days = Math.min(parseInt(period) || 30, 365);
@@ -254,10 +234,6 @@ class AnalyticsController extends BaseController {
 
         this.handleSuccess(res, { analytics }, 200);
     };
-
-    // @desc    Get system-wide customer analytics (Admin)
-    // @route   GET /api/analytics/admin/customers
-    // @access  Private/Admin
     getAdminCustomerAnalytics = async (req, res) => {
         const cacheKey = 'analytics:admin:customers';
         const cached = await cache.get(cacheKey);
@@ -304,10 +280,6 @@ class AnalyticsController extends BaseController {
 
         this.handleSuccess(res, { analytics }, 200);
     };
-
-    // @desc    Get system-wide product analytics (Admin)
-    // @route   GET /api/analytics/admin/products
-    // @access  Private/Admin
     getAdminProductAnalytics = async (req, res) => {
         const cacheKey = 'analytics:admin:products';
         const cached = await cache.get(cacheKey);

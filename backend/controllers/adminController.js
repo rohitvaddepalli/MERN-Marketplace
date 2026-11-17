@@ -1,5 +1,6 @@
 import { query, isUuid } from '../db/index.js';
-import { toUser, toStore, toProduct, toOrder, toSettings } from '../db/mappers.js';
+import { toUser, toStore, toProduct, toSettings } from '../db/mappers.js';
+import { ORDERS_SELECT, loadRelations, orderFromRow } from '../services/orderService.js';
 import cache from '../utils/cache.js';
 import { BaseController } from './BaseController.js';
 import { sanitizeSearchInput } from '../utils/sanitize.js';
@@ -9,9 +10,6 @@ const STATS_TTL = 90; // 90 s — dashboard aggregate numbers
 const LIST_TTL = 10; // 10 s — paginated admin list pages
 
 class AdminController extends BaseController {
-    // @desc    Get dashboard statistics
-    // @route   GET /api/admin/stats
-    // @access  Private/Admin
     getDashboardStats = async (req, res) => {
         // CACHE: Dashboard aggregate numbers change infrequently — safe to cache for 90 s.
         const CACHE_KEY = 'admin:stats';
@@ -39,20 +37,7 @@ class AdminController extends BaseController {
                 `SELECT * FROM users ORDER BY created_at DESC LIMIT 5`
             ),
             query(
-                `SELECT o.*, cu.name AS customer_name, cu.email AS customer_email,
-                        (
-                            SELECT json_agg(json_build_object(
-                                       'line_no', oi.line_no,
-                                       'product', oi.product_id,
-                                       'store',   oi.store_id,
-                                       'seller',  oi.seller_id,
-                                       'name',    oi.name,
-                                       'price',   oi.price,
-                                       'quantity',oi.quantity,
-                                       'image',   oi.image
-                                   ) ORDER BY oi.line_no)
-                            FROM order_items oi WHERE oi.order_id = o.id
-                        ) AS items
+                `SELECT ${ORDERS_SELECT}
                  FROM orders o LEFT JOIN users cu ON cu.id = o.customer_id
                  ORDER BY o.created_at DESC LIMIT 5`
             ),
@@ -89,23 +74,12 @@ class AdminController extends BaseController {
             customerCount: c.customer_count,
             sellerCount: c.seller_count,
             recentUsers: recentUsers.rows.map((r) => toUser(r, { lite: true })),
-            recentOrders: recentOrders.rows.map((r) =>
-                toOrder(r, {
-                    items: r.items ?? [],
-                    customer: r.customer_id
-                        ? { _id: r.customer_id, name: r.customer_name, email: r.customer_email }
-                        : null,
-                })
-            ),
+            recentOrders: recentOrders.rows.map((r) => orderFromRow(r)),
         };
 
         await cache.set(CACHE_KEY, stats, STATS_TTL);
         this.handleSuccess(res, { stats }, 200);
     };
-
-    // @desc    Get all users
-    // @route   GET /api/admin/users
-    // @access  Private/Admin
     getAllUsers = async (req, res) => {
         const { role = '', search = '', page = 1, limit = 10 } = req.query;
         const cacheKey = `admin:users:role=${role}:search=${search}:page=${page}:limit=${limit}`;
@@ -148,10 +122,6 @@ class AdminController extends BaseController {
         await cache.set(cacheKey, payload, LIST_TTL);
         this.handleSuccess(res, payload, 200);
     };
-
-    // @desc    Get all stores
-    // @route   GET /api/admin/stores
-    // @access  Private/Admin
     getAllStores = async (req, res) => {
         const { category = '', isActive = '', search = '', page = 1, limit = 10 } = req.query;
         const cacheKey = `admin:stores:cat=${category}:active=${isActive}:search=${search}:page=${page}:limit=${limit}`;
@@ -202,10 +172,6 @@ class AdminController extends BaseController {
         await cache.set(cacheKey, payload, LIST_TTL);
         this.handleSuccess(res, payload, 200);
     };
-
-    // @desc    Get all products
-    // @route   GET /api/admin/products
-    // @access  Private/Admin
     getAllProducts = async (req, res) => {
         const { category = '', search = '', page = 1, limit = 10 } = req.query;
         const cacheKey = `admin:products:cat=${category}:search=${search}:page=${page}:limit=${limit}`;
@@ -255,10 +221,6 @@ class AdminController extends BaseController {
         await cache.set(cacheKey, payload, LIST_TTL);
         this.handleSuccess(res, payload, 200);
     };
-
-    // @desc    Get all orders
-    // @route   GET /api/admin/orders
-    // @access  Private/Admin
     getAllOrders = async (req, res) => {
         const { status = '', paymentStatus = '', search = '', page = 1, limit = 10 } = req.query;
         const cacheKey = `admin:orders:status=${status}:pay=${paymentStatus}:search=${search}:page=${page}:limit=${limit}`;
@@ -288,21 +250,7 @@ class AdminController extends BaseController {
 
         const listParams = [...params, Number(limit), (Number(page) - 1) * Number(limit)];
         const { rows } = await query(
-            `SELECT o.*,
-                    cu.name AS customer_name, cu.email AS customer_email,
-                    (
-                        SELECT json_agg(json_build_object(
-                                   'line_no', oi.line_no,
-                                   'product', oi.product_id,
-                                   'store',   oi.store_id,
-                                   'seller',  oi.seller_id,
-                                   'name',    oi.name,
-                                   'price',   oi.price,
-                                   'quantity',oi.quantity,
-                                   'image',   oi.image
-                               ) ORDER BY oi.line_no)
-                        FROM order_items oi WHERE oi.order_id = o.id
-                    ) AS items
+            `SELECT ${ORDERS_SELECT}
              FROM orders o
              LEFT JOIN users cu ON cu.id = o.customer_id
              ${whereSql}
@@ -312,44 +260,11 @@ class AdminController extends BaseController {
         );
         const count = (await countPromise).rows[0].total;
 
-        // populate items.product → name (store name too, mirroring the old shape)
-        const productIds = [
-            ...new Set(rows.flatMap((r) => (r.items ?? []).map((i) => i.product)).filter(Boolean)),
-        ];
-        const storeIds = [
-            ...new Set(rows.flatMap((r) => (r.items ?? []).map((i) => i.store)).filter(Boolean)),
-        ];
-        const [productRows, storeRows] = await Promise.all([
-            productIds.length
-                ? query(
-                      `SELECT id, name, images, price, seller_id FROM products
-                       WHERE id = ANY($1::uuid[])`,
-                      [productIds]
-                  )
-                : { rows: [] },
-            storeIds.length
-                ? query(`SELECT id, name FROM stores WHERE id = ANY($1::uuid[])`, [storeIds])
-                : { rows: [] },
-        ]);
-        const productInfo = Object.fromEntries(
-            productRows.rows.map((p) => [
-                p.id,
-                { name: p.name, images: p.images, price: p.price, seller_id: p.seller_id },
-            ])
-        );
-        const storeInfo = Object.fromEntries(storeRows.rows.map((s) => [s.id, s.name]));
+        const relations = await loadRelations(rows);
+        const orders = rows.map((r) => orderFromRow(r, relations));
 
         const payload = {
-            orders: rows.map((r) =>
-                toOrder(r, {
-                    items: r.items ?? [],
-                    customer: r.customer_id
-                        ? { _id: r.customer_id, name: r.customer_name, email: r.customer_email }
-                        : null,
-                    productNames: productInfo,
-                    storeNames: storeInfo,
-                })
-            ),
+            orders,
             totalPages: Math.ceil(count / limit),
             currentPage: Number(page),
             total: count,
@@ -357,10 +272,6 @@ class AdminController extends BaseController {
         await cache.set(cacheKey, payload, LIST_TTL);
         this.handleSuccess(res, payload, 200);
     };
-
-    // @desc    Update store status (activate/deactivate)
-    // @route   PUT /api/admin/stores/:id/status
-    // @access  Private/Admin
     updateStoreStatus = async (req, res) => {
         const { isActive } = req.body;
         if (!isUuid(req.params.id)) {
@@ -389,10 +300,6 @@ class AdminController extends BaseController {
             200
         );
     };
-
-    // @desc    Verify / unverify a store
-    // @route   PUT /api/admin/stores/:id/verify
-    // @access  Private/Admin
     verifyStore = async (req, res) => {
         const { isVerified } = req.body;
         if (!isUuid(req.params.id)) {
@@ -418,10 +325,6 @@ class AdminController extends BaseController {
             200
         );
     };
-
-    // @desc    Delete user
-    // @route   DELETE /api/admin/users/:id
-    // @access  Private/Admin
     deleteUser = async (req, res) => {
         if (!isUuid(req.params.id)) {
             return res.status(404).json({ success: false, message: 'User not found' });
@@ -443,10 +346,6 @@ class AdminController extends BaseController {
 
         this.handleSuccess(res, { message: 'User deleted successfully' }, 200);
     };
-
-    // @desc    Delete store
-    // @route   DELETE /api/admin/stores/:id
-    // @access  Private/Admin
     deleteStore = async (req, res) => {
         if (!isUuid(req.params.id)) {
             return res.status(404).json({ success: false, message: 'Store not found' });
@@ -473,10 +372,6 @@ class AdminController extends BaseController {
             200
         );
     };
-
-    // @desc    Delete product
-    // @route   DELETE /api/admin/products/:id
-    // @access  Private/Admin
     deleteProduct = async (req, res) => {
         if (!isUuid(req.params.id)) {
             return res.status(404).json({ success: false, message: 'Product not found' });
@@ -493,10 +388,6 @@ class AdminController extends BaseController {
 
         this.handleSuccess(res, { message: 'Product deleted successfully' }, 200);
     };
-
-    // @desc    Delete order
-    // @route   DELETE /api/admin/orders/:id
-    // @access  Private/Admin
     deleteOrder = async (req, res) => {
         if (!isUuid(req.params.id)) {
             return res.status(404).json({ success: false, message: 'Order not found' });
@@ -511,10 +402,6 @@ class AdminController extends BaseController {
 
         this.handleSuccess(res, { message: 'Order deleted successfully' }, 200);
     };
-
-    // @desc    Get settings
-    // @route   GET /api/admin/settings
-    // @access  Private/Admin
     getSettings = async (req, res) => {
         const { rows } = await query(
             `INSERT INTO settings (id) VALUES (true)
@@ -523,10 +410,6 @@ class AdminController extends BaseController {
         );
         this.handleSuccess(res, { settings: toSettings(rows[0]) }, 200);
     };
-
-    // @desc    Update settings
-    // @route   PUT /api/admin/settings
-    // @access  Private/Admin
     updateSettings = async (req, res) => {
         const { taxRate, shippingFee, fixedFeePerOrder } = req.body;
 

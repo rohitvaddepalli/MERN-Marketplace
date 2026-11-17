@@ -144,6 +144,18 @@ const io = new SocketIOServer(httpServer, {
     },
 });
 
+if (process.env.REDIS_URL) {
+    try {
+        const { createAdapter } = await import('@socket.io/redis-adapter');
+        const { default: Redis } = await import('ioredis');
+        const pubClient = new Redis(process.env.REDIS_URL);
+        const subClient = pubClient.duplicate();
+        io.adapter(createAdapter(pubClient, subClient));
+    } catch (err) {
+        logger.warn({ err: err.message }, 'Redis adapter initialization failed — using in-memory adapter');
+    }
+}
+
 // Authenticate socket connections with a Clerk session token obtained by the
 // client via `useAuth().getToken()` (no JWT / localStorage secrets anymore).
 io.use(async (socket, next) => {

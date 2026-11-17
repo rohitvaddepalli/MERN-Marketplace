@@ -1,47 +1,17 @@
-/**
- * productService.js — business logic for product operations (Postgres).
- *
- * Controllers import from here; they never build SQL for these operations.
- * Exported names/signatures are unchanged from the Mongoose era so existing
- * unit tests and call sites keep working.
- *
- * Architecture:  Routes → Controllers → Services → (Repositories → DB)
- */
-
 import { query } from '../db/index.js';
 import { toProduct } from '../db/mappers.js';
 
-// ── Read ──────────────────────────────────────────────────────────────────────
-
-/**
- * Fetch a single product by ID (API shape, `_id`).
- * @param {string} productId
- * @returns {Promise<Object|null>}
- */
 export const getProductById = async (productId) => {
     const { rows } = await query('SELECT * FROM products WHERE id = $1', [productId]);
     return rows[0] ? toProduct(rows[0]) : null;
 };
 
-/**
- * Check whether a product belongs to a given seller.
- * @param {string} productId
- * @param {string} sellerId
- * @returns {Promise<boolean>}
- */
 export const isProductOwnedBySeller = async (productId, sellerId) => {
     const { rows } = await query('SELECT seller_id FROM products WHERE id = $1', [productId]);
     if (!rows[0]) return false;
     return rows[0].seller_id === sellerId;
 };
 
-// ── Write ─────────────────────────────────────────────────────────────────────
-
-/**
- * Create a new product.
- * @param {Object} data - API-shaped product fields
- * @returns {Promise<Object>} API-shaped product
- */
 export const createProduct = async (data) => {
     const { rows } = await query(
         `INSERT INTO products
@@ -73,15 +43,6 @@ export const createProduct = async (data) => {
     return toProduct(rows[0]);
 };
 
-/**
- * Update a product with a single UPDATE that also verifies ownership.
- * Returns null if the product does not exist or is not owned by the seller.
- *
- * @param {string} productId
- * @param {string} sellerId
- * @param {Object} updates
- * @returns {Promise<Object|null>} API-shaped product
- */
 export const updateProductBySeller = async (productId, sellerId, updates) => {
     const sets = [];
     const vals = [];
@@ -118,10 +79,6 @@ export const updateProductBySeller = async (productId, sellerId, updates) => {
     return rows[0] ? toProduct(rows[0]) : null;
 };
 
-/**
- * Soft-delete a product (set is_active = false) while verifying seller ownership.
- * @returns {Promise<Object|null>} API-shaped product
- */
 export const deactivateProductBySeller = async (productId, sellerId) => {
     const { rows } = await query(
         `UPDATE products SET is_active = false, updated_at = now()

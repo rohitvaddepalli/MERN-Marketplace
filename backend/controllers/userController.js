@@ -3,9 +3,6 @@ import { toUser, toProduct } from '../db/mappers.js';
 import { BaseController } from './BaseController.js';
 
 class UserController extends BaseController {
-    // @desc    Add product to wishlist
-    // @route   POST /api/users/wishlist/:productId
-    // @access  Private
     addToWishlist = async (req, res) => {
         const productId = req.params.productId;
         if (!isUuid(productId)) {
@@ -42,10 +39,6 @@ class UserController extends BaseController {
 
         this.handleSuccess(res, { wishlist: toUser(rows[0], { lite: true }).wishlist }, 200);
     };
-
-    // @desc    Remove product from wishlist
-    // @route   DELETE /api/users/wishlist/:productId
-    // @access  Private
     removeFromWishlist = async (req, res) => {
         const productId = req.params.productId;
         if (!isUuid(productId)) {
@@ -66,10 +59,6 @@ class UserController extends BaseController {
 
         this.handleSuccess(res, { wishlist: toUser(rows[0], { lite: true }).wishlist }, 200);
     };
-
-    // @desc    Get user wishlist
-    // @route   GET /api/users/wishlist
-    // @access  Private
     getWishlist = async (req, res) => {
         const { rows } = await query('SELECT wishlist FROM users WHERE id = $1', [
             req.user._id,
@@ -93,10 +82,6 @@ class UserController extends BaseController {
 
         this.handleSuccess(res, { wishlist }, 200);
     };
-
-    // @desc    Add to recently viewed
-    // @route   POST /api/users/recently-viewed/:productId
-    // @access  Private
     addToRecentlyViewed = async (req, res) => {
         const productId = req.params.productId;
         if (!isUuid(productId)) {
@@ -125,10 +110,6 @@ class UserController extends BaseController {
 
         this.handleSuccess(res, { recentlyViewed: rows[0].recently_viewed }, 200);
     };
-
-    // @desc    Get recently viewed
-    // @route   GET /api/users/recently-viewed
-    // @access  Private
     getRecentlyViewed = async (req, res) => {
         const { rows } = await query(
             'SELECT recently_viewed FROM users WHERE id = $1',

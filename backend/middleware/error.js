@@ -1,32 +1,24 @@
 const errorCodes = {
-    CastError: { statusCode: 404, code: 'RESOURCE_NOT_FOUND' },
-    11000: { statusCode: 400, code: 'DUPLICATE_FIELD' },
+    // Legacy / generic
+    CastError: { statusCode: 404, code: 'RESOURCE_NOT_FOUND', message: 'Resource not found' },
+    11000: { statusCode: 400, code: 'DUPLICATE_FIELD', message: 'Duplicate field value entered' },
     ValidationError: { statusCode: 400, code: 'VALIDATION_ERROR' },
     JsonWebTokenError: { statusCode: 401, code: 'INVALID_TOKEN' },
     TokenExpiredError: { statusCode: 401, code: 'TOKEN_EXPIRED' },
+    // PostgreSQL error codes
+    '23505': { statusCode: 409, code: 'DUPLICATE', message: 'A record with that value already exists' },
+    '23503': { statusCode: 400, code: 'FK_VIOLATION', message: 'Referenced record does not exist' },
+    '22P02': { statusCode: 400, code: 'INVALID_INPUT', message: 'Invalid input syntax' },
 };
 
 export const errorHandler = (err, req, res, _next) => {
-    let { statusCode, code } = errorCodes[err.name] || errorCodes[err.code] || {};
-    let message = err.message;
+    const mapped = errorCodes[err.name] || errorCodes[err.code] || {};
+    let statusCode = mapped.statusCode || err.statusCode || 500;
+    let code = mapped.code || err.code || 'SERVER_ERROR';
+    let message = mapped.message || err.message;
 
-    if (!statusCode) {
-        statusCode = err.statusCode || 500;
-        code = err.code || 'SERVER_ERROR';
-    }
-
-    if (err.name === 'ValidationError') {
-        message = Object.values(err.errors)
-            .map((val) => val.message)
-            .join(', ');
-    }
-
-    if (err.name === 'CastError') {
-        message = 'Resource not found';
-    }
-
-    if (err.code === 11000) {
-        message = 'Duplicate field value entered';
+    if (err.name === 'ValidationError' && err.errors) {
+        message = Object.values(err.errors).map((val) => val.message).join(', ');
     }
 
     const response = {

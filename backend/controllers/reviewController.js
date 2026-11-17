@@ -1,6 +1,7 @@
 import { query, isUuid } from '../db/index.js';
 import { toReview } from '../db/mappers.js';
 import { BaseController } from './BaseController.js';
+import { getProductById } from '../services/productService.js';
 
 /**
  * Recalculate a product's aggregate rating — the port of the old
@@ -23,9 +24,6 @@ const recalcProductRating = async (productId) => {
 };
 
 class ReviewController extends BaseController {
-    // @desc    Create new review
-    // @route   POST /api/products/:id/reviews
-    // @access  Private
     createReview = async (req, res) => {
         const { rating, comment, media = [] } = req.body;
         const productId = req.params.id;
@@ -34,8 +32,8 @@ class ReviewController extends BaseController {
             return res.status(404).json({ success: false, message: 'Product not found' });
         }
 
-        const product = await query('SELECT id FROM products WHERE id = $1', [productId]);
-        if (product.rows.length === 0) {
+        const product = await getProductById(productId);
+        if (!product) {
             return res.status(404).json({ success: false, message: 'Product not found' });
         }
 
@@ -95,10 +93,6 @@ class ReviewController extends BaseController {
 
         this.handleSuccess(res, { review: toReview(rows[0]) }, 201);
     };
-
-    // @desc    Get product reviews
-    // @route   GET /api/products/:id/reviews
-    // @access  Public
     getProductReviews = async (req, res) => {
         if (!isUuid(req.params.id)) {
             return this.handleSuccess(res, { count: 0, reviews: [] }, 200);
@@ -119,10 +113,6 @@ class ReviewController extends BaseController {
             200
         );
     };
-
-    // @desc    Vote a review as helpful
-    // @route   PUT /api/products/:id/reviews/:reviewId/helpful
-    // @access  Private
     markReviewHelpful = async (req, res) => {
         if (!isUuid(req.params.reviewId)) {
             return res.status(404).json({ success: false, message: 'Review not found' });

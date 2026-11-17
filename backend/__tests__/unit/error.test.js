@@ -52,6 +52,33 @@ describe('errorHandler middleware', () => {
         });
     });
 
+    // ── PostgreSQL error codes ────────────────────────────────────────────────
+    describe('PostgreSQL error codes', () => {
+        it('should return 409 for unique violation (23505)', () => {
+            const err = { code: '23505' };
+            const res = makeRes();
+            errorHandler(err, makeReq(), res, next);
+            expect(res._statusCode).toBe(409);
+            expect(res._body.code).toBe('DUPLICATE');
+        });
+
+        it('should return 400 for foreign key violation (23503)', () => {
+            const err = { code: '23503' };
+            const res = makeRes();
+            errorHandler(err, makeReq(), res, next);
+            expect(res._statusCode).toBe(400);
+            expect(res._body.code).toBe('FK_VIOLATION');
+        });
+
+        it('should return 400 for invalid text representation (22P02)', () => {
+            const err = { code: '22P02' };
+            const res = makeRes();
+            errorHandler(err, makeReq(), res, next);
+            expect(res._statusCode).toBe(400);
+            expect(res._body.code).toBe('INVALID_INPUT');
+        });
+    });
+
     // ── Mongoose duplicate key ─────────────────────────────────────────────────
     describe('Duplicate key error (code 11000)', () => {
         it('should return 400 with DUPLICATE_FIELD code', () => {

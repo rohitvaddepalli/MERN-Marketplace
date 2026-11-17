@@ -138,4 +138,24 @@ describe('orderService', () => {
             expect(result).toBeNull();
         });
     });
+
+    describe('orderFromRow', () => {
+        it('should transform joined SQL row to API format', () => {
+            const row = {
+                id: 'ord-123',
+                order_number: 'ORD-100',
+                customer_id: 'cust-1',
+                customer_id_j: 'cust-1',
+                customer_name: 'Alice',
+                customer_email: 'alice@example.com',
+                items: [
+                    { product: 'p1', store: 's1', seller: 'sel1', name: 'Widget', price: 50, quantity: 2 },
+                ],
+            };
+            const mapped = orderService.orderFromRow(row);
+            expect(mapped._id).toBe('ord-123');
+            expect(mapped.customer).toEqual({ _id: 'cust-1', name: 'Alice', email: 'alice@example.com' });
+            expect(mapped.items[0].product).toBe('p1');
+        });
+    });
 });

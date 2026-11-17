@@ -1,85 +1,17 @@
 import crypto from 'crypto';
 import validator from 'validator';
 import { query, withTransaction, isUuid } from '../db/index.js';
-import { toOrder } from '../db/mappers.js';
 import cache from '../utils/cache.js';
 import sendEmail from '../utils/sendEmail.js';
 import { BaseController } from './BaseController.js';
-
-// Orders + items with the populated fields the client expects:
-//   customer {_id,name,email}, items[].product {name,images,price,seller},
-//   items[].store {name}
-const ORDERS_SELECT = `
-    o.*,
-    cu.id   AS customer_id_j,
-    cu.name AS customer_name,
-    cu.email AS customer_email,
-    (
-        SELECT json_agg(json_build_object(
-                   'line_no', oi.line_no,
-                   'product', oi.product_id,
-                   'store',   oi.store_id,
-                   'seller',  oi.seller_id,
-                   'name',    oi.name,
-                   'price',   oi.price,
-                   'quantity',oi.quantity,
-                   'image',   oi.image
-               ) ORDER BY oi.line_no)
-        FROM order_items oi
-        WHERE oi.order_id = o.id
-    ) AS items
-`;
-
-/** Load products/stores referenced by a page of orders (the "populate" step). */
-const loadRelations = async (orders) => {
-    const productIds = [
-        ...new Set(orders.flatMap((o) => (o.items ?? []).map((i) => i.product)).filter(Boolean)),
-    ];
-    const storeIds = [
-        ...new Set(orders.flatMap((o) => (o.items ?? []).map((i) => i.store)).filter(Boolean)),
-    ];
-
-    const [products, stores] = await Promise.all([
-        productIds.length
-            ? query(
-                  `SELECT id, name, images, price, stock, seller_id
-                   FROM products WHERE id = ANY($1::uuid[])`,
-                  [productIds]
-              )
-            : { rows: [] },
-        storeIds.length
-            ? query(`SELECT id, name FROM stores WHERE id = ANY($1::uuid[])`, [storeIds])
-            : { rows: [] },
-    ]);
-
-    return {
-        productNames: Object.fromEntries(
-            products.rows.map((p) => [
-                p.id,
-                { name: p.name, images: p.images, price: p.price, seller_id: p.seller_id },
-            ])
-        ),
-        storeNames: Object.fromEntries(stores.rows.map((s) => [s.id, s.name])),
-    };
-};
-
-const orderFromRow = (r, relations = {}) => {
-    const joined = r.customer_id_j
-        ? { _id: r.customer_id_j, name: r.customer_name, email: r.customer_email }
-        : null;
-    return toOrder(r, {
-        items: r.items ?? [],
-        // populated customer object when we joined one, else the raw id (guest)
-        customer: joined ?? r.customer_id,
-        productNames: relations.productNames,
-        storeNames: relations.storeNames,
-    });
-};
+import {
+    ORDERS_SELECT,
+    loadRelations,
+    orderFromRow,
+    getBulkDiscountPercentage,
+} from '../services/orderService.js';
 
 class OrderController extends BaseController {
-    // @desc    Create new order
-    // @route   POST /api/orders
-    // @access  Private/Customer
     createOrder = async (req, res) => {
         const {
             items,
@@ -157,15 +89,10 @@ class OrderController extends BaseController {
                 });
             }
 
-            // SECURITY: Compute line price from server-side price with bulk discounts
             let price = product.price;
-            const bulkDiscounts = product.bulk_discounts ?? [];
-            if (bulkDiscounts.length > 0) {
-                const sorted = [...bulkDiscounts].sort((a, b) => b.quantity - a.quantity);
-                const applicable = sorted.find((d) => item.quantity >= d.quantity);
-                if (applicable) {
-                    price = price * (1 - applicable.discountPercentage / 100);
-                }
+            const discount = getBulkDiscountPercentage(product, item.quantity);
+            if (discount > 0) {
+                price = price * (1 - discount / 100);
             }
 
             serverItemsPrice += price * item.quantity;
@@ -343,10 +270,6 @@ class OrderController extends BaseController {
 
         this.handleSuccess(res, { order }, 201);
     };
-
-    // @desc    Get logged in user orders
-    // @route   GET /api/orders/myorders
-    // @access  Private/Customer
     getMyOrders = async (req, res) => {
         const limit = parseInt(req.query.limit, 10) || 20;
         const cursor = req.query.cursor;
@@ -378,10 +301,6 @@ class OrderController extends BaseController {
 
         this.handleSuccess(res, { count: orders.length, nextCursor, orders }, 200);
     };
-
-    // @desc    Get single order
-    // @route   GET /api/orders/:id
-    // @access  Private
     getOrder = async (req, res) => {
         if (!isUuid(req.params.id)) {
             return res.status(404).json({ success: false, message: 'Order not found' });
@@ -423,10 +342,6 @@ class OrderController extends BaseController {
 
         this.handleSuccess(res, { order }, 200);
     };
-
-    // @desc    Update order status
-    // @route   PUT /api/orders/:id/status
-    // @access  Private/Seller
     updateOrderStatus = async (req, res) => {
         const { status } = req.body;
 
@@ -497,10 +412,6 @@ class OrderController extends BaseController {
 
         this.handleSuccess(res, { order }, 200);
     };
-
-    // @desc    Get seller orders
-    // @route   GET /api/orders/seller/orders
-    // @access  Private/Seller
     //
     // The old Mongo pipeline ($unwind → $lookup → $match → $group) becomes a
     // join against order_items (which stores seller_id directly) plus a
@@ -567,10 +478,6 @@ class OrderController extends BaseController {
 
         this.handleSuccess(res, { count: orders.length, nextCursor, orders }, 200);
     };
-
-    // @desc    Get all orders (Admin)
-    // @route   GET /api/orders
-    // @access  Private/Admin
     getAllOrders = async (req, res) => {
         const limit = parseInt(req.query.limit, 10) || 20;
         const cursor = req.query.cursor;
@@ -602,10 +509,6 @@ class OrderController extends BaseController {
 
         this.handleSuccess(res, { count: orders.length, nextCursor, orders }, 200);
     };
-
-    // @desc    Cancel order
-    // @route   PUT /api/orders/:id/cancel
-    // @access  Private/Customer
     cancelOrder = async (req, res) => {
         if (!isUuid(req.params.id)) {
             return res.status(404).json({ success: false, message: 'Order not found' });

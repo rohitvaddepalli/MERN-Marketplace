@@ -26,9 +26,6 @@ const pickAllowedFields = (source, allowedFields) => {
 };
 
 class StoreController extends BaseController {
-    // @desc    Create store
-    // @route   POST /api/stores
-    // @access  Private/Seller
     createStore = async (req, res) => {
         const { name, description, category, address, contact, logo, banner } = req.body;
 
@@ -63,10 +60,6 @@ class StoreController extends BaseController {
 
         this.handleSuccess(res, { store: toStore(rows[0]) }, 201);
     };
-
-    // @desc    Get all stores
-    // @route   GET /api/stores
-    // @access  Public
     getStores = async (req, res) => {
         const { category, search } = req.query;
         const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
@@ -116,10 +109,6 @@ class StoreController extends BaseController {
             200
         );
     };
-
-    // @desc    Get single store
-    // @route   GET /api/stores/:id
-    // @access  Public
     getStore = async (req, res) => {
         if (!isUuid(req.params.id)) {
             return res.status(404).json({ success: false, message: 'Store not found' });
@@ -155,10 +144,6 @@ class StoreController extends BaseController {
             200
         );
     };
-
-    // @desc    Update store
-    // @route   PUT /api/stores/:id
-    // @access  Private/Seller
     updateStore = async (req, res) => {
         if (!isUuid(req.params.id)) {
             return res.status(404).json({ success: false, message: 'Store not found' });
@@ -203,10 +188,6 @@ class StoreController extends BaseController {
 
         this.handleSuccess(res, { store: toStore(rows[0]) }, 200);
     };
-
-    // @desc    Delete store
-    // @route   DELETE /api/stores/:id
-    // @access  Private/Seller
     deleteStore = async (req, res) => {
         if (!isUuid(req.params.id)) {
             return res.status(404).json({ success: false, message: 'Store not found' });
@@ -231,10 +212,6 @@ class StoreController extends BaseController {
 
         this.handleSuccess(res, { message: 'Store deleted successfully' }, 200);
     };
-
-    // @desc    Get seller's store
-    // @route   GET /api/stores/my/store
-    // @access  Private/Seller
     getMyStore = async (req, res) => {
         const { rows } = await query('SELECT * FROM stores WHERE owner_id = $1', [
             req.user._id,
